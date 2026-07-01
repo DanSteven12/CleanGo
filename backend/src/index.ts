@@ -8,9 +8,9 @@ import asignacionesRouter from './routes/asignaciones';
 import crearRutaRouter from './routes/crearRuta';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
-app.use(cors({ origin: '*'})); // adjust origin as needed
+app.use(cors({ origin: 'http://localhost:5173' })); // adjust origin as needed
 app.use(express.json());
 
 app.use('/api/rutas', rutasRouter);
@@ -20,7 +20,16 @@ app.use('/api/routes', routeCheckpointsRouter);
 app.use('/api/asignaciones', asignacionesRouter);
 app.use('/api/crear-ruta', crearRutaRouter);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);
+});
+
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Puerto ${PORT} ya está en uso. Cerrando para permitir reinicio limpio...`);
+    process.exit(1);
+  } else {
+    throw err;
+  }
 });
 

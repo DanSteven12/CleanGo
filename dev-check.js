@@ -9,7 +9,7 @@ function validateModule(name, pkgPath) {
     console.error(`Error: The module '${name}' is missing the package.json file at: ${pkgPath}`);
     return false;
   }
-  
+
   try {
     const content = fs.readFileSync(pkgPath, 'utf8');
     const pkg = JSON.parse(content);
@@ -21,7 +21,7 @@ function validateModule(name, pkgPath) {
     console.error(`Error: The module '${name}' package.json is invalid JSON. Details: ${err.message}`);
     return false;
   }
-  
+
   return true;
 }
 
@@ -29,30 +29,9 @@ const isFrontendValid = validateModule('frontend', frontendPkgPath);
 const isBackendValid = validateModule('backend', backendPkgPath);
 
 if (!isFrontendValid || !isBackendValid) {
-  console.error('\nInitialization aborted: Both frontend and backend modules must exist and contain a valid package.json with a "dev" script.');
+  console.error('\nValidation failed: One or more modules are missing or invalid.');
   process.exit(1);
 }
 
-console.log('Validation successful! Starting frontend and backend dev servers...');
-
-try {
-  const concurrently = require('concurrently');
-  const { result } = concurrently([
-    { command: 'npm --prefix frontend run dev', name: 'frontend', prefixColor: 'cyan' },
-    { command: 'npm --prefix backend run dev', name: 'backend', prefixColor: 'magenta' }
-  ], {
-    killOthers: ['failure', 'success'],
-    restartTries: 0,
-  });
-  
-  result.then(
-    () => process.exit(0),
-    (err) => {
-      console.error('Concurrently processes exited.', err);
-      process.exit(1);
-    }
-  );
-} catch (err) {
-  console.error('Failed to load concurrently. Please ensure "npm install" has been run at the workspace root.');
-  process.exit(1);
-}
+console.log('Validation successful! Both frontend and backend modules are configured correctly.');
+process.exit(0);

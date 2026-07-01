@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "license": "MIT",
   "scripts": {
-    "dev": "ts-node-dev --transpile-only src/index.ts",
+    "dev": "ts-node-dev --transpile-only --exit-child --debounce 500 src/index.ts",
     "start": "node dist/index.js",
     "build": "tsc"
   },
