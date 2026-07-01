@@ -11,22 +11,23 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies
+# Dependencies (Ignora node_modules en la raíz y en cualquier subcarpeta)
 node_modules
-frontend/node_modules
-backend/node_modules
+**/node_modules
 
-# Build outputs
+# Build outputs (Ignora dist en la raíz y en cualquier subcarpeta)
 dist
 dist-ssr
-frontend/dist
-backend/dist
+**/dist
 
 # Environment files — keep .env.example, ignore real secrets
 *.local
 .env
-frontend/.env
-backend/.env
+**/ .env
+
+# Database backups / Local dumps (Evita subir datos locales pesados)
+*.sql
+*.sqlite
 
 # Editor directories and files
 .vscode/*

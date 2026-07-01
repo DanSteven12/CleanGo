@@ -1,10 +1,14 @@
 import React from 'react';
 
+type Module = 'gestion-rutas' | 'asignacion-rutas';
+
 interface MainLayoutProps {
   children: React.ReactNode;
+  activeModule: Module;
+  onNavigate: (module: Module) => void;
 }
 
-export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+export const MainLayout: React.FC<MainLayoutProps> = ({ children, activeModule, onNavigate }) => {
   return (
     <div
       style={{
@@ -31,6 +35,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           zIndex: 100,
         }}
       >
+        {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span
             style={{
@@ -62,63 +67,26 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </span>
         </div>
 
-        {/* Desktop Nav Links */}
-        <nav style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <a
-            href="#dashboard"
-            style={{
-              fontSize: '14px',
-              fontWeight: '500',
-              color: 'var(--text)',
-              textDecoration: 'none',
-              transition: 'color 0.2s',
-            }}
-          >
-            Dashboard
-          </a>
-          <a
-            href="#routes"
-            style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              color: 'var(--accent)',
-              textDecoration: 'none',
-            }}
-          >
-            Route Optimizer
-          </a>
-          <a
-            href="#jobs"
-            style={{
-              fontSize: '14px',
-              fontWeight: '500',
-              color: 'var(--text)',
-              textDecoration: 'none',
-              transition: 'color 0.2s',
-            }}
-          >
-            Cleaning Jobs
-          </a>
-          <a
-            href="#settings"
-            style={{
-              fontSize: '14px',
-              fontWeight: '500',
-              color: 'var(--text)',
-              textDecoration: 'none',
-              transition: 'color 0.2s',
-            }}
-          >
-            Settings
-          </a>
+        {/* Navigation */}
+        <nav style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <NavButton
+            id="nav-gestion-rutas"
+            label="Gestión de Rutas"
+            icon="🗺️"
+            active={activeModule === 'gestion-rutas'}
+            onClick={() => onNavigate('gestion-rutas')}
+          />
+          <NavButton
+            id="nav-asignacion-rutas"
+            label="Asignación de Rutas"
+            icon="📋"
+            active={activeModule === 'asignacion-rutas'}
+            onClick={() => onNavigate('asignacion-rutas')}
+          />
         </nav>
 
-        {/* User Profile Info */}
+        {/* User avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ textAlign: 'right', display: 'none' /* hidden on mobile */ }}>
-            <div style={{ fontSize: '13px', fontWeight: '600' }}>Operator Team</div>
-            <div style={{ fontSize: '11px', color: 'var(--text)' }}>Austin South</div>
-          </div>
           <div
             style={{
               width: '36px',
@@ -134,15 +102,99 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               color: 'var(--accent)',
             }}
           >
-            TX
+            Adm
           </div>
         </div>
       </header>
 
-      {/* Main Page Area */}
+      {/* Page title bar */}
+      <div
+        style={{
+          padding: '0.75rem 1.5rem',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--panel-bg)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.6rem',
+        }}
+      >
+        <span style={{ fontSize: '1rem' }}>
+          {activeModule === 'gestion-rutas' ? '🗺️' : '📋'}
+        </span>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: '1rem',
+            fontWeight: 700,
+            color: 'var(--text-h)',
+          }}
+        >
+          {activeModule === 'gestion-rutas' ? 'Gestión de Rutas' : 'Asignación de Rutas'}
+        </h1>
+        <span
+          style={{
+            fontSize: '0.75rem',
+            color: 'var(--text)',
+            marginLeft: '0.25rem',
+          }}
+        >
+          {activeModule === 'gestion-rutas'
+            ? '— Crea y administra rutas con sus puntos de control'
+            : '— Asigna rutas a camiones y conductores'}
+        </span>
+      </div>
+
+      {/* Main content */}
       <main style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </main>
     </div>
   );
 };
+
+// ─── NavButton ─────────────────────────────────────────────────────────────────
+
+interface NavButtonProps {
+  id: string;
+  label: string;
+  icon: string;
+  active: boolean;
+  onClick: () => void;
+}
+
+const NavButton: React.FC<NavButtonProps> = ({ id, label, icon, active, onClick }) => (
+  <button
+    id={id}
+    onClick={onClick}
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.4rem',
+      padding: '0.4rem 0.85rem',
+      borderRadius: '0.5rem',
+      border: active ? '1px solid var(--accent-border)' : '1px solid transparent',
+      background: active ? 'var(--accent-bg)' : 'transparent',
+      color: active ? 'var(--accent)' : 'var(--text)',
+      fontWeight: active ? 700 : 500,
+      fontSize: '0.875rem',
+      cursor: 'pointer',
+      transition: 'all 0.15s ease',
+      whiteSpace: 'nowrap',
+    }}
+    onMouseEnter={e => {
+      if (!active) {
+        (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-bg)';
+        (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)';
+      }
+    }}
+    onMouseLeave={e => {
+      if (!active) {
+        (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+        (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)';
+      }
+    }}
+  >
+    <span style={{ fontSize: '1rem' }}>{icon}</span>
+    {label}
+  </button>
+);

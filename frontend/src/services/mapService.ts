@@ -15,7 +15,7 @@ export interface RouteStats {
 }
 
 /**
- * Service to handle Leaflet/OpenStreetMap interactions, coordinate conversions, and route optimizations.
+ * Service to handle coordinate conversions, distance calculations, and route optimizations for Google Maps.
  */
 export const mapService = {
   /**
