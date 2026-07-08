@@ -109,47 +109,52 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ item, pathname, indented = fa
       id={item.id}
       to={item.to}
       title={item.label}
+      data-active={active ? 'true' : undefined}
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: '0.625rem',
         padding: '0.5rem 0.75rem',
-        paddingLeft: indented ? '2.25rem' : '0.75rem',
-        borderRadius: '0.5rem',
+        paddingLeft: indented ? '2.375rem' : '0.75rem',
+        borderRadius: '0.625rem',
         textDecoration: 'none',
-        fontSize: '0.875rem',
+        fontSize: '0.8125rem',
         fontWeight: active ? 600 : 400,
         color: active
           ? 'var(--sidebar-accent-foreground)'
-          : 'var(--sidebar-foreground)',
-        background: active ? 'var(--sidebar-accent)' : 'transparent',
+          : 'oklch(0.78 0.03 240)',
+        background: active
+          ? 'linear-gradient(135deg, oklch(0.52 0.14 250 / 0.8), oklch(0.42 0.08 200 / 0.8))'
+          : 'transparent',
         transition: 'background 0.15s ease, color 0.15s ease',
         position: 'relative',
+        letterSpacing: '-0.01em',
       }}
       className="sidebar-link"
     >
-      <Icon
-        size={16}
-        style={{
-          flexShrink: 0,
-          color: active ? 'var(--sidebar-accent-foreground)' : 'oklch(0.65 0.04 250)',
-          transition: 'color 0.15s ease',
-        }}
-      />
-      <span style={{ lineHeight: 1.25, letterSpacing: '-0.01em' }}>{item.label}</span>
       {active && (
         <span
           style={{
             position: 'absolute',
             left: 0,
-            top: '20%',
-            bottom: '20%',
+            top: '18%',
+            bottom: '18%',
             width: '3px',
-            borderRadius: '0 2px 2px 0',
+            borderRadius: '0 3px 3px 0',
             background: 'var(--accent)',
+            boxShadow: '0 0 8px oklch(0.72 0.18 138 / 0.6)',
           }}
         />
       )}
+      <Icon
+        size={15}
+        style={{
+          flexShrink: 0,
+          color: active ? 'var(--accent)' : 'oklch(0.62 0.04 250)',
+          transition: 'color 0.15s ease',
+        }}
+      />
+      <span style={{ lineHeight: 1.3 }}>{item.label}</span>
     </Link>
   );
 };
@@ -181,37 +186,38 @@ const CollapsibleGroup: React.FC<CollapsibleGroupProps> = ({ group, pathname }) 
           gap: '0.625rem',
           width: '100%',
           padding: '0.5rem 0.75rem',
-          borderRadius: '0.5rem',
-          background: isGroupActive ? 'oklch(0.28 0.05 250 / 0.6)' : 'transparent',
+          borderRadius: '0.625rem',
+          background: isGroupActive ? 'oklch(0.30 0.06 250 / 0.55)' : 'transparent',
           border: 'none',
           cursor: 'pointer',
-          color: isGroupActive ? 'var(--sidebar-accent-foreground)' : 'var(--sidebar-foreground)',
-          fontSize: '0.875rem',
+          color: isGroupActive ? 'var(--sidebar-accent-foreground)' : 'oklch(0.78 0.03 240)',
+          fontSize: '0.8125rem',
           fontWeight: isGroupActive ? 600 : 500,
           textAlign: 'left',
           transition: 'background 0.15s ease, color 0.15s ease',
+          letterSpacing: '-0.01em',
         }}
         className="sidebar-group-btn"
         aria-expanded={open}
       >
         <Icon
-          size={16}
+          size={15}
           style={{
             flexShrink: 0,
-            color: isGroupActive ? 'var(--sidebar-accent-foreground)' : 'oklch(0.65 0.04 250)',
+            color: isGroupActive ? 'var(--accent)' : 'oklch(0.62 0.04 250)',
             transition: 'color 0.15s ease',
           }}
         />
-        <span style={{ flex: 1, lineHeight: 1.25, letterSpacing: '-0.01em' }}>
+        <span style={{ flex: 1, lineHeight: 1.3 }}>
           {group.label}
         </span>
         <ChevronDown
-          size={14}
+          size={13}
           style={{
             flexShrink: 0,
-            color: 'oklch(0.55 0.03 250)',
+            color: 'oklch(0.52 0.03 250)',
             transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s ease',
+            transition: 'transform 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         />
       </button>
@@ -273,7 +279,7 @@ export const AppSidebar: React.FC = () => {
       {/* ── Brand ─────────────────────────────────────── */}
       <div
         style={{
-          padding: '1.25rem 1rem 1rem',
+          padding: '1.125rem 1rem 1rem',
           display: 'flex',
           alignItems: 'center',
           gap: '0.625rem',
@@ -281,35 +287,46 @@ export const AppSidebar: React.FC = () => {
           flexShrink: 0,
         }}
       >
+        {/* Logo mark */}
         <span
           style={{
             width: '32px',
             height: '32px',
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, #aa3bff 0%, #7a1dff 100%)',
+            borderRadius: '9px',
+            background: 'linear-gradient(135deg, oklch(0.52 0.14 250) 0%, oklch(0.42 0.05 170) 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'white',
-            fontSize: '16px',
-            fontWeight: 'bold',
             flexShrink: 0,
+            boxShadow: '0 2px 10px oklch(0.52 0.14 250 / 0.40)',
           }}
         >
-          ✨
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 17l10 5 10-5" />
+            <path d="M2 12l10 5 10-5" />
+          </svg>
         </span>
-        <span
-          style={{
-            fontSize: '1.125rem',
-            fontWeight: 700,
-            letterSpacing: '-0.5px',
-            background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          CleanGo
-        </span>
+        {/* Wordmark */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.05rem',
+              fontWeight: 700,
+              letterSpacing: '-0.03em',
+              background: 'linear-gradient(135deg, oklch(0.82 0.08 240) 0%, oklch(0.72 0.18 138) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              lineHeight: 1.15,
+            }}
+          >
+            CleanGo
+          </span>
+          <span style={{ fontSize: '0.6rem', color: 'oklch(0.52 0.04 250)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 500, lineHeight: 1 }}>
+            Logística Urbana
+          </span>
+        </div>
       </div>
 
       {/* ── Nav body ──────────────────────────────────── */}
@@ -362,43 +379,48 @@ export const AppSidebar: React.FC = () => {
           alignItems: 'center',
           gap: '0.625rem',
           flexShrink: 0,
+          background: 'oklch(0.19 0.035 250 / 0.5)',
         }}
       >
+        {/* Avatar */}
         <div
           style={{
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            background: 'oklch(0.35 0.08 250)',
-            border: '1px solid var(--sidebar-border)',
+            background: 'linear-gradient(135deg, oklch(0.52 0.14 250), oklch(0.42 0.05 170))',
+            border: '1.5px solid oklch(0.42 0.07 250)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            fontFamily: 'var(--font-display)',
             fontWeight: 700,
-            fontSize: '0.75rem',
-            color: 'oklch(0.85 0.05 250)',
+            fontSize: '0.72rem',
+            color: 'white',
             flexShrink: 0,
+            letterSpacing: '-0.02em',
           }}
         >
-          Adm
+          A
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
           <span
             style={{
-              fontSize: '0.8rem',
+              fontSize: '0.78rem',
               fontWeight: 600,
               color: 'var(--sidebar-foreground)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              letterSpacing: '-0.01em',
             }}
           >
             Administrador
           </span>
           <span
             style={{
-              fontSize: '0.7rem',
-              color: 'oklch(0.55 0.03 250)',
+              fontSize: '0.68rem',
+              color: 'oklch(0.52 0.04 250)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',

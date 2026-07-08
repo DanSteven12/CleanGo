@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { APIProvider, Map, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { Satellite, Truck, User, Clock, MapPin, TrendingUp, Timer, Loader2 } from 'lucide-react';
 import type { AsignacionRecord } from '../../types/routes';
 
 import '../../assets/styles/routes.css';
@@ -378,11 +379,24 @@ export const LiveMapPage: React.FC = () => {
   };
 
   return (
-    <div className="assignments-page" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="assignments-page" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
 
       {/* ─── Encabezado y Selector ─── */}
       <section className="routes-section" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem' }}>📡 Selector de Recorrido</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.25rem' }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'linear-gradient(135deg, oklch(0.52 0.14 250), oklch(0.42 0.05 170))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, boxShadow: '0 2px 10px oklch(0.52 0.14 250 / 0.35)',
+          }}>
+            <Satellite size={18} color="white" />
+          </div>
+          <div>
+            <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Operación en Vivo</h2>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text)', margin: 0 }}>Selecciona un recorrido para monitorear en tiempo real</p>
+          </div>
+        </div>
 
         {isLoading ? (
           <p style={{ color: 'var(--text)', fontSize: '0.875rem' }}>Cargando recorridos pendientes...</p>
@@ -392,11 +406,16 @@ export const LiveMapPage: React.FC = () => {
             <p>No hay recorridos pendientes ni en progreso.</p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
             {asignaciones.map(a => (
               <div key={a.id} style={{
-                background: 'var(--panel-bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem',
-                display: 'flex', flexDirection: 'column', gap: '0.75rem'
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--border)',
+                borderRadius: '0.875rem',
+                padding: '1.125rem',
+                display: 'flex', flexDirection: 'column', gap: '0.875rem',
+                boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06), 0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)',
+                transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span className="ruta-pill"><span className="ruta-pill-dot" style={{ background: a.ruta_color }} />{a.ruta_nombre}</span>
@@ -404,22 +423,41 @@ export const LiveMapPage: React.FC = () => {
                     {a.estatus_recorrido}
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <div>
-                    <div style={{ fontWeight: 'bold', color: 'var(--text-h)' }}>🚚 {a.numero_economico}</div>
-                    <div style={{ color: 'var(--text)' }}>👤 {a.conductor_nombre}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8375rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, color: 'var(--text-h)' }}>
+                      <Truck size={14} style={{ color: 'oklch(0.52 0.14 250)' }} />
+                      {a.numero_economico}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text)' }}>
+                      <User size={13} style={{ color: 'var(--text)' }} />
+                      {a.conductor_nombre}
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right', color: 'var(--text)' }}>
-                    <div>🕒 {a.horario_inicio.slice(0, 5)} - {a.horario_fin.slice(0, 5)}</div>
+                  <div style={{ textAlign: 'right', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Clock size={13} style={{ color: 'var(--text)' }} />
+                    <span>{a.horario_inicio.slice(0, 5)} – {a.horario_fin.slice(0, 5)}</span>
                   </div>
                 </div>
                 <button
                   className="save-button"
                   onClick={() => handleIniciarRecorrido(a)}
                   disabled={isStartingRecorrido === a.id || activeAsignacion?.id === a.id}
-                  style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem', background: activeAsignacion?.id === a.id ? 'var(--panel-border)' : 'var(--accent)' }}
+                  style={{
+                    width: '100%', justifyContent: 'center',
+                    background: activeAsignacion?.id === a.id
+                      ? 'transparent'
+                      : undefined,
+                    color: activeAsignacion?.id === a.id ? 'var(--text)' : undefined,
+                    border: activeAsignacion?.id === a.id ? '1px solid var(--panel-border)' : undefined,
+                    boxShadow: activeAsignacion?.id === a.id ? 'none' : undefined,
+                  }}
                 >
-                  {activeAsignacion?.id === a.id ? 'Monitoreando...' : isStartingRecorrido === a.id ? 'Iniciando...' : 'Iniciar Monitoreo'}
+                  {activeAsignacion?.id === a.id ? (
+                    <><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} className="pulse-dot" /> Monitoreando…</>
+                  ) : isStartingRecorrido === a.id ? (
+                    <><Loader2 size={15} className="spin" /> Iniciando…</>
+                  ) : 'Iniciar Monitoreo'}
                 </button>
               </div>
             ))}
@@ -432,72 +470,153 @@ export const LiveMapPage: React.FC = () => {
         <section ref={mapContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
 
           {/* Panel de Estadísticas Dinámicas */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-            <div className="stat-card" style={{ background: 'var(--panel-bg)', border: '1px solid var(--border)', padding: '1rem', borderRadius: '8px' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text)' }}>Ruta Activa</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-h)' }}>{activeAsignacion.ruta_nombre}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem' }}>🚚 {activeAsignacion.numero_economico} • 👤 {activeAsignacion.conductor_nombre}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>
+
+            {/* Ruta Activa */}
+            <div style={{
+              background: 'var(--panel-bg)', border: '1px solid var(--border)',
+              borderRadius: '0.875rem', padding: '1.125rem 1.25rem',
+              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06), 0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.52 0.14 250 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MapPin size={14} style={{ color: 'oklch(0.52 0.14 250)' }} />
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ruta Activa</span>
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: 'var(--text-h)', letterSpacing: '-0.02em' }}>{activeAsignacion.ruta_nombre}</div>
+              <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.78rem', color: 'var(--text)', marginTop: '0.35rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Truck size={11} />{activeAsignacion.numero_economico}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><User size={11} />{activeAsignacion.conductor_nombre}</span>
+              </div>
             </div>
 
-            <div className="stat-card" style={{ background: 'var(--panel-bg)', border: '1px solid var(--border)', padding: '1rem', borderRadius: '8px' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text)' }}>Estado del Recorrido</div>
+            {/* Estado del Recorrido */}
+            <div style={{
+              background: 'var(--panel-bg)', border: '1px solid var(--border)',
+              borderRadius: '0.875rem', padding: '1.125rem 1.25rem',
+              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06), 0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.76 0.17 135 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TrendingUp size={14} style={{ color: 'oklch(0.55 0.15 145)' }} />
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estado</span>
+              </div>
               <div style={{
-                fontSize: '1.25rem', fontWeight: 'bold', marginTop: '0.25rem',
-                color: stats?.estadoDinamico === 'Retrasado' ? '#ff4d4f' : stats?.estadoDinamico === 'Completado' ? '#52c41a' : '#1890ff'
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em',
+                color: stats?.estadoDinamico === 'Retrasado' ? 'oklch(0.55 0.22 25)'
+                      : stats?.estadoDinamico === 'Completado' ? 'oklch(0.50 0.15 145)'
+                      : 'oklch(0.45 0.14 250)',
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
               }}>
-                {stats?.estadoDinamico === 'Retrasado' ? '🔴 Retrasado' : stats?.estadoDinamico === 'Completado' ? '✅ Completado' : '🟢 En Progreso'}
+                <span style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                  background: stats?.estadoDinamico === 'Retrasado' ? 'oklch(0.58 0.22 25)'
+                              : stats?.estadoDinamico === 'Completado' ? 'oklch(0.76 0.17 135)'
+                              : 'oklch(0.52 0.14 250)',
+                  boxShadow: `0 0 0 3px ${
+                    stats?.estadoDinamico === 'Retrasado' ? 'oklch(0.58 0.22 25 / 0.25)'
+                    : stats?.estadoDinamico === 'Completado' ? 'oklch(0.76 0.17 135 / 0.25)'
+                    : 'oklch(0.52 0.14 250 / 0.25)'
+                  }`,
+                }} className={stats?.estadoDinamico === 'En Progreso' ? 'pulse-dot' : ''} />
+                {stats?.estadoDinamico || '—'}
               </div>
             </div>
 
-            <div className="stat-card" style={{ background: 'var(--panel-bg)', border: '1px solid var(--border)', padding: '1rem', borderRadius: '8px' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text)' }}>Progreso (Checkpoints)</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginTop: '0.25rem' }}>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-h)' }}>{stats?.completados || 0}</div>
-                <div style={{ fontSize: '0.9rem', color: 'var(--text)' }}>/ {(stats?.completados || 0) + (stats?.pendientes || 0)}</div>
+            {/* Progreso (Checkpoints) */}
+            <div style={{
+              background: 'var(--panel-bg)', border: '1px solid var(--border)',
+              borderRadius: '0.875rem', padding: '1.125rem 1.25rem',
+              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06), 0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.72 0.18 138 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MapPin size={14} style={{ color: 'oklch(0.52 0.14 138)' }} />
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Progreso</span>
               </div>
-
-              {/* Barra de Progreso */}
-              <div style={{ width: '100%', height: '6px', background: 'var(--border)', borderRadius: '3px', marginTop: '0.5rem', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-h)' }}>{stats?.completados || 0}</span>
+                <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>/ {(stats?.completados || 0) + (stats?.pendientes || 0)} checkpoints</span>
+              </div>
+              <div style={{ width: '100%', height: '5px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
                 <div style={{
                   height: '100%',
-                  background: stats?.estadoDinamico === 'Retrasado' ? '#ff4d4f' : 'var(--accent)',
+                  background: stats?.estadoDinamico === 'Retrasado'
+                    ? 'oklch(0.58 0.22 25)'
+                    : 'linear-gradient(90deg, oklch(0.52 0.14 250), oklch(0.72 0.18 138))',
                   width: `${stats?.porcentajeAvance || 0}%`,
+                  borderRadius: '3px',
                   transition: 'width 0.5s linear, background-color 0.3s'
                 }} />
               </div>
-              <div style={{ fontSize: '0.75rem', textAlign: 'right', marginTop: '0.2rem', color: 'var(--text)' }}>
+              <div style={{ fontSize: '0.72rem', textAlign: 'right', marginTop: '0.25rem', color: 'var(--text)' }}>
                 {(stats?.porcentajeAvance || 0).toFixed(1)}%
               </div>
             </div>
 
-            <div className="stat-card" style={{ background: 'var(--panel-bg)', border: '1px solid var(--border)', padding: '1rem', borderRadius: '8px' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text)' }}>Tiempos Estimados</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text)' }}>ETA Restante:</span>
-                  <span style={{ fontWeight: 'bold', color: 'var(--text-h)' }}>{formatEta(stats?.etaSegundos || 0)}</span>
+            {/* Tiempos Estimados */}
+            <div style={{
+              background: 'var(--panel-bg)', border: '1px solid var(--border)',
+              borderRadius: '0.875rem', padding: '1.125rem 1.25rem',
+              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06), 0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.78 0.16 75 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Timer size={14} style={{ color: 'oklch(0.45 0.12 72)' }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text)' }}>Llegada:</span>
-                  <span style={{ fontWeight: 'bold', color: 'var(--text-h)' }}>{stats?.horaEstimada}</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tiempos ETA</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>ETA Restante:</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-h)', fontSize: '0.9rem' }}>{formatEta(stats?.etaSegundos || 0)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>Llegada:</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-h)', fontSize: '0.9rem' }}>{stats?.horaEstimada}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-              🚚 <span>Salió de:</span>
-              <strong>{stats?.ultimoCheckpoint || '...'}</strong>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{
+              background: 'var(--panel-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: '0.75rem', padding: '0.6rem 1rem',
+              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+              fontSize: '0.8375rem',
+              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.05)',
+            }}>
+              <Truck size={14} style={{ color: 'oklch(0.52 0.14 250)', flexShrink: 0 }} />
+              <span style={{ color: 'var(--text)' }}>Salió de:</span>
+              <strong style={{ color: 'var(--text-h)', letterSpacing: '-0.01em' }}>{stats?.ultimoCheckpoint || '…'}</strong>
             </div>
 
-            <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-              📍 <span>Hacia:</span>
-              <strong>{stats?.proximoCheckpoint || '...'}</strong>
+            <div style={{
+              background: 'var(--panel-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: '0.75rem', padding: '0.6rem 1rem',
+              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+              fontSize: '0.8375rem',
+              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.05)',
+            }}>
+              <MapPin size={14} style={{ color: 'oklch(0.52 0.14 250)', flexShrink: 0 }} />
+              <span style={{ color: 'var(--text)' }}>Hacia:</span>
+              <strong style={{ color: 'var(--text-h)', letterSpacing: '-0.01em' }}>{stats?.proximoCheckpoint || '…'}</strong>
             </div>
           </div>
 
-          <div style={{ width: '100%', height: '600px', borderRadius: '12px', border: '1px solid var(--panel-border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+          <div style={{
+            width: '100%', height: '600px',
+            borderRadius: '0.875rem',
+            border: '1px solid oklch(0.52 0.14 250 / 0.20)',
+            overflow: 'hidden',
+            boxShadow: '0 4px 24px oklch(0.2 0.04 240 / 0.12), 0 0 0 4px oklch(0.52 0.14 250 / 0.05)',
+          }}>
             <APIProvider apiKey={API_KEY}>
               <Map
                 defaultCenter={{ lat: 16.9036, lng: -92.1033 }}

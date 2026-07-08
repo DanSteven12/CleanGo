@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Loader2, Check, X } from 'lucide-react';
 
 import type { AsignacionData, AsignacionRecord } from '../../types/routes';
 
@@ -216,14 +217,21 @@ export const AssignmentsPage: React.FC = () => {
       {/* ─── SECCIÓN: Historial de asignaciones ─── */}
       <section className="routes-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <h2 className="section-title" style={{ margin: 0 }}>Control y Registro de Asignaciones</h2>
+          <div>
+            <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Control y Registro de Asignaciones</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Asignación de rutas a unidades y conductores</p>
+          </div>
           <Link to="/asignaciones/nueva" className="save-button" style={{ textDecoration: 'none' }}>
-            <span style={{ fontSize: '1.1rem', marginRight: '0.25rem' }}>+</span> Crear Nueva Asignación
+            <Plus size={16} />
+            Crear Nueva Asignación
           </Link>
         </div>
 
         {isLoadingList ? (
-          <p style={{ color: 'var(--text)', fontSize: '0.875rem' }}>Cargando asignaciones…</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', fontSize: '0.875rem', padding: '1rem 0' }}>
+            <Loader2 size={16} className="spin" style={{ color: 'oklch(0.52 0.14 250)' }} />
+            Cargando asignaciones…
+          </div>
         ) : asignaciones.length === 0 ? (
           <div className="empty-state">
             <span className="empty-state-icon">📋</span>
@@ -284,7 +292,7 @@ export const AssignmentsPage: React.FC = () => {
                           onClick={() => startEdit(a)}
                           title="Editar asignación"
                         >
-                          ✏️
+                          <Pencil size={14} />
                         </button>
                         <button
                           id={`btn-delete-asignacion-${a.id}`}
@@ -293,7 +301,7 @@ export const AssignmentsPage: React.FC = () => {
                           disabled={isDeleting === a.id}
                           title="Eliminar asignación"
                         >
-                          {isDeleting === a.id ? '…' : '🗑️'}
+                          {isDeleting === a.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
                         </button>
 
                       </div>
@@ -432,18 +440,17 @@ export const AssignmentsPage: React.FC = () => {
                 onClick={handleUpdate}
                 disabled={isSaving}
               >
-                <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
-                  <path fillRule="evenodd" d="M16.704 5.292a1 1 0 010 1.416l-8.5 8.5a1 1 0 01-1.416 0l-4-4a1 1 0 111.416-1.416L8 12.084l7.788-7.788a1 1 0 011.416 0z" clipRule="evenodd" />
-                </svg>
+                {isSaving ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
                 {isSaving ? 'Actualizando…' : 'Actualizar Asignación'}
               </button>
               <button
                 id="btn-cancelar-edicion-asignacion"
                 className="save-button"
-                style={{ background: 'var(--panel-border)', color: 'var(--text-h)' }}
+                style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none' }}
                 onClick={cancelEdit}
                 disabled={isSaving}
               >
+                <X size={16} />
                 Cancelar
               </button>
             </div>

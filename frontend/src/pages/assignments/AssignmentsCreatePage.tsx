@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Loader2, Check, X } from 'lucide-react';
 import type { AsignacionData } from '../../types/routes';
 import '../../assets/styles/routes.css';
 import '../../assets/styles/assignments.css';
@@ -119,7 +120,12 @@ export const AssignmentsCreatePage: React.FC = () => {
     <div className="assignments-page" style={{ padding: '1.5rem' }}>
       {/* ─── SECCIÓN: Formulario nueva asignación ─── */}
       <section className="routes-section" id="asignacion-form">
-        <h2 className="section-title">Nueva Asignación</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div>
+            <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Nueva Asignación</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Completa los datos para registrar una nueva asignación</p>
+          </div>
+        </div>
 
         {isLoadingCatalogs ? (
           <p style={{ color: 'var(--text)', fontSize: '0.875rem' }}>Cargando opciones…</p>
@@ -249,16 +255,12 @@ export const AssignmentsCreatePage: React.FC = () => {
           >
             {isCreating ? (
               <>
-                <svg className="save-icon spin" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                </svg>
+                <Loader2 size={18} className="spin" />
                 Creando…
               </>
             ) : (
               <>
-                <svg className="save-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-                  <path fillRule="evenodd" d="M16.704 5.292a1 1 0 010 1.416l-8.5 8.5a1 1 0 01-1.416 0l-4-4a1 1 0 111.416-1.416L8 12.084l7.788-7.788a1 1 0 011.416 0z" clipRule="evenodd" />
-                </svg>
+                <Check size={18} />
                 Crear Asignación
               </>
             )}
@@ -266,10 +268,11 @@ export const AssignmentsCreatePage: React.FC = () => {
           <button
             type="button"
             className="save-button"
-            style={{ background: 'var(--panel-border)', color: 'var(--text-h)' }}
+            style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none' }}
             onClick={() => navigate('/asignaciones')}
             disabled={isCreating}
           >
+            <X size={16} />
             Cancelar
           </button>
         </div>

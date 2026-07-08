@@ -2,10 +2,7 @@ import React from 'react';
 import { AppSidebar } from '../components/layout/AppSidebar';
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
-// Legacy props kept to avoid breaking App.tsx call-sites. They are no longer
-// used for rendering (navigation is driven by the router via AppSidebar), but
-// are accepted to maintain backward compatibility without touching App.tsx.
-
+// Legacy props kept to avoid breaking App.tsx call-sites.
 type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos';
 
 interface MainLayoutProps {
@@ -31,12 +28,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
       {/* ── Main content area ────────────────────────── */}
       <div
+        className="bg-grid"
         style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
           minWidth: 0,
           overflowX: 'hidden',
+          minHeight: '100vh',
         }}
       >
         <main
@@ -52,3 +51,4 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     </div>
   );
 };
+

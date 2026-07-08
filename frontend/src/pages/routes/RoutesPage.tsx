@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import type { CheckpointInput } from '../../types/routes';
+import { Plus, Pencil, Trash2, Loader2, Check, X } from 'lucide-react';
 import '../../assets/styles/routes.css';
 
 
@@ -113,24 +113,37 @@ export const RoutesPage: React.FC = () => {
     }
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────
   return (
     <div className="routes-page">
       {/* ─── SECCIÓN: Lista de rutas existentes ─── */}
       <section className="routes-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <h2 className="section-title" style={{ margin: 0 }}>Administración de Rutas de Recolección</h2>
+          <div>
+            <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Administración de Rutas</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Gestiona las rutas de recolección del sistema</p>
+          </div>
           <Link to="/rutas/nueva" className="save-button" style={{ textDecoration: 'none' }}>
-            <span style={{ fontSize: '1.1rem', marginRight: '0.25rem' }}>+</span> Crear Nueva Ruta
+            <Plus size={16} />
+            Crear Nueva Ruta
           </Link>
         </div>
 
         {isLoadingRoutes ? (
-          <p style={{ color: 'var(--text)', fontSize: '0.875rem' }}>Cargando rutas…</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', fontSize: '0.875rem', padding: '1rem 0' }}>
+            <Loader2 size={16} className="spin" style={{ color: 'oklch(0.52 0.14 250)' }} />
+            Cargando rutas…
+          </div>
         ) : routes.length === 0 ? (
-          <p style={{ color: 'var(--text)', fontSize: '0.875rem' }}>
-            No hay rutas registradas. Crea la primera arriba.
-          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', padding: '2.5rem 1rem', color: 'var(--text)', textAlign: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Plus size={22} style={{ color: 'var(--muted-foreground)' }} />
+            </div>
+            <div>
+              <p style={{ fontWeight: 600, color: 'var(--text-h)', margin: '0 0 0.25rem' }}>No hay rutas registradas</p>
+              <p style={{ fontSize: '0.8125rem', margin: 0 }}>Crea la primera usando el botón de arriba.</p>
+            </div>
+          </div>
         ) : (
           <div className="routes-table-wrapper">
             <table className="routes-table">
@@ -159,7 +172,7 @@ export const RoutesPage: React.FC = () => {
                           onClick={() => startEdit(r)}
                           title="Editar ruta"
                         >
-                          ✏️
+                          <Pencil size={14} />
                         </button>
                         <button
                           id={`btn-delete-ruta-${r.id}`}
@@ -168,7 +181,7 @@ export const RoutesPage: React.FC = () => {
                           disabled={isDeleting === r.id}
                           title="Eliminar ruta"
                         >
-                          {isDeleting === r.id ? '…' : '🗑️'}
+                          {isDeleting === r.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
                         </button>
                       </div>
                     </td>
@@ -212,18 +225,17 @@ export const RoutesPage: React.FC = () => {
             )}
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
               <button id="btn-actualizar-ruta" className="save-button" onClick={handleUpdateRuta} disabled={isSaving}>
-                <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
-                  <path fillRule="evenodd" d="M16.704 5.292a1 1 0 010 1.416l-8.5 8.5a1 1 0 01-1.416 0l-4-4a1 1 0 111.416-1.416L8 12.084l7.788-7.788a1 1 0 011.416 0z" clipRule="evenodd" />
-                </svg>
+                {isSaving ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
                 {isSaving ? 'Actualizando…' : 'Actualizar Ruta'}
               </button>
               <button
                 id="btn-cancelar-edicion"
                 className="save-button"
-                style={{ background: 'var(--panel-border)', color: 'var(--text-h)' }}
+                style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none' }}
                 onClick={cancelEdit}
                 disabled={isSaving}
               >
+                <X size={16} />
                 Cancelar
               </button>
             </div>
