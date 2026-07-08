@@ -6,6 +6,7 @@ import puntosControlRouter from './routes/puntosControl';
 import checkpointsRouter, { routeCheckpointsRouter } from './routes/checkpoints';
 import asignacionesRouter from './routes/asignaciones';
 import crearRutaRouter from './routes/crearRuta';
+import recorridosRouter from './routes/recorridos';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -19,6 +20,7 @@ app.use('/api/checkpoints', checkpointsRouter);
 app.use('/api/routes', routeCheckpointsRouter);
 app.use('/api/asignaciones', asignacionesRouter);
 app.use('/api/crear-ruta', crearRutaRouter);
+app.use('/api/recorridos', recorridosRouter);
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);

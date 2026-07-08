@@ -1,0 +1,621 @@
+/* ─── Historial de Recorridos — Estilos del módulo ───────────────────────────── */
+
+/* ── Layout principal ────────────────────────────────────────────────────── */
+
+.historial-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  min-height: 0;
+}
+
+/* ── Barra de filtros ────────────────────────────────────────────────────── */
+
+.historial-filters-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.875rem;
+  box-shadow: 0 1px 4px 0 rgba(0,0,0,0.04);
+}
+
+.historial-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 160px;
+  flex: 1 1 160px;
+}
+
+.historial-filter-group label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.historial-filter-group select,
+.historial-filter-group input[type="date"] {
+  height: 36px;
+  padding: 0 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  cursor: pointer;
+}
+
+.historial-filter-group select:focus,
+.historial-filter-group input[type="date"]:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.historial-filter-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.historial-btn-buscar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 1rem;
+  height: 36px;
+  border: none;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, var(--accent) 0%, oklch(0.6 0.18 138) 100%);
+  color: white;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.historial-btn-buscar:hover { opacity: 0.9; transform: translateY(-1px); }
+.historial-btn-buscar:active { transform: translateY(0); }
+.historial-btn-buscar:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.historial-btn-limpiar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.85rem;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--panel-bg);
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.historial-btn-limpiar:hover {
+  background: var(--bg);
+  border-color: var(--accent-border);
+  color: var(--text-h);
+}
+
+/* ── Sección de resultados ───────────────────────────────────────────────── */
+
+.historial-results-section {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  overflow: hidden;
+  box-shadow: 0 1px 4px 0 rgba(0,0,0,0.04);
+}
+
+.historial-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.historial-results-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.historial-results-count {
+  font-size: 0.78rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+}
+
+/* ── Tabla de resultados ─────────────────────────────────────────────────── */
+
+.historial-table-wrapper {
+  overflow-x: auto;
+}
+
+.historial-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.845rem;
+}
+
+.historial-table th {
+  padding: 0.6rem 0.85rem;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.historial-table td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.historial-table tbody tr {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.historial-table tbody tr:hover {
+  background: var(--accent-bg);
+}
+
+.historial-table tbody tr.historial-row--selected {
+  background: var(--accent-bg);
+  outline: 2px solid var(--accent-border);
+  outline-offset: -2px;
+}
+
+.historial-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Celda de ruta con pill de color ────────────────────────────────────── */
+
+.historial-ruta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.historial-ruta-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Barra de progreso de checkpoints ───────────────────────────────────── */
+
+.historial-checkpoint-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.historial-checkpoint-bar-track {
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.historial-checkpoint-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+.historial-checkpoint-bar-label {
+  font-size: 0.7rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ── Duración ────────────────────────────────────────────────────────────── */
+
+.historial-duracion {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
+/* ── Botón Ver Detalle inline ────────────────────────────────────────────── */
+
+.historial-btn-ver {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--panel-bg);
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.historial-btn-ver:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.historial-btn-ver--active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* ── Panel de detalle del recorrido ─────────────────────────────────────── */
+
+.historial-detail-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 0.875rem;
+  overflow: hidden;
+  box-shadow: 0 2px 16px 0 rgba(111, 182, 69, 0.08);
+  animation: historial-slide-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes historial-slide-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.historial-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.historial-detail-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-h);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.historial-detail-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.12s;
+}
+
+.historial-detail-close:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* ── Info cards del encabezado del detalle ──────────────────────────────── */
+
+.historial-detail-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.historial-info-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+
+.historial-info-card__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.historial-info-card__value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.historial-info-card__sub {
+  font-size: 0.72rem;
+  color: var(--text);
+  margin-top: 0.05rem;
+}
+
+/* ── Timeline de checkpoints ─────────────────────────────────────────────── */
+
+.historial-checkpoints-section {
+  padding: 1rem 1.25rem;
+}
+
+.historial-checkpoints-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-h);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.85rem;
+}
+
+.historial-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+.historial-timeline::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 16px;
+  bottom: 16px;
+  width: 2px;
+  background: var(--border);
+  border-radius: 1px;
+}
+
+.historial-timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.55rem 0;
+  position: relative;
+}
+
+.historial-timeline-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--panel-bg);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  position: relative;
+  z-index: 1;
+  transition: all 0.15s;
+}
+
+.historial-timeline-dot--completado {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.historial-timeline-dot--omitido {
+  border-color: oklch(0.58 0.22 25);
+  background: oklch(0.58 0.22 25 / 0.1);
+  color: oklch(0.58 0.22 25);
+}
+
+.historial-timeline-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.35rem;
+}
+
+.historial-timeline-name {
+  font-weight: 600;
+  font-size: 0.865rem;
+  color: var(--text-h);
+}
+
+.historial-timeline-times {
+  font-size: 0.75rem;
+  color: var(--text);
+  margin-top: 0.1rem;
+}
+
+.historial-timeline-desviacion {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.historial-timeline-desviacion--ok {
+  background: oklch(0.72 0.18 138 / 0.12);
+  color: oklch(0.42 0.14 138);
+  border: 1px solid oklch(0.72 0.18 138 / 0.3);
+}
+
+.historial-timeline-desviacion--tarde {
+  background: oklch(0.78 0.16 75 / 0.12);
+  color: oklch(0.45 0.13 75);
+  border: 1px solid oklch(0.78 0.16 75 / 0.3);
+}
+
+.historial-timeline-desviacion--muy-tarde {
+  background: oklch(0.58 0.22 25 / 0.1);
+  color: oklch(0.45 0.2 25);
+  border: 1px solid oklch(0.58 0.22 25 / 0.3);
+}
+
+/* ── Estado vacío / cargando ─────────────────────────────────────────────── */
+
+.historial-state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  color: var(--text);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.historial-state-icon {
+  font-size: 2.5rem;
+  opacity: 0.45;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+
+.historial-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: historial-spin 0.7s linear infinite;
+  margin-bottom: 0.25rem;
+}
+
+@keyframes historial-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Sección de error ────────────────────────────────────────────────────── */
+
+.historial-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  background: oklch(0.58 0.22 25 / 0.08);
+  border: 1px solid oklch(0.58 0.22 25 / 0.3);
+  border-radius: 0.6rem;
+  color: oklch(0.45 0.2 25);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+/* ── Paginación ──────────────────────────────────────────────────────────── */
+
+.historial-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.9rem 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.historial-pag-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.38rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--panel-bg);
+  color: var(--text-h);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.historial-pag-btn:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.historial-pag-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.historial-pag-info {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+
+@media (max-width: 768px) {
+  .historial-filters-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .historial-filter-group {
+    flex: 1 1 auto;
+  }
+
+  .historial-filter-actions {
+    width: 100%;
+  }
+
+  .historial-btn-buscar,
+  .historial-btn-limpiar {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .historial-detail-cards {
+    flex-direction: column;
+  }
+}

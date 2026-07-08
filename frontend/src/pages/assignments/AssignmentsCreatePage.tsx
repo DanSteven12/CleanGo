@@ -39,8 +39,8 @@ export const AssignmentsCreatePage: React.FC = () => {
     camion_id: '',
     conductor_id: '',
     fecha_programada: '',
-    horario_inicio: '06:00',
-    horario_fin: '14:00',
+    horario_inicio: '',
+    horario_fin: '',
     estatus_recorrido: 'Pendiente',
   };
   const [form, setForm]             = useState<AsignacionData>(EMPTY_FORM);

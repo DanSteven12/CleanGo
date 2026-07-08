@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+
 import type { AsignacionData, AsignacionRecord } from '../../types/routes';
+
 import '../../assets/styles/routes.css';
 import '../../assets/styles/assignments.css';
+
+
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
 
@@ -30,9 +34,9 @@ const ESTATUS_OPTIONS = ['Pendiente', 'En Progreso', 'Completado'];
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getEstatusBadgeClass(estatus: string) {
-  if (estatus === 'Pendiente')   return 'estatus-badge estatus-pendiente';
+  if (estatus === 'Pendiente') return 'estatus-badge estatus-pendiente';
   if (estatus === 'En Progreso') return 'estatus-badge estatus-en-progreso';
-  if (estatus === 'Completado')  return 'estatus-badge estatus-completado';
+  if (estatus === 'Completado') return 'estatus-badge estatus-completado';
   return 'estatus-badge estatus-pendiente';
 }
 
@@ -54,14 +58,15 @@ function formatTime12h(timeStr: string) {
   return `${strHours}:${minutes} ${ampm}`;
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+
+
+// ─── Componente Principal ─────────────────────────────────────────────────────
 
 export const AssignmentsPage: React.FC = () => {
   // ── Catálogos ──────────────────────────────────────────────────────────
-  const [rutas,      setRutas]      = useState<RouteOption[]>([]);
-  const [camiones,   setCamiones]   = useState<CamionOption[]>([]);
-  const [conductores,setConductores]= useState<ConductorOption[]>([]);
-  const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
+  const [rutas, setRutas] = useState<RouteOption[]>([]);
+  const [camiones, setCamiones] = useState<CamionOption[]>([]);
+  const [conductores, setConductores] = useState<ConductorOption[]>([]);
 
   // ── Lista de asignaciones ──────────────────────────────────────────────
   const [asignaciones, setAsignaciones] = useState<AsignacionRecord[]>([]);
@@ -72,31 +77,32 @@ export const AssignmentsPage: React.FC = () => {
     camion_id: '',
     conductor_id: '',
     fecha_programada: '',
-    horario_inicio: '06:00',
-    horario_fin: '14:00',
+    horario_inicio: '',
+    horario_fin: '',
     estatus_recorrido: 'Pendiente',
   };
-  const [editingId,   setEditingId]   = useState<number | null>(null);
-  const [editForm,    setEditForm]    = useState<AsignacionData>(EMPTY_FORM);
-  const [editRutaId,  setEditRutaId]  = useState<number | ''>('');
-  const [isSaving,    setIsSaving]    = useState(false);
-  const [editError,   setEditError]   = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<AsignacionData>(EMPTY_FORM);
+  const [editRutaId, setEditRutaId] = useState<number | ''>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // ── Eliminación ────────────────────────────────────────────────────────
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
 
+
+
   // ── Fetch catálogos ────────────────────────────────────────────────────
   useEffect(() => {
     const fetchCatalogs = async () => {
-      setIsLoadingCatalogs(true);
       try {
         const [resRutas, resCamiones, resConductores] = await Promise.all([
           fetch('/api/rutas'),
           fetch('/api/asignaciones/camiones'),
           fetch('/api/asignaciones/conductores'),
         ]);
-        if (!resRutas.ok)       throw new Error('Error al cargar rutas');
-        if (!resCamiones.ok)    throw new Error('Error al cargar camiones');
+        if (!resRutas.ok) throw new Error('Error al cargar rutas');
+        if (!resCamiones.ok) throw new Error('Error al cargar camiones');
         if (!resConductores.ok) throw new Error('Error al cargar conductores');
 
         setRutas(await resRutas.json());
@@ -104,8 +110,6 @@ export const AssignmentsPage: React.FC = () => {
         setConductores(await resConductores.json());
       } catch (e) {
         console.error('[AssignmentsPage] fetchCatalogs:', e);
-      } finally {
-        setIsLoadingCatalogs(false);
       }
     };
     void fetchCatalogs();
@@ -133,11 +137,11 @@ export const AssignmentsPage: React.FC = () => {
     setEditingId(a.id);
     setEditRutaId(a.ruta_id);
     setEditForm({
-      camion_id:        a.camion_id,
-      conductor_id:     a.conductor_id,
+      camion_id: a.camion_id,
+      conductor_id: a.conductor_id,
       fecha_programada: formatDate(a.fecha_programada),
-      horario_inicio:   a.horario_inicio ? a.horario_inicio.slice(0, 5) : '06:00',
-      horario_fin:      a.horario_fin ? a.horario_fin.slice(0, 5) : '14:00',
+      horario_inicio: a.horario_inicio ? a.horario_inicio.slice(0, 5) : '',
+      horario_fin: a.horario_fin ? a.horario_fin.slice(0, 5) : '',
       estatus_recorrido: a.estatus_recorrido,
     });
     setEditError(null);
@@ -151,12 +155,12 @@ export const AssignmentsPage: React.FC = () => {
   // ── Guardar edición ────────────────────────────────────────────────────
   const handleUpdate = async () => {
     setEditError(null);
-    if (!editRutaId)               return setEditError('Selecciona una ruta.');
-    if (!editForm.camion_id)       return setEditError('Selecciona un camión.');
-    if (!editForm.conductor_id)    return setEditError('Selecciona un conductor.');
-    if (!editForm.fecha_programada)return setEditError('La fecha programada es obligatoria.');
-    if (!editForm.horario_inicio)  return setEditError('El horario de inicio es obligatorio.');
-    if (!editForm.horario_fin)     return setEditError('El horario de fin es obligatorio.');
+    if (!editRutaId) return setEditError('Selecciona una ruta.');
+    if (!editForm.camion_id) return setEditError('Selecciona un camión.');
+    if (!editForm.conductor_id) return setEditError('Selecciona un conductor.');
+    if (!editForm.fecha_programada) return setEditError('La fecha programada es obligatoria.');
+    if (!editForm.horario_inicio) return setEditError('El horario de inicio es obligatorio.');
+    if (!editForm.horario_fin) return setEditError('El horario de fin es obligatorio.');
 
     setIsSaving(true);
     try {
@@ -164,12 +168,12 @@ export const AssignmentsPage: React.FC = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ruta_id:          Number(editRutaId),
-          camion_id:        Number(editForm.camion_id),
-          conductor_id:     Number(editForm.conductor_id),
+          ruta_id: Number(editRutaId),
+          camion_id: Number(editForm.camion_id),
+          conductor_id: Number(editForm.conductor_id),
           fecha_programada: editForm.fecha_programada,
-          horario_inicio:   editForm.horario_inicio,
-          horario_fin:      editForm.horario_fin,
+          horario_inicio: editForm.horario_inicio,
+          horario_fin: editForm.horario_fin,
           estatus_recorrido: editForm.estatus_recorrido,
         }),
       });
@@ -291,6 +295,7 @@ export const AssignmentsPage: React.FC = () => {
                         >
                           {isDeleting === a.id ? '…' : '🗑️'}
                         </button>
+
                       </div>
                     </td>
                   </tr>
@@ -299,6 +304,8 @@ export const AssignmentsPage: React.FC = () => {
             </table>
           </div>
         )}
+
+
 
         {/* ─── Formulario inline de edición ─── */}
         {editingId !== null && (
@@ -361,7 +368,7 @@ export const AssignmentsPage: React.FC = () => {
               <div className="form-field">
                 <label className="form-label" htmlFor="edit-fecha">Fecha programada *</label>
                 <input
-                   id="edit-fecha"
+                  id="edit-fecha"
                   type="date"
                   className="form-input"
                   value={editForm.fecha_programada}

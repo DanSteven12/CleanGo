@@ -178,3 +178,30 @@
     100% { box-shadow: 0 0 0 0 transparent; }
   }
 }
+
+/* ─── Sidebar interaction styles ──────────────────────────────────────────── */
+
+.sidebar-link:hover:not([style*="var(--sidebar-accent)"]) {
+  background: oklch(0.30 0.04 250 / 0.7) !important;
+  color: var(--sidebar-accent-foreground) !important;
+}
+
+.sidebar-group-btn:hover {
+  background: oklch(0.30 0.04 250 / 0.7) !important;
+  color: var(--sidebar-accent-foreground) !important;
+}
+
+/* Custom scrollbar for the sidebar */
+#app-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+#app-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+#app-sidebar::-webkit-scrollbar-thumb {
+  background: var(--sidebar-border);
+  border-radius: 2px;
+}
+#app-sidebar::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.45 0.05 250);
+}

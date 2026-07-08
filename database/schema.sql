@@ -101,3 +101,68 @@ CREATE TABLE recorrido_checkpoints (
     FOREIGN KEY (recorrido_id) REFERENCES recorridos(id) ON DELETE CASCADE,
     FOREIGN KEY (checkpoint_id) REFERENCES puntos_control(id) ON DELETE CASCADE
 );
+
+-- 8. TABLA DE HORARIOS BASE DE LAS RUTAS
+-- Define el horario habitual en el que cada ruta debe operar según el día de la semana.
+-- Sirve como referencia para generar asignaciones y comparar retrasos o adelantos.
+CREATE TABLE horarios_rutas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ruta_id INT NOT NULL,
+    dia_semana ENUM(
+        'Lunes','Martes','Miércoles',
+        'Jueves','Viernes','Sábado','Domingo'
+    ) NOT NULL,
+
+    hora_inicio_estimada TIME NOT NULL,
+    hora_fin_estimada TIME NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (ruta_id)
+        REFERENCES rutas(id)
+        ON DELETE CASCADE
+);
+
+-- 9. TABLA DE INCIDENCIAS DEL CALENDARIO
+-- Registra eventos excepcionales que afectan una asignación programada,
+-- como suspensiones, reprogramaciones o cambios de horario.
+-- Solo debe existir una incidencia activa por asignación al mismo tiempo.
+CREATE TABLE incidencias_calendario (
+
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    asignacion_id INT NOT NULL,
+
+    tipo ENUM(
+        'Suspensión',
+        'Reprogramación',
+        'Cambio de horario',
+        'Clima',
+        'Evento'
+    ) NOT NULL,
+
+    motivo VARCHAR(255) NOT NULL,
+
+    fecha_nueva DATE NULL,
+
+    hora_nueva TIME NULL,
+
+    descripcion TEXT NULL,
+
+    estatus ENUM(
+        'Activa',
+        'Resuelta'
+    ) DEFAULT 'Activa',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (asignacion_id)
+        REFERENCES asignaciones_rutas(id)
+        ON DELETE CASCADE
+);
+
+-- Índice para acelerar las consultas de incidencias por asignación
+CREATE INDEX idx_incidencia_asignacion
+ON incidencias_calendario(asignacion_id);
