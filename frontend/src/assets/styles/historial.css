@@ -497,7 +497,7 @@
   color: var(--text);
 }
 
-/* Checkpoints section */
+/* ── Checkpoints section ─── */
 .historial-checkpoints-section {
   padding: 1.125rem 1.25rem;
 }
@@ -511,33 +511,83 @@
   margin: 0 0 1rem;
 }
 
-/* Timeline */
-.historial-timeline {
+/* ── Timeline de checkpoints (horizontal, multi-fila) ─── */
+
+/* Wrapper: apila cada fila de 6 checkpoints verticalmente */
+.historial-timeline-rows {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  position: relative;
+  gap: 2rem;
+  padding-bottom: 0.5rem;
 }
 
-.historial-timeline::before {
-  content: '';
-  position: absolute;
-  left: 15px;
-  top: 20px;
-  bottom: 20px;
-  width: 2px;
-  background: var(--panel-border);
+/* Contenedor de una fila: nodos y segmentos en horizontal */
+.historial-timeline-h {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+/* Nodo: círculo + nombre + badge apilados en columna */
+.historial-timeline-h-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  min-width: 80px;
+  max-width: 120px;
+}
+
+/* Segmento conector entre dos nodos */
+.historial-timeline-h-segment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 60px;
+  min-width: 48px;
+  /* Alinea la línea con el centro del círculo (15px = radio del dot de 30px) */
+  padding-top: 15px;
+  position: relative;
+  gap: 0.25rem;
+}
+
+/* Línea horizontal del segmento */
+.historial-timeline-h-line {
+  width: 100%;
+  height: 2px;
+  background: var(--border);
   border-radius: 1px;
 }
 
-.historial-timeline-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.875rem;
-  padding: 0.6rem 0;
-  position: relative;
+/* Etiqueta de tiempo centrada sobre el segmento */
+.historial-timeline-h-delta {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+  position: absolute;
+  top: -0.05rem;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
+/* Nombre del checkpoint */
+.historial-timeline-h-label {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--text-h);
+  text-align: center;
+  line-height: 1.25;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* Círculo del checkpoint */
 .historial-timeline-dot {
   width: 30px;
   height: 30px;
@@ -566,29 +616,6 @@
   background: oklch(0.58 0.22 25 / 0.12);
   border-color: oklch(0.58 0.22 25 / 0.45);
   color: oklch(0.42 0.18 25);
-}
-
-.historial-timeline-body {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  min-width: 0;
-  padding-top: 0.35rem;
-}
-
-.historial-timeline-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-h);
-  letter-spacing: -0.01em;
-}
-
-.historial-timeline-times {
-  font-size: 0.75rem;
-  color: var(--text);
-  margin-top: 0.15rem;
 }
 
 /* Deviation badges */
@@ -626,6 +653,4 @@
   .historial-filter-group   { min-width: 140px; }
   .historial-detail-cards   { grid-template-columns: 1fr 1fr; }
   .historial-info-card      { border-right: none; }
-  .historial-timeline::before { display: none; }
-  .historial-timeline-body  { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
 }

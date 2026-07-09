@@ -133,46 +133,64 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ detalle, onClose }) => {
             <span>No se encontraron checkpoints para este recorrido.</span>
           </div>
         ) : (
-          <div className="historial-timeline">
-            {detalle.checkpoints.map((cp: CheckpointDetalle) => {
-              const dotCls =
-                cp.estado === 'Completado' ? 'historial-timeline-dot historial-timeline-dot--completado'
-                : cp.estado === 'Omitido'  ? 'historial-timeline-dot historial-timeline-dot--omitido'
-                :                            'historial-timeline-dot';
+          <div className="historial-timeline-rows">
+            {Array.from(
+              { length: Math.ceil(detalle.checkpoints.length / 6) },
+              (_, rowIdx) => detalle.checkpoints.slice(rowIdx * 6, rowIdx * 6 + 6)
+            ).map((rowCps, rowIdx) => (
+              <div key={rowIdx} className="historial-timeline-h">
+                {rowCps.map((cp: CheckpointDetalle, colIdx: number) => {
+                  const globalIdx = rowIdx * 6 + colIdx;
+                  const dotCls =
+                    cp.estado === 'Completado' ? 'historial-timeline-dot historial-timeline-dot--completado'
+                    : cp.estado === 'Omitido'  ? 'historial-timeline-dot historial-timeline-dot--omitido'
+                    :                            'historial-timeline-dot';
 
-              const { label: devLabel, cls: devCls } = getDesviacion(cp.desviacion_minutos);
+                  // Tiempo transcurrido entre el checkpoint anterior y éste (índice global)
+                  let deltaLabel: string | null = null;
+                  if (globalIdx > 0) {
+                    const prev = detalle.checkpoints[globalIdx - 1];
+                    if (prev.hora_llegada && cp.hora_llegada) {
+                      const diffMs = new Date(cp.hora_llegada).getTime() - new Date(prev.hora_llegada).getTime();
+                      const diffMin = Math.round(diffMs / 60_000);
+                      deltaLabel = diffMin > 0 ? `${diffMin} min` : '<1 min';
+                    }
+                  }
 
-              return (
-                <div className="historial-timeline-item" key={cp.id} id={`cp-item-${cp.id}`}>
-                  <div className={dotCls}>{cp.orden}</div>
-                  <div className="historial-timeline-body">
-                    <div>
-                      <div className="historial-timeline-name">{cp.nombre}</div>
-                      <div className="historial-timeline-times">
-                        Estimado: {fmtTimeOnly(cp.hora_estimada)} · Llegada: {fmtTimeOnly(cp.hora_llegada)}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                      {cp.estado !== 'Pendiente' && devCls && (
-                        <span className={`historial-timeline-desviacion ${devCls}`}>{devLabel}</span>
+                  return (
+                    <React.Fragment key={cp.id}>
+                      {/* Segmento conector con tiempo centrado (solo dentro de la misma fila) */}
+                      {colIdx > 0 && (
+                        <div className="historial-timeline-h-segment">
+                          <div className="historial-timeline-h-line" />
+                          {deltaLabel && (
+                            <span className="historial-timeline-h-delta">{deltaLabel}</span>
+                          )}
+                        </div>
                       )}
-                      <span
-                        className={
-                          cp.estado === 'Completado' ? 'estatus-badge estatus-completado'
-                          : cp.estado === 'Omitido'  ? 'estatus-badge'
-                          :                            'estatus-badge estatus-pendiente'
-                        }
-                        style={cp.estado === 'Omitido' ? {
-                          background: 'oklch(0.58 0.22 25 / 0.1)',
-                          color: 'oklch(0.45 0.2 25)',
-                          border: '1px solid oklch(0.58 0.22 25 / 0.3)',
-                        } : undefined}
-                      >{cp.estado}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+
+                      {/* Nodo del checkpoint */}
+                      <div className="historial-timeline-h-node" id={`cp-item-${cp.id}`}>
+                        <div className={dotCls}>{cp.orden}</div>
+                        <div className="historial-timeline-h-label">{cp.nombre}</div>
+                        <span
+                          className={
+                            cp.estado === 'Completado' ? 'estatus-badge estatus-completado'
+                            : cp.estado === 'Omitido'  ? 'estatus-badge'
+                            :                            'estatus-badge estatus-pendiente'
+                          }
+                          style={cp.estado === 'Omitido' ? {
+                            background: 'oklch(0.58 0.22 25 / 0.1)',
+                            color: 'oklch(0.45 0.2 25)',
+                            border: '1px solid oklch(0.58 0.22 25 / 0.3)',
+                          } : undefined}
+                        >{cp.estado}</span>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         )}
       </div>
