@@ -301,6 +301,10 @@ export const LiveMapPage: React.FC = () => {
 
   const [stats, setStats] = useState<LiveStats | null>(null);
 
+  // Cerrojo one-shot: una vez que el recorrido llega a 'Completado'
+  // se congela el estado y se bloquea cualquier actualización adicional.
+  const recorridoCompletadoRef = useRef(false);
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchAsignaciones = useCallback(async () => {
@@ -323,6 +327,8 @@ export const LiveMapPage: React.FC = () => {
   }, [fetchAsignaciones]);
 
   const handleIniciarRecorrido = async (asignacion: AsignacionRecord) => {
+    // Resetear cerrojo para el nuevo recorrido
+    recorridoCompletadoRef.current = false;
     setIsStartingRecorrido(asignacion.id);
     try {
       const res = await fetch('/api/recorridos/iniciar', {
@@ -367,6 +373,27 @@ export const LiveMapPage: React.FC = () => {
   };
 
   const handleStatsUpdate = useCallback((newStats: LiveStats) => {
+    // Si ya está completado, ignorar cualquier update posterior
+    if (recorridoCompletadoRef.current) return;
+
+    if (newStats.estadoDinamico === 'Completado') {
+      // Activar el cerrojo y fijar el estado final de una vez
+      recorridoCompletadoRef.current = true;
+      setStats({
+        ...newStats,
+        porcentajeAvance: 100,
+        completados: newStats.completados,
+        pendientes: 0,
+        etaSegundos: 0,
+        // Hora de llegada real: el instante exacto en que la simulación cerró
+        horaEstimada: new Date().toLocaleTimeString('es-MX', {
+          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+        }),
+        estadoDinamico: 'Completado'
+      });
+      return;
+    }
+
     setStats(newStats);
   }, []);
 

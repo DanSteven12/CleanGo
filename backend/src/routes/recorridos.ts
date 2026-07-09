@@ -101,9 +101,9 @@ router.put('/:recorridoId/checkpoint', async (req: Request, res: Response): Prom
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
-    // 1. Verificar que el recorrido exista
+    // 1. Verificar que el recorrido exista y obtener hora_inicio
     const [recorridos] = await connection.execute<any[]>(
-      'SELECT id, asignacion_id FROM recorridos WHERE id = ?',
+      'SELECT id, asignacion_id, hora_inicio FROM recorridos WHERE id = ?',
       [recorridoId]
     );
 
@@ -112,31 +112,49 @@ router.put('/:recorridoId/checkpoint', async (req: Request, res: Response): Prom
       return;
     }
 
-    const asignacionId = recorridos[0].asignacion_id;
+    const asignacionId  = recorridos[0].asignacion_id;
+    const horaInicio    = new Date(recorridos[0].hora_inicio);
 
-    // 2. Actualizar la tabla recorridos (latitud_actual, longitud_actual)
+    // 2. Obtener el orden del checkpoint para calcular la hora_llegada acumulativa.
+    //    Se usa el mismo intervalo de 5 minutos por tramo que emplea /iniciar.
+    const [puntoRows] = await connection.execute<any[]>(
+      'SELECT orden FROM puntos_control WHERE id = ?',
+      [checkpoint_id]
+    );
+
+    if (puntoRows.length === 0) {
+      res.status(404).json({ error: 'Checkpoint no encontrado' });
+      return;
+    }
+
+    const orden           = puntoRows[0].orden as number;
+    const minutosTranscurridos = (orden - 1) * 5;
+    const horaLlegada    = new Date(horaInicio.getTime() + minutosTranscurridos * 60_000);
+
+    // 3. Actualizar la tabla recorridos (latitud_actual, longitud_actual)
     await connection.execute(
       'UPDATE recorridos SET latitud_actual = ?, longitud_actual = ? WHERE id = ?',
       [latitud, longitud, recorridoId]
     );
 
-    // 3. Actualizar la tabla recorrido_checkpoints
+    // 4. Marcar el checkpoint como completado usando la hora_llegada calculada
     await connection.execute(
-      'UPDATE recorrido_checkpoints SET estado = ?, hora_llegada = NOW() WHERE recorrido_id = ? AND checkpoint_id = ?',
-      ['Completado', recorridoId, checkpoint_id]
+      'UPDATE recorrido_checkpoints SET estado = ?, hora_llegada = ? WHERE recorrido_id = ? AND checkpoint_id = ?',
+      ['Completado', horaLlegada, recorridoId, checkpoint_id]
     );
 
-    // 4. Verificar si aún existen checkpoints pendientes
+    // 5. Verificar si aún existen checkpoints pendientes
     const [pendientes] = await connection.execute<any[]>(
       'SELECT id FROM recorrido_checkpoints WHERE recorrido_id = ? AND estado = ?',
       [recorridoId, 'Pendiente']
     );
 
-    // 5. Si ya no existen checkpoints pendientes
+    // 6. Si ya no existen checkpoints pendientes, cerrar el recorrido
     if (pendientes.length === 0) {
+      // Usar la hora_llegada del último checkpoint como hora_fin real del recorrido
       await connection.execute(
-        'UPDATE recorridos SET hora_fin = NOW(), estado = ? WHERE id = ?',
-        ['Completado', recorridoId]
+        'UPDATE recorridos SET hora_fin = ?, estado = ? WHERE id = ?',
+        [horaLlegada, 'Completado', recorridoId]
       );
 
       await connection.execute(
@@ -218,17 +236,17 @@ router.get('/historial', async (req: Request, res: Response): Promise<void> => {
   } = req.query as Record<string, string | undefined>;
 
   const pageNum = Math.max(1, parseInt(page ?? '1', 10) || 1);
-  const offset  = (pageNum - 1) * HISTORIAL_PAGE_SIZE;
+  const offset = (pageNum - 1) * HISTORIAL_PAGE_SIZE;
 
   // WHERE dinámico — sin funciones sobre columnas filtradas para usar índices
-  const conditions: string[]               = ["r.estado = 'Completado'"];
-  const filterParams: (string | number)[]  = [];
+  const conditions: string[] = ["r.estado = 'Completado'"];
+  const filterParams: (string | number)[] = [];
 
-  if (fecha_inicio) { conditions.push('ar.fecha >= ?');        filterParams.push(fecha_inicio); }
-  if (fecha_fin)    { conditions.push('ar.fecha <= ?');        filterParams.push(fecha_fin); }
-  if (camion_id)    { conditions.push('ar.camion_id = ?');     filterParams.push(Number(camion_id)); }
-  if (conductor_id) { conditions.push('ar.conductor_id = ?');  filterParams.push(Number(conductor_id)); }
-  if (ruta_id)      { conditions.push('ar.ruta_id = ?');       filterParams.push(Number(ruta_id)); }
+  if (fecha_inicio) { conditions.push('ar.fecha >= ?'); filterParams.push(fecha_inicio); }
+  if (fecha_fin) { conditions.push('ar.fecha <= ?'); filterParams.push(fecha_fin); }
+  if (camion_id) { conditions.push('ar.camion_id = ?'); filterParams.push(Number(camion_id)); }
+  if (conductor_id) { conditions.push('ar.conductor_id = ?'); filterParams.push(Number(conductor_id)); }
+  if (ruta_id) { conditions.push('ar.ruta_id = ?'); filterParams.push(Number(ruta_id)); }
 
   const whereClause = conditions.join(' AND ');
 
@@ -248,7 +266,7 @@ router.get('/historial', async (req: Request, res: Response): Promise<void> => {
       `SELECT COUNT(*) AS total ${fromJoins}`,
       filterParams
     );
-    const total      = Number(countRows[0].total);
+    const total = Number(countRows[0].total);
     const totalPages = Math.max(1, Math.ceil(total / HISTORIAL_PAGE_SIZE));
 
     // ── Registros de la página solicitada ─────────────────────────────────
