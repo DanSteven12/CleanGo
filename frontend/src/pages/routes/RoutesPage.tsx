@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Loader2, Check, X } from 'lucide-react';
+import { Plus, Pencil, Loader2, Check, X } from 'lucide-react';
 import '../../assets/styles/routes.css';
 
 
@@ -22,13 +22,12 @@ export const RoutesPage: React.FC = () => {
   const [isLoadingRoutes, setIsLoadingRoutes] = useState(true);
 
   // ── Edición de rutas existentes ──────────────────────────────────────────
-  const [editingId, setEditingId]     = useState<number | null>(null);
-  const [isDeleting, setIsDeleting]   = useState<number | null>(null);
-  const [isSaving, setIsSaving]       = useState(false);
-  const [editNombre, setEditNombre]         = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editNombre, setEditNombre] = useState('');
   const [editDescripcion, setEditDescripcion] = useState('');
-  const [editColor, setEditColor]           = useState('#3498db');
-  const [editError, setEditError]     = useState<string | null>(null);
+  const [editColor, setEditColor] = useState('#3498db');
+  const [editError, setEditError] = useState<string | null>(null);
 
   // ── Fetch rutas ──────────────────────────────────────────────────────────
   const fetchRoutes = useCallback(async () => {
@@ -67,6 +66,17 @@ export const RoutesPage: React.FC = () => {
   const handleUpdateRuta = async () => {
     if (!editNombre.trim()) {
       setEditError('El nombre de la ruta es obligatorio.');
+      document.getElementById('edit-ruta-nombre')?.focus();
+      return;
+    }
+    if (editNombre.length > 50) {
+      setEditError('El nombre no puede exceder los 50 caracteres.');
+      document.getElementById('edit-ruta-nombre')?.focus();
+      return;
+    }
+    if (editDescripcion.length > 200) {
+      setEditError('La descripción no puede exceder los 200 caracteres.');
+      document.getElementById('edit-ruta-descripcion')?.focus();
       return;
     }
     setEditError(null);
@@ -91,25 +101,6 @@ export const RoutesPage: React.FC = () => {
       setEditError(e.message ?? 'Error al actualizar la ruta.');
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  // ── Eliminar ruta ────────────────────────────────────────────────────────
-  const handleDeleteRuta = async (id: number) => {
-    if (!window.confirm('¿Eliminar esta ruta y todos sus checkpoints?')) return;
-    setIsDeleting(id);
-    try {
-      const res = await fetch(`/api/rutas/${id}`, { method: 'DELETE' });
-      if (!res.ok && res.status !== 204) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).message ?? `HTTP ${res.status}`);
-      }
-      await fetchRoutes();
-      if (editingId === id) cancelEdit();
-    } catch (e: any) {
-      alert(`Error al eliminar: ${e.message}`);
-    } finally {
-      setIsDeleting(null);
     }
   };
 
@@ -145,27 +136,31 @@ export const RoutesPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="routes-table-wrapper">
+          <div className="routes-table-wrapper" style={{ maxWidth: '900px' }}>
             <table className="routes-table">
               <thead>
                 <tr>
-                  <th>Color</th>
-                  <th>Nombre</th>
-                  <th>Acciones</th>
+                  <th style={{ width: '60px', textAlign: 'center' }}>Color</th>
+                  <th style={{ width: '35%' }}>Nombre</th>
+                  <th style={{ width: 'auto' }}>Descripción</th>
+                  <th style={{ width: '80px', textAlign: 'center' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {routes.map(r => (
                   <tr key={r.id} className={editingId === r.id ? 'row-editing' : ''}>
-                    <td>
+                    <td style={{ textAlign: 'center' }}>
                       <span
                         className="route-color-dot"
                         style={{ background: r.color, display: 'inline-block' }}
                       />
                     </td>
-                    <td>{r.nombre}</td>
+                    <td style={{ fontWeight: 500, color: 'var(--text-h)' }}>{r.nombre}</td>
+                    <td style={{ color: 'var(--text)' }}>
+                      {r.descripcion ? r.descripcion : <span style={{ fontStyle: 'italic', opacity: 0.6 }}>Sin descripción</span>}
+                    </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <button
                           id={`btn-edit-ruta-${r.id}`}
                           className="action-btn action-btn--edit"
@@ -173,15 +168,6 @@ export const RoutesPage: React.FC = () => {
                           title="Editar ruta"
                         >
                           <Pencil size={14} />
-                        </button>
-                        <button
-                          id={`btn-delete-ruta-${r.id}`}
-                          className="action-btn action-btn--delete"
-                          onClick={() => handleDeleteRuta(r.id)}
-                          disabled={isDeleting === r.id}
-                          title="Eliminar ruta"
-                        >
-                          {isDeleting === r.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
                         </button>
                       </div>
                     </td>
@@ -192,27 +178,64 @@ export const RoutesPage: React.FC = () => {
           </div>
         )}
 
-        {/* Formulario inline de edición */}
         {editingId !== null && (
-          <div className="routes-section" id="edit-ruta-form" style={{ marginTop: '1.25rem', background: 'var(--panel-bg)', borderRadius: '0.75rem', padding: '1.25rem' }}>
+          <div className="routes-section" id="edit-ruta-form" style={{ maxWidth: '900px', marginTop: '1.25rem', background: 'var(--panel-bg)', borderRadius: '0.75rem', padding: '1.25rem' }}>
             <h3 className="section-title" style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>
               Editando: {editNombre}
             </h3>
             <div className="form-grid">
               <div className="form-field">
-                <label className="form-label">Nombre *</label>
-                <input className="form-input" type="text" value={editNombre} onChange={e => setEditNombre(e.target.value)} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <label className="form-label" htmlFor="edit-ruta-nombre">Nombre *</label>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)' }}>{editNombre.length}/50</span>
+                </div>
+                <input
+                  id="edit-ruta-nombre"
+                  className="form-input"
+                  type="text"
+                  maxLength={50}
+                  value={editNombre}
+                  placeholder="Ej: Barrio Centro"
+                  onChange={e => setEditNombre(e.target.value)}
+                />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.25rem', marginBottom: 0 }}>
+                  Asigna un nombre corto y fácil de identificar.
+                </p>
               </div>
               <div className="form-field">
-                <label className="form-label">Descripción</label>
-                <input className="form-input" type="text" value={editDescripcion} onChange={e => setEditDescripcion(e.target.value)} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <label className="form-label" htmlFor="edit-ruta-descripcion">Descripción</label>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)' }}>{editDescripcion.length}/200</span>
+                </div>
+                <input
+                  id="edit-ruta-descripcion"
+                  className="form-input"
+                  type="text"
+                  maxLength={200}
+                  value={editDescripcion}
+                  placeholder="Ej: Recolección domiciliaria en el Barrio Centro durante el turno matutino."
+                  onChange={e => setEditDescripcion(e.target.value)}
+                />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.25rem', marginBottom: 0 }}>
+                  Describe brevemente el recorrido o su propósito.
+                </p>
               </div>
               <div className="form-field">
-                <label className="form-label">Color de ruta</label>
+                <label className="form-label" htmlFor="edit-ruta-color">Color de ruta</label>
                 <div className="color-picker-row">
-                  <input className="color-picker-input" type="color" value={editColor} onChange={e => setEditColor(e.target.value)} />
+                  <input
+                    id="edit-ruta-color"
+                    className="color-picker-input"
+                    type="color"
+                    value={editColor}
+                    onChange={e => setEditColor(e.target.value)}
+                    title="Selecciona un color para identificar la ruta."
+                  />
                   <span className="color-picker-value">{editColor}</span>
                 </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.25rem', marginBottom: 0 }}>
+                  Selecciona el color que identificará la ruta en el mapa.
+                </p>
               </div>
             </div>
             {editError && (

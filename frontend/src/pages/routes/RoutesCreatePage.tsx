@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { MapSelector } from '../../components/routes/MapSelector';
 import { Loader2, Check, X } from 'lucide-react';
 import type { CheckpointInput } from '../../types/routes';
@@ -34,10 +35,19 @@ export const RoutesCreatePage: React.FC = () => {
 
   // ── CREAR RUTA — única acción transaccional ──────────────────────────────
   const handleCrearRuta = async () => {
-    // Validaciones del frontend
     if (!nombre.trim()) {
-      setFormError('El nombre de la ruta es obligatorio.');
+      toast.error('El nombre de la ruta es obligatorio.');
       document.getElementById('ruta-nombre')?.focus();
+      return;
+    }
+    if (nombre.length > 50) {
+      toast.error('El nombre no puede exceder los 50 caracteres.');
+      document.getElementById('ruta-nombre')?.focus();
+      return;
+    }
+    if (descripcion.length > 200) {
+      toast.error('La descripción no puede exceder los 200 caracteres.');
+      document.getElementById('ruta-descripcion')?.focus();
       return;
     }
 
@@ -65,11 +75,12 @@ export const RoutesCreatePage: React.FC = () => {
       }
 
       resetCrearForm();
+      toast.success('¡Ruta creada exitosamente!');
       // Navegar automáticamente al listado utilizando useNavigate()
       navigate('/rutas');
     } catch (e: any) {
       console.error('[RoutesCreatePage] handleCrearRuta:', e);
-      setFormError(e.message ?? 'Error al crear la ruta.');
+      toast.error(e.message ?? 'Error al crear la ruta.');
     } finally {
       setIsCreating(false);
     }
@@ -87,33 +98,47 @@ export const RoutesCreatePage: React.FC = () => {
         <div className="form-grid">
           {/* Nombre */}
           <div className="form-field">
-            <label className="form-label">Nombre *</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <label className="form-label" htmlFor="ruta-nombre">Nombre *</label>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)' }}>{nombre.length}/50</span>
+            </div>
             <input
               id="ruta-nombre"
               className="form-input"
               type="text"
+              maxLength={50}
               value={nombre}
-              placeholder="Ej. Ruta Centro"
+              placeholder="Ej: Barrio Centro"
               onChange={e => setNombre(e.target.value)}
             />
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.25rem', marginBottom: 0 }}>
+              Asigna un nombre corto y fácil de identificar.
+            </p>
           </div>
 
           {/* Descripción */}
           <div className="form-field">
-            <label className="form-label">Descripción</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <label className="form-label" htmlFor="ruta-descripcion">Descripción</label>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)' }}>{descripcion.length}/200</span>
+            </div>
             <input
               id="ruta-descripcion"
               className="form-input"
               type="text"
+              maxLength={200}
               value={descripcion}
-              placeholder="Descripción opcional"
+              placeholder="Ej: Recolección domiciliaria en el Barrio Centro durante el turno matutino."
               onChange={e => setDescripcion(e.target.value)}
             />
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.25rem', marginBottom: 0 }}>
+              Describe brevemente el recorrido o su propósito.
+            </p>
           </div>
 
           {/* Color */}
           <div className="form-field">
-            <label className="form-label">Color de ruta</label>
+            <label className="form-label" htmlFor="ruta-color">Color de ruta</label>
             <div className="color-picker-row">
               <input
                 id="ruta-color"
@@ -121,9 +146,13 @@ export const RoutesCreatePage: React.FC = () => {
                 type="color"
                 value={color}
                 onChange={e => setColor(e.target.value)}
+                title="Selecciona un color para identificar la ruta."
               />
               <span className="color-picker-value">{color}</span>
             </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.25rem', marginBottom: 0 }}>
+              Selecciona el color que identificará la ruta en el mapa.
+            </p>
           </div>
         </div>
       </section>
@@ -139,22 +168,23 @@ export const RoutesCreatePage: React.FC = () => {
 
       {/* ─── SECCIÓN: Error global + Botón único "Crear Ruta" ─── */}
       <section className="routes-section" style={{ paddingTop: '0.5rem' }}>
-        {formError && (
-          <div className="validation-error-banner" role="alert" style={{ marginBottom: '1rem' }}>
-            <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" aria-hidden="true">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-            <span>{formError}</span>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+          <button
+            type="button"
+            className="save-button"
+            style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none', width: '180px', height: '40px' }}
+            onClick={() => navigate('/rutas')}
+            disabled={isCreating}
+          >
+            <X size={16} />
+            Cancelar
+          </button>
           <button
             id="btn-crear-ruta"
             className="save-button crear-ruta-btn"
             onClick={handleCrearRuta}
             disabled={isCreating}
-            style={{ flex: 1 }}
+            style={{ width: '180px', height: '40px' }}
           >
             {isCreating ? (
               <>
@@ -167,16 +197,6 @@ export const RoutesCreatePage: React.FC = () => {
                 Crear Ruta
               </>
             )}
-          </button>
-          <button
-            type="button"
-            className="save-button"
-            style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none' }}
-            onClick={() => navigate('/rutas')}
-            disabled={isCreating}
-          >
-            <X size={16} />
-            Cancelar
           </button>
         </div>
       </section>

@@ -26,7 +26,7 @@ interface LiveMapSimulationProps {
   checkpoints: any[];
   color?: string;
   recorridoId: number;
-  onStatsUpdate: (stats: LiveStats) => void;
+  onStatsUpdate: (recorridoId: number, stats: LiveStats) => void;
 }
 
 const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkpoints, color, recorridoId, onStatsUpdate }) => {
@@ -80,7 +80,7 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
       const isLast = nextIndex >= cps.length;
 
       if (isLast) {
-        onStatsUpdateRef.current({
+        onStatsUpdateRef.current(recorridoId, {
           ultimoCheckpoint: 'Fin del Recorrido',
           proximoCheckpoint: '-',
           completados: cps.length,
@@ -154,7 +154,7 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
           // Smoothed percentage including the current segment progress
           const rawPercentage = ((startIndex + progress) / cps.length) * 100;
 
-          onStatsUpdateRef.current({
+          onStatsUpdateRef.current(recorridoId, {
             ultimoCheckpoint: cpStart.nombre || `Punto ${cpStart.orden}`,
             proximoCheckpoint: cpEnd.nombre || `Punto ${cpEnd.orden}`,
             completados: startIndex,
@@ -190,7 +190,7 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
     if (cps.length > 1) {
       animateSegment(0);
     } else {
-      onStatsUpdateRef.current({
+      onStatsUpdateRef.current(recorridoId, {
         ultimoCheckpoint: 'Fin del Recorrido',
         proximoCheckpoint: '-',
         completados: cps.length,
@@ -296,15 +296,15 @@ export const LiveMapPage: React.FC = () => {
   const [asignaciones, setAsignaciones] = useState<AsignacionRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [activeRecorrido, setActiveRecorrido] = useState<any>(null);
+  const [activeRecorridos, setActiveRecorridos] = useState<any[]>([]);
   const [isStartingRecorrido, setIsStartingRecorrido] = useState<number | null>(null);
-  const [activeAsignacion, setActiveAsignacion] = useState<AsignacionRecord | null>(null);
+  const [activeAsignaciones, setActiveAsignaciones] = useState<Record<number, AsignacionRecord>>({});
 
-  const [stats, setStats] = useState<LiveStats | null>(null);
+  const [statsMap, setStatsMap] = useState<Record<number, LiveStats>>({});
 
-  // Cerrojo one-shot: una vez que el recorrido llega a 'Completado'
+  // Cerrojo para cada recorrido individual: una vez que llega a 'Completado'
   // se congela el estado y se bloquea cualquier actualización adicional.
-  const recorridoCompletadoRef = useRef(false);
+  const recorridosCompletadosRef = useRef<Set<number>>(new Set());
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
@@ -328,8 +328,6 @@ export const LiveMapPage: React.FC = () => {
   }, [fetchAsignaciones]);
 
   const handleIniciarRecorrido = async (asignacion: AsignacionRecord) => {
-    // Resetear cerrojo para el nuevo recorrido
-    recorridoCompletadoRef.current = false;
     setIsStartingRecorrido(asignacion.id);
     try {
       const res = await fetch('/api/recorridos/iniciar', {
@@ -339,9 +337,16 @@ export const LiveMapPage: React.FC = () => {
       });
       if (!res.ok) throw new Error('Error al iniciar recorrido');
       const data = await res.json();
+      
+      const recorridoId = data.recorrido_id;
 
-      setActiveRecorrido(data);
-      setActiveAsignacion(asignacion);
+      // Asegurar que no agregamos duplicados
+      setActiveRecorridos(prev => {
+        if (prev.some(r => r.recorrido_id === recorridoId)) return prev;
+        return [...prev, data];
+      });
+
+      setActiveAsignaciones(prev => ({ ...prev, [recorridoId]: asignacion }));
 
       // Pre-calcular ETA inicial usando la hora REAL del momento en que el usuario inicia
       const totalSegmentos = (data.checkpoints?.length || 1) - 1;
@@ -349,16 +354,19 @@ export const LiveMapPage: React.FC = () => {
       const etaInicialSecs = Math.floor(etaInicialMs / 1000);
       const horaLlegadaInicial = new Date(Date.now() + etaInicialMs).toLocaleTimeString();
 
-      setStats({
-        ultimoCheckpoint: 'Base / Salida',
-        proximoCheckpoint: 'Iniciando...',
-        completados: 0,
-        pendientes: totalSegmentos,
-        porcentajeAvance: 0,
-        etaSegundos: etaInicialSecs,
-        horaEstimada: horaLlegadaInicial,
-        estadoDinamico: 'En Progreso'
-      });
+      setStatsMap(prev => ({
+        ...prev,
+        [recorridoId]: {
+          ultimoCheckpoint: 'Base / Salida',
+          proximoCheckpoint: 'Iniciando...',
+          completados: 0,
+          pendientes: totalSegmentos,
+          porcentajeAvance: 0,
+          etaSegundos: etaInicialSecs,
+          horaEstimada: horaLlegadaInicial,
+          estadoDinamico: 'En Progreso'
+        }
+      }));
 
       setTimeout(() => {
         if (mapContainerRef.current) {
@@ -373,29 +381,32 @@ export const LiveMapPage: React.FC = () => {
     }
   };
 
-  const handleStatsUpdate = useCallback((newStats: LiveStats) => {
+  const handleStatsUpdate = useCallback((recorridoId: number, newStats: LiveStats) => {
     // Si ya está completado, ignorar cualquier update posterior
-    if (recorridoCompletadoRef.current) return;
+    if (recorridosCompletadosRef.current.has(recorridoId)) return;
 
     if (newStats.estadoDinamico === 'Completado') {
       // Activar el cerrojo y fijar el estado final de una vez
-      recorridoCompletadoRef.current = true;
-      setStats({
-        ...newStats,
-        porcentajeAvance: 100,
-        completados: newStats.completados,
-        pendientes: 0,
-        etaSegundos: 0,
-        // Hora de llegada real: el instante exacto en que la simulación cerró
-        horaEstimada: new Date().toLocaleTimeString('es-MX', {
-          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-        }),
-        estadoDinamico: 'Completado'
-      });
+      recorridosCompletadosRef.current.add(recorridoId);
+      setStatsMap(prev => ({
+        ...prev,
+        [recorridoId]: {
+          ...newStats,
+          porcentajeAvance: 100,
+          completados: newStats.completados,
+          pendientes: 0,
+          etaSegundos: 0,
+          // Hora de llegada real: el instante exacto en que la simulación cerró
+          horaEstimada: new Date().toLocaleTimeString('es-MX', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+          }),
+          estadoDinamico: 'Completado'
+        }
+      }));
       return;
     }
 
-    setStats(newStats);
+    setStatsMap(prev => ({ ...prev, [recorridoId]: newStats }));
   }, []);
 
   // Format ETA from seconds to MM:SS
@@ -469,18 +480,18 @@ export const LiveMapPage: React.FC = () => {
                 <button
                   className="save-button"
                   onClick={() => handleIniciarRecorrido(a)}
-                  disabled={isStartingRecorrido === a.id || activeAsignacion?.id === a.id}
+                  disabled={isStartingRecorrido === a.id || !!activeAsignaciones[a.id]}
                   style={{
                     width: '100%', justifyContent: 'center',
-                    background: activeAsignacion?.id === a.id
+                    background: activeAsignaciones[a.id]
                       ? 'transparent'
                       : undefined,
-                    color: activeAsignacion?.id === a.id ? 'var(--text)' : undefined,
-                    border: activeAsignacion?.id === a.id ? '1px solid var(--panel-border)' : undefined,
-                    boxShadow: activeAsignacion?.id === a.id ? 'none' : undefined,
+                    color: activeAsignaciones[a.id] ? 'var(--text)' : undefined,
+                    border: activeAsignaciones[a.id] ? '1px solid var(--panel-border)' : undefined,
+                    boxShadow: activeAsignaciones[a.id] ? 'none' : undefined,
                   }}
                 >
-                  {activeAsignacion?.id === a.id ? (
+                  {activeAsignaciones[a.id] ? (
                     <><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} className="pulse-dot" /> Monitoreando…</>
                   ) : isStartingRecorrido === a.id ? (
                     <><Loader2 size={15} className="spin" /> Iniciando…</>
@@ -493,148 +504,162 @@ export const LiveMapPage: React.FC = () => {
       </section>
 
       {/* ─── Dashboard y Mapa en Vivo ─── */}
-      {activeRecorrido && activeAsignacion && (
+      {activeRecorridos.length > 0 && (
         <section ref={mapContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
 
-          {/* Panel de Estadísticas Dinámicas */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>
+          {/* Renderizar panel de estadísticas dinámicas por cada recorrido activo */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {activeRecorridos.map(recorrido => {
+              const asig = activeAsignaciones[recorrido.recorrido_id];
+              const st = statsMap[recorrido.recorrido_id];
+              if (!asig) return null;
 
-            {/* Ruta Activa */}
-            <div style={{
-              background: 'var(--panel-bg)', border: '1px solid var(--border)',
-              borderRadius: '0.875rem', padding: '1.125rem 1.25rem',
-              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06), 0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.52 0.14 250 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <MapPin size={14} style={{ color: 'oklch(0.52 0.14 250)' }} />
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ruta Activa</span>
-              </div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: 'var(--text-h)', letterSpacing: '-0.02em' }}>{activeAsignacion.ruta_nombre}</div>
-              <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.78rem', color: 'var(--text)', marginTop: '0.35rem' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Truck size={11} />{activeAsignacion.numero_economico}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><User size={11} />{activeAsignacion.conductor_nombre}</span>
-              </div>
-            </div>
+              return (
+                <div key={recorrido.recorrido_id} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.125rem', border: '1px solid var(--border)', borderRadius: '1rem', background: 'var(--panel-bg)', boxShadow: '0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)' }}>
+                  
+                  {/* Panel de Estadísticas Dinámicas */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>
+                    
+                    {/* Ruta Activa */}
+                    <div style={{
+                      background: 'var(--panel-bg)', border: '1px solid var(--border)',
+                      borderRadius: '0.875rem', padding: '1rem 1.125rem',
+                      boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.52 0.14 250 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MapPin size={14} style={{ color: 'oklch(0.52 0.14 250)' }} />
+                        </div>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ruta Activa</span>
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: 'var(--text-h)', letterSpacing: '-0.02em' }}>{asig.ruta_nombre}</div>
+                      <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.78rem', color: 'var(--text)', marginTop: '0.35rem' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Truck size={11} />{asig.numero_economico}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><User size={11} />{asig.conductor_nombre}</span>
+                      </div>
+                    </div>
 
-            {/* Estado del Recorrido */}
-            <div style={{
-              background: 'var(--panel-bg)', border: '1px solid var(--border)',
-              borderRadius: '0.875rem', padding: '1.125rem 1.25rem',
-              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06), 0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.76 0.17 135 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <TrendingUp size={14} style={{ color: 'oklch(0.55 0.15 145)' }} />
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estado</span>
-              </div>
-              <div style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em',
-                color: stats?.estadoDinamico === 'Retrasado' ? 'oklch(0.55 0.22 25)'
-                      : stats?.estadoDinamico === 'Completado' ? 'oklch(0.50 0.15 145)'
-                      : 'oklch(0.45 0.14 250)',
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-              }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                  background: stats?.estadoDinamico === 'Retrasado' ? 'oklch(0.58 0.22 25)'
-                              : stats?.estadoDinamico === 'Completado' ? 'oklch(0.76 0.17 135)'
-                              : 'oklch(0.52 0.14 250)',
-                  boxShadow: `0 0 0 3px ${
-                    stats?.estadoDinamico === 'Retrasado' ? 'oklch(0.58 0.22 25 / 0.25)'
-                    : stats?.estadoDinamico === 'Completado' ? 'oklch(0.76 0.17 135 / 0.25)'
-                    : 'oklch(0.52 0.14 250 / 0.25)'
-                  }`,
-                }} className={stats?.estadoDinamico === 'En Progreso' ? 'pulse-dot' : ''} />
-                {stats?.estadoDinamico || '—'}
-              </div>
-            </div>
+                    {/* Estado del Recorrido */}
+                    <div style={{
+                      background: 'var(--panel-bg)', border: '1px solid var(--border)',
+                      borderRadius: '0.875rem', padding: '1rem 1.125rem',
+                      boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.76 0.17 135 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <TrendingUp size={14} style={{ color: 'oklch(0.55 0.15 145)' }} />
+                        </div>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estado</span>
+                      </div>
+                      <div style={{
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em',
+                        color: st?.estadoDinamico === 'Retrasado' ? 'oklch(0.55 0.22 25)'
+                              : st?.estadoDinamico === 'Completado' ? 'oklch(0.50 0.15 145)'
+                              : 'oklch(0.45 0.14 250)',
+                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      }}>
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                          background: st?.estadoDinamico === 'Retrasado' ? 'oklch(0.58 0.22 25)'
+                                      : st?.estadoDinamico === 'Completado' ? 'oklch(0.76 0.17 135)'
+                                      : 'oklch(0.52 0.14 250)',
+                          boxShadow: `0 0 0 3px ${
+                            st?.estadoDinamico === 'Retrasado' ? 'oklch(0.58 0.22 25 / 0.25)'
+                            : st?.estadoDinamico === 'Completado' ? 'oklch(0.76 0.17 135 / 0.25)'
+                            : 'oklch(0.52 0.14 250 / 0.25)'
+                          }`,
+                        }} className={st?.estadoDinamico === 'En Progreso' ? 'pulse-dot' : ''} />
+                        {st?.estadoDinamico || '—'}
+                      </div>
+                    </div>
 
-            {/* Progreso (Checkpoints) */}
-            <div style={{
-              background: 'var(--panel-bg)', border: '1px solid var(--border)',
-              borderRadius: '0.875rem', padding: '1.125rem 1.25rem',
-              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06), 0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.72 0.18 138 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <MapPin size={14} style={{ color: 'oklch(0.52 0.14 138)' }} />
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Progreso</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginBottom: '0.5rem' }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-h)' }}>{stats?.completados || 0}</span>
-                <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>/ {(stats?.completados || 0) + (stats?.pendientes || 0)} checkpoints</span>
-              </div>
-              <div style={{ width: '100%', height: '5px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%',
-                  background: stats?.estadoDinamico === 'Retrasado'
-                    ? 'oklch(0.58 0.22 25)'
-                    : 'linear-gradient(90deg, oklch(0.52 0.14 250), oklch(0.72 0.18 138))',
-                  width: `${stats?.porcentajeAvance || 0}%`,
-                  borderRadius: '3px',
-                  transition: 'width 0.5s linear, background-color 0.3s'
-                }} />
-              </div>
-              <div style={{ fontSize: '0.72rem', textAlign: 'right', marginTop: '0.25rem', color: 'var(--text)' }}>
-                {(stats?.porcentajeAvance || 0).toFixed(1)}%
-              </div>
-            </div>
+                    {/* Progreso (Checkpoints) */}
+                    <div style={{
+                      background: 'var(--panel-bg)', border: '1px solid var(--border)',
+                      borderRadius: '0.875rem', padding: '1rem 1.125rem',
+                      boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.72 0.18 138 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MapPin size={14} style={{ color: 'oklch(0.52 0.14 138)' }} />
+                        </div>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Progreso</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                        <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-h)' }}>{st?.completados || 0}</span>
+                        <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>/ {(st?.completados || 0) + (st?.pendientes || 0)} checkpoints</span>
+                      </div>
+                      <div style={{ width: '100%', height: '5px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%',
+                          background: st?.estadoDinamico === 'Retrasado'
+                            ? 'oklch(0.58 0.22 25)'
+                            : 'linear-gradient(90deg, oklch(0.52 0.14 250), oklch(0.72 0.18 138))',
+                          width: `${st?.porcentajeAvance || 0}%`,
+                          borderRadius: '3px',
+                          transition: 'width 0.5s linear, background-color 0.3s'
+                        }} />
+                      </div>
+                      <div style={{ fontSize: '0.72rem', textAlign: 'right', marginTop: '0.25rem', color: 'var(--text)' }}>
+                        {(st?.porcentajeAvance || 0).toFixed(1)}%
+                      </div>
+                    </div>
 
-            {/* Tiempos Estimados */}
-            <div style={{
-              background: 'var(--panel-bg)', border: '1px solid var(--border)',
-              borderRadius: '0.875rem', padding: '1.125rem 1.25rem',
-              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06), 0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.78 0.16 75 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Timer size={14} style={{ color: 'oklch(0.45 0.12 72)' }} />
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tiempos ETA</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>ETA Restante:</span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-h)', fontSize: '0.9rem' }}>{formatEta(stats?.etaSegundos || 0)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>Llegada:</span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-h)', fontSize: '0.9rem' }}>{stats?.horaEstimada}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+                    {/* Tiempos Estimados */}
+                    <div style={{
+                      background: 'var(--panel-bg)', border: '1px solid var(--border)',
+                      borderRadius: '0.875rem', padding: '1rem 1.125rem',
+                      boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.78 0.16 75 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Timer size={14} style={{ color: 'oklch(0.45 0.12 72)' }} />
+                        </div>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tiempos ETA</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>ETA Restante:</span>
+                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-h)', fontSize: '0.9rem' }}>{formatEta(st?.etaSegundos || 0)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>Llegada:</span>
+                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-h)', fontSize: '0.9rem' }}>{st?.horaEstimada}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <div style={{
-              background: 'var(--panel-bg)',
-              border: '1px solid var(--border)',
-              borderRadius: '0.75rem', padding: '0.6rem 1rem',
-              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-              fontSize: '0.8375rem',
-              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.05)',
-            }}>
-              <Truck size={14} style={{ color: 'oklch(0.52 0.14 250)', flexShrink: 0 }} />
-              <span style={{ color: 'var(--text)' }}>Salió de:</span>
-              <strong style={{ color: 'var(--text-h)', letterSpacing: '-0.01em' }}>{stats?.ultimoCheckpoint || '…'}</strong>
-            </div>
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <div style={{
+                      background: 'var(--panel-bg)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '0.75rem', padding: '0.6rem 1rem',
+                      display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                      fontSize: '0.8375rem',
+                      boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.05)',
+                    }}>
+                      <Truck size={14} style={{ color: 'oklch(0.52 0.14 250)', flexShrink: 0 }} />
+                      <span style={{ color: 'var(--text)' }}>Salió de:</span>
+                      <strong style={{ color: 'var(--text-h)', letterSpacing: '-0.01em' }}>{st?.ultimoCheckpoint || '…'}</strong>
+                    </div>
 
-            <div style={{
-              background: 'var(--panel-bg)',
-              border: '1px solid var(--border)',
-              borderRadius: '0.75rem', padding: '0.6rem 1rem',
-              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-              fontSize: '0.8375rem',
-              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.05)',
-            }}>
-              <MapPin size={14} style={{ color: 'oklch(0.52 0.14 250)', flexShrink: 0 }} />
-              <span style={{ color: 'var(--text)' }}>Hacia:</span>
-              <strong style={{ color: 'var(--text-h)', letterSpacing: '-0.01em' }}>{stats?.proximoCheckpoint || '…'}</strong>
-            </div>
+                    <div style={{
+                      background: 'var(--panel-bg)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '0.75rem', padding: '0.6rem 1rem',
+                      display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                      fontSize: '0.8375rem',
+                      boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.05)',
+                    }}>
+                      <MapPin size={14} style={{ color: 'oklch(0.52 0.14 250)', flexShrink: 0 }} />
+                      <span style={{ color: 'var(--text)' }}>Hacia:</span>
+                      <strong style={{ color: 'var(--text-h)', letterSpacing: '-0.01em' }}>{st?.proximoCheckpoint || '…'}</strong>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <div style={{
@@ -652,12 +677,15 @@ export const LiveMapPage: React.FC = () => {
                 gestureHandling="greedy"
                 disableDefaultUI={true}
               >
-                <LiveMapSimulation
-                  checkpoints={activeRecorrido.checkpoints}
-                  color={activeRecorrido.color}
-                  recorridoId={activeRecorrido.recorrido_id}
-                  onStatsUpdate={handleStatsUpdate}
-                />
+                {activeRecorridos.map(recorrido => (
+                  <LiveMapSimulation
+                    key={recorrido.recorrido_id}
+                    checkpoints={recorrido.checkpoints}
+                    color={recorrido.color}
+                    recorridoId={recorrido.recorrido_id}
+                    onStatsUpdate={handleStatsUpdate}
+                  />
+                ))}
               </Map>
             </APIProvider>
           </div>

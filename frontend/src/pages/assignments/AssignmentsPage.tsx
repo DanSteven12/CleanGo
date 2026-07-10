@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Loader2, Check, X } from 'lucide-react';
+import { Plus, Pencil, Loader2, Check, X } from 'lucide-react';
 
 import type { AsignacionData, AsignacionRecord } from '../../types/routes';
 
@@ -87,10 +87,6 @@ export const AssignmentsPage: React.FC = () => {
   const [editRutaId, setEditRutaId] = useState<number | ''>('');
   const [isSaving, setIsSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-
-  // ── Eliminación ────────────────────────────────────────────────────────
-  const [isDeleting, setIsDeleting] = useState<number | null>(null);
-
 
 
   // ── Fetch catálogos ────────────────────────────────────────────────────
@@ -189,25 +185,6 @@ export const AssignmentsPage: React.FC = () => {
     }
   };
 
-  // ── Eliminar asignación ────────────────────────────────────────────────
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Eliminar esta asignación?')) return;
-    setIsDeleting(id);
-    try {
-      const res = await fetch(`/api/asignaciones/${id}`, { method: 'DELETE' });
-      if (!res.ok && res.status !== 204) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).message ?? `HTTP ${res.status}`);
-      }
-      await fetchAsignaciones();
-      if (editingId === id) cancelEdit();
-    } catch (e: any) {
-      alert(`Error al eliminar: ${e.message}`);
-    } finally {
-      setIsDeleting(null);
-    }
-  };
-
   // ── Helpers para campos de formulario ─────────────────────────────────
   const setEF = (patch: Partial<AsignacionData>) => setEditForm(prev => ({ ...prev, ...patch }));
 
@@ -247,7 +224,7 @@ export const AssignmentsPage: React.FC = () => {
                   <th>Conductor</th>
                   <th>Fecha y Horario</th>
                   <th>Estatus</th>
-                  <th>Acciones</th>
+                  <th style={{ width: '80px', textAlign: 'center' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -285,7 +262,7 @@ export const AssignmentsPage: React.FC = () => {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <button
                           id={`btn-edit-asignacion-${a.id}`}
                           className="action-btn action-btn--edit"
@@ -294,16 +271,6 @@ export const AssignmentsPage: React.FC = () => {
                         >
                           <Pencil size={14} />
                         </button>
-                        <button
-                          id={`btn-delete-asignacion-${a.id}`}
-                          className="action-btn action-btn--delete"
-                          onClick={() => handleDelete(a.id)}
-                          disabled={isDeleting === a.id}
-                          title="Eliminar asignación"
-                        >
-                          {isDeleting === a.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
-                        </button>
-
                       </div>
                     </td>
                   </tr>

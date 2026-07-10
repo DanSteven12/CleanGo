@@ -24,7 +24,6 @@ interface ConductorOption {
   num_licencia: string;
 }
 
-const ESTATUS_OPTIONS = ['Pendiente', 'En Progreso', 'Completado'];
 
 export const AssignmentsCreatePage: React.FC = () => {
   const navigate = useNavigate();
@@ -42,7 +41,6 @@ export const AssignmentsCreatePage: React.FC = () => {
     fecha_programada: '',
     horario_inicio: '',
     horario_fin: '',
-    estatus_recorrido: 'Pendiente',
   };
   const [form, setForm]             = useState<AsignacionData>(EMPTY_FORM);
   const [formRutaId, setFormRutaId] = useState<number | ''>('');
@@ -97,7 +95,6 @@ export const AssignmentsCreatePage: React.FC = () => {
           fecha_programada: form.fecha_programada,
           horario_inicio:   form.horario_inicio,
           horario_fin:      form.horario_fin,
-          estatus_recorrido: form.estatus_recorrido,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -134,13 +131,14 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Ruta */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-ruta">Ruta *</label>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Selecciona la ruta que realizará el camión durante este recorrido.</p>
               <select
                 id="new-ruta"
                 className="form-select"
                 value={formRutaId}
                 onChange={e => setFormRutaId(e.target.value ? Number(e.target.value) : '')}
               >
-                <option value="">Seleccione una ruta</option>
+                <option value="" disabled>Selecciona una ruta</option>
                 {rutas.map(r => (
                   <option key={r.id} value={r.id}>{r.nombre}</option>
                 ))}
@@ -150,13 +148,14 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Camión */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-camion">Camión *</label>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Elige el camión que será asignado para realizar la recolección.</p>
               <select
                 id="new-camion"
                 className="form-select"
                 value={form.camion_id}
                 onChange={e => setF({ camion_id: e.target.value ? Number(e.target.value) : '' })}
               >
-                <option value="">Seleccione un camión</option>
+                <option value="" disabled>Selecciona un camión</option>
                 {camiones.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.numero_economico} ({c.placa}) — {c.estatus_operativo}
@@ -168,13 +167,14 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Conductor */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-conductor">Conductor *</label>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Selecciona el conductor responsable de operar la unidad.</p>
               <select
                 id="new-conductor"
                 className="form-select"
                 value={form.conductor_id}
                 onChange={e => setF({ conductor_id: e.target.value ? Number(e.target.value) : '' })}
               >
-                <option value="">Seleccione un conductor</option>
+                <option value="" disabled>Selecciona un conductor</option>
                 {conductores.map(d => (
                   <option key={d.id} value={d.id}>
                     {d.nombre_completo} (Lic: {d.num_licencia})
@@ -186,9 +186,11 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Fecha programada */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-fecha">Fecha programada *</label>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Indica la fecha en la que se llevará a cabo el recorrido.</p>
               <input
                 id="new-fecha"
                 type="date"
+                placeholder="Selecciona una fecha"
                 className="form-input"
                 value={form.fecha_programada}
                 onChange={e => setF({ fecha_programada: e.target.value })}
@@ -198,41 +200,33 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Horario inicio */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-horario-inicio">Horario inicio *</label>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Especifica la hora en que el recorrido comenzará.</p>
               <input
                 id="new-horario-inicio"
                 type="time"
+                placeholder="Selecciona una hora"
                 className="form-input"
                 value={form.horario_inicio}
                 onChange={e => setF({ horario_inicio: e.target.value })}
+                onClick={(e) => (e.target as any).showPicker && (e.target as any).showPicker()}
               />
             </div>
 
             {/* Horario fin */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-horario-fin">Horario fin *</label>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Indica la hora estimada en la que finalizará el recorrido.</p>
               <input
                 id="new-horario-fin"
                 type="time"
+                placeholder="Selecciona una hora"
                 className="form-input"
                 value={form.horario_fin}
                 onChange={e => setF({ horario_fin: e.target.value })}
+                onClick={(e) => (e.target as any).showPicker && (e.target as any).showPicker()}
               />
             </div>
 
-            {/* Estatus del recorrido */}
-            <div className="form-field">
-              <label className="form-label" htmlFor="new-estatus">Estatus del recorrido</label>
-              <select
-                id="new-estatus"
-                className="form-select"
-                value={form.estatus_recorrido}
-                onChange={e => setF({ estatus_recorrido: e.target.value })}
-              >
-                {ESTATUS_OPTIONS.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
           </div>
         )}
 
@@ -245,13 +239,23 @@ export const AssignmentsCreatePage: React.FC = () => {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
+          <button
+            type="button"
+            className="save-button"
+            style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none', width: '180px', height: '40px' }}
+            onClick={() => navigate('/asignaciones')}
+            disabled={isCreating}
+          >
+            <X size={16} />
+            Cancelar
+          </button>
           <button
             id="btn-crear-asignacion"
             className="save-button crear-ruta-btn"
             onClick={handleCrear}
             disabled={isCreating || isLoadingCatalogs}
-            style={{ flex: 1 }}
+            style={{ width: '180px', height: '40px' }}
           >
             {isCreating ? (
               <>
@@ -264,16 +268,6 @@ export const AssignmentsCreatePage: React.FC = () => {
                 Crear Asignación
               </>
             )}
-          </button>
-          <button
-            type="button"
-            className="save-button"
-            style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none' }}
-            onClick={() => navigate('/asignaciones')}
-            disabled={isCreating}
-          >
-            <X size={16} />
-            Cancelar
           </button>
         </div>
       </section>

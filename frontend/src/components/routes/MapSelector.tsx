@@ -9,6 +9,8 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { toast, Toaster } from 'sonner';
 import {
   APIProvider,
   Map,
@@ -184,8 +186,20 @@ const MapSelectorInner: React.FC<MapSelectorProps> = ({
   const [resolvedAddress, setResolvedAddress] = useState<string>('');
   const lastValidPosRef = useRef<google.maps.LatLngLiteral>(CENTER);
 
-  // ── InfoWindow ────────────────────────────────────────────────────────
+  // ── InfoWindow ─────────────────────────────────────────────────
   const [openInfoId, setOpenInfoId] = useState<number | null>(null);
+
+  // ── Referencia al contenedor del mapa y estado fullscreen ────────────────────
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [fullscreenEl, setFullscreenEl] = useState<Element | null>(null);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      setFullscreenEl(document.fullscreenElement ?? null);
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
 
   // ── Geocoder ──────────────────────────────────────────────────────────
   const geocodingLib = useMapsLibrary('geocoding');
@@ -249,6 +263,19 @@ const MapSelectorInner: React.FC<MapSelectorProps> = ({
     }
   }, []);
 
+  // ── Mostrar toasts cuando cambia el estado de validación ──────────────
+  useEffect(() => {
+    if (validationError && !isValidating) {
+      toast.error(validationError, { id: 'validation-error' });
+    }
+  }, [validationError, isValidating]);
+
+  useEffect(() => {
+    if (resolvedAddress && !validationError && !isValidating) {
+      toast.success(`📍 ${resolvedAddress}`, { id: 'resolved-address', duration: 2500 });
+    }
+  }, [resolvedAddress, validationError, isValidating]);
+
   const handleMapClick = useCallback(
     (lat: number, lng: number) => { void validateAndApply(lat, lng); },
     [validateAndApply]
@@ -285,7 +312,55 @@ const MapSelectorInner: React.FC<MapSelectorProps> = ({
     setOrden((prev) => Math.max(1, prev - 1));
   };
 
-  // ── Render ────────────────────────────────────────────────────────────
+  // ── Botones flotantes (normal + fullscreen) ──────────────────────────
+  const floatingBtnStyle: React.CSSProperties = {
+    position: 'absolute',
+    bottom: '1rem',
+    right: '4rem',   // separado de los controles nativos de Maps (zoom)
+    zIndex: 10,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    padding: '0.5rem 1rem',
+    height: '2.5rem',
+    borderRadius: '0.625rem',
+    border: 'none',
+    background: 'linear-gradient(135deg, oklch(0.52 0.14 250), oklch(0.42 0.05 170))',
+    color: '#fff',
+    fontSize: '0.875rem',
+    fontWeight: 700,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    boxShadow: '0 4px 18px oklch(0.52 0.14 250 / 0.40)',
+    transition: 'filter 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease',
+    opacity: (isValidating || Boolean(validationError)) ? 0.5 : 1,
+    whiteSpace: 'nowrap',
+  };
+
+  const FloatingBtn = (
+    <button
+      id="btn-map-agregar-punto"
+      type="button"
+      onClick={handleAddCheckpoint}
+      disabled={isValidating || Boolean(validationError)}
+      title="Agregar punto al recorrido"
+      style={floatingBtnStyle}
+      onMouseEnter={e => {
+        if (!isValidating && !validationError) {
+          (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.12)';
+          (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+        }
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLButtonElement).style.filter = '';
+        (e.currentTarget as HTMLButtonElement).style.transform = '';
+      }}
+    >
+      📍 Agregar punto
+    </button>
+  );
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="map-selector-container">
       <h2 className="map-selector-title">Puntos de Control</h2>
@@ -298,31 +373,40 @@ const MapSelectorInner: React.FC<MapSelectorProps> = ({
       <div className="form-grid">
         {/* Nombre del punto */}
         <div className="form-field">
-          <label className="form-label">Nombre del punto</label>
+          <label className="form-label" htmlFor="checkpoint-nombre">Nombre del punto</label>
           <input
+            id="checkpoint-nombre"
             className="form-input"
             type="text"
             value={nombre}
-            placeholder={`Checkpoint ${orden}`}
+            placeholder="Ej: Parque Central"
             onChange={(e) => setNombre(e.target.value)}
           />
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.25rem', marginBottom: 0 }}>
+            Ingresa un nombre fácil de identificar para este punto de control.
+          </p>
         </div>
 
         {/* Orden */}
         <div className="form-field">
-          <label className="form-label">Orden</label>
+          <label className="form-label" htmlFor="checkpoint-orden">Orden</label>
           <input
+            id="checkpoint-orden"
             className="form-input"
             type="number"
             min={1}
             value={orden}
+            placeholder="Ej: 1"
             onChange={(e) => setOrden(Number(e.target.value))}
           />
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.25rem', marginBottom: 0 }}>
+            Indica el orden en que el camión deberá visitar este punto.
+          </p>
         </div>
 
         {/* Mapa a ancho completo */}
         <div className="form-field map-field">
-          <div className="map-container-relative">
+          <div className="map-container-relative" ref={mapContainerRef}>
             <Map
               style={{ height: '380px', width: '100%', borderRadius: '0.5rem' }}
               defaultCenter={CENTER}
@@ -348,66 +432,29 @@ const MapSelectorInner: React.FC<MapSelectorProps> = ({
                 <span>Validando ubicación…</span>
               </div>
             )}
+
+            {/* Botón flotante — vista normal */}
+            {!fullscreenEl && FloatingBtn}
           </div>
         </div>
 
-        {/* Banner error de validación */}
-        {validationError && !isValidating && (
-          <div className="validation-error-banner" role="alert">
-            <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" aria-hidden="true">
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span>{validationError}</span>
-          </div>
-        )}
-
-        {/* Banner éxito de validación */}
-        {resolvedAddress && !validationError && !isValidating && (
-          <div className="validation-success-banner">
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
-              <path
-                fillRule="evenodd"
-                d="M16.704 5.292a1 1 0 010 1.416l-8.5 8.5a1 1 0 01-1.416 0l-4-4a1 1 0 111.416-1.416L8 12.084l7.788-7.788a1 1 0 011.416 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span className="resolved-address">{resolvedAddress}</span>
-          </div>
-        )}
-
-        {/* Coordenadas readonly */}
-        <div className="form-actions">
-          <div className="form-field">
-            <label className="form-label">Latitud</label>
-            <input readOnly className="readonly-input" type="text" value={latitud} />
-          </div>
-          <div className="form-field">
-            <label className="form-label">Longitud</label>
-            <input readOnly className="readonly-input" type="text" value={longitud} />
-          </div>
-        </div>
-
-        {/* Botón para agregar punto a la lista */}
-        <button
-          type="button"
-          className="save-button"
-          onClick={handleAddCheckpoint}
-          disabled={isValidating || Boolean(validationError)}
-          style={{ alignSelf: 'flex-start' }}
-        >
-          <svg className="save-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-            <path
-              fillRule="evenodd"
-              d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
-              clipRule="evenodd"
+        {/* Botón flotante y Toasts — vista fullscreen (portal al contenedor de Google Maps) */}
+        {fullscreenEl && createPortal(
+          <>
+            <div style={{ position: 'fixed', bottom: '1.25rem', right: '4.5rem', zIndex: 9999 }}>
+              {FloatingBtn}
+            </div>
+            {/* Se incluye un Toaster en el portal para que los toasts sean visibles en fullscreen */}
+            <Toaster
+              position="top-right"
+              richColors
+              closeButton
+              duration={3000}
+              toastOptions={{ style: { fontFamily: 'inherit', zIndex: 9999 } }}
             />
-          </svg>
-          Agregar punto al recorrido
-        </button>
+          </>,
+          fullscreenEl
+        )}
 
         {/* Lista de checkpoints temporales */}
         {sortedCheckpoints.length > 0 && (

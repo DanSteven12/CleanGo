@@ -7,7 +7,7 @@ export type AsignacionData = {
   fecha_programada: string;
   horario_inicio: string;
   horario_fin: string;
-  estatus_recorrido: string;
+  estatus_recorrido?: string;
 };
 
 export type CheckpointInput = {

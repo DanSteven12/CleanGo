@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { MainLayout } from './layouts/MainLayout';
 import { RoutesPage } from './pages/routes/RoutesPage';
 import { RoutesCreatePage } from './pages/routes/RoutesCreatePage';
@@ -50,6 +51,13 @@ function App() {
   return (
     <BrowserRouter>
       <AppContent />
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        duration={3000}
+        toastOptions={{ style: { fontFamily: 'inherit' } }}
+      />
     </BrowserRouter>
   );
 }

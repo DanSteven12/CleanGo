@@ -54,7 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Route,
     children: [
       { id: 'nav-rutas', label: 'Rutas', to: '/rutas', icon: Map },
-      { id: 'nav-checkpoints', label: 'Checkpoints', to: '/asignaciones', icon: MapPinned },
+      { id: 'nav-checkpoints', label: 'Asignaciones', to: '/asignaciones', icon: MapPinned },
     ],
   },
   {
