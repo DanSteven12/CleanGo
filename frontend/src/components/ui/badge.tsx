@@ -29,8 +29,8 @@ const badgeVariants = cva(
           'bg-transparent text-[var(--foreground)] border-[var(--border)]',
         ],
         success: [
-          'bg-[oklch(0.76_0.17_135_/_0.12)] text-[oklch(0.38_0.10_145)]',
-          'border-[oklch(0.76_0.17_135_/_0.35)]',
+          'bg-[#388C351E] text-[#152C40]',
+          'border-[#388C3559]',
         ],
         warning: [
           'bg-[oklch(0.78_0.16_75_/_0.12)] text-[oklch(0.40_0.10_65)]',
@@ -41,8 +41,8 @@ const badgeVariants = cva(
           'border-[oklch(0.58_0.22_25_/_0.35)]',
         ],
         primary: [
-          'bg-[oklch(0.52_0.14_250_/_0.12)] text-[oklch(0.38_0.12_250)]',
-          'border-[oklch(0.52_0.14_250_/_0.35)]',
+          'bg-[#1763A61E] text-[#152C40]',
+          'border-[#1763A659]',
         ],
         // For assignment status
         pendiente: [
@@ -50,12 +50,12 @@ const badgeVariants = cva(
           'border-[oklch(0.78_0.16_75_/_0.38)]',
         ],
         'en-progreso': [
-          'bg-[oklch(0.52_0.14_250_/_0.12)] text-[oklch(0.38_0.12_250)]',
-          'border-[oklch(0.52_0.14_250_/_0.35)]',
+          'bg-[#1763A61E] text-[#152C40]',
+          'border-[#1763A659]',
         ],
         completado: [
-          'bg-[oklch(0.76_0.17_135_/_0.12)] text-[oklch(0.38_0.10_145)]',
-          'border-[oklch(0.76_0.17_135_/_0.35)]',
+          'bg-[#388C351E] text-[#152C40]',
+          'border-[#388C3559]',
         ],
         retrasado: [
           'bg-[oklch(0.58_0.22_25_/_0.12)] text-[oklch(0.40_0.18_25)]',

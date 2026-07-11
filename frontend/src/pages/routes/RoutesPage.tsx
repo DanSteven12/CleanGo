@@ -122,7 +122,7 @@ export const RoutesPage: React.FC = () => {
 
         {isLoadingRoutes ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', fontSize: '0.875rem', padding: '1rem 0' }}>
-            <Loader2 size={16} className="spin" style={{ color: 'oklch(0.52 0.14 250)' }} />
+            <Loader2 size={16} className="spin" style={{ color: '#1763A6' }} />
             Cargando rutas…
           </div>
         ) : routes.length === 0 ? (

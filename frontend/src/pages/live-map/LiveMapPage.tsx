@@ -424,9 +424,9 @@ export const LiveMapPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.25rem' }}>
           <div style={{
             width: 36, height: 36, borderRadius: '50%',
-            background: 'linear-gradient(135deg, oklch(0.52 0.14 250), oklch(0.42 0.05 170))',
+            background: 'linear-gradient(135deg, #1763A6, #152C40)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, boxShadow: '0 2px 10px oklch(0.52 0.14 250 / 0.35)',
+            flexShrink: 0, boxShadow: '0 2px 10px #1763A659',
           }}>
             <Satellite size={18} color="white" />
           </div>
@@ -464,7 +464,7 @@ export const LiveMapPage: React.FC = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8375rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, color: 'var(--text-h)' }}>
-                      <Truck size={14} style={{ color: 'oklch(0.52 0.14 250)' }} />
+                      <Truck size={14} style={{ color: '#1763A6' }} />
                       {a.numero_economico}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text)' }}>
@@ -527,8 +527,8 @@ export const LiveMapPage: React.FC = () => {
                       boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.52 0.14 250 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <MapPin size={14} style={{ color: 'oklch(0.52 0.14 250)' }} />
+                        <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: '#1763A61E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MapPin size={14} style={{ color: '#1763A6' }} />
                         </div>
                         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ruta Activa</span>
                       </div>
@@ -546,8 +546,8 @@ export const LiveMapPage: React.FC = () => {
                       boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.76 0.17 135 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <TrendingUp size={14} style={{ color: 'oklch(0.55 0.15 145)' }} />
+                        <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: '#388C351E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <TrendingUp size={14} style={{ color: '#388C35' }} />
                         </div>
                         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estado</span>
                       </div>
@@ -555,18 +555,18 @@ export const LiveMapPage: React.FC = () => {
                         fontFamily: 'var(--font-display)',
                         fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em',
                         color: st?.estadoDinamico === 'Retrasado' ? 'oklch(0.55 0.22 25)'
-                              : st?.estadoDinamico === 'Completado' ? 'oklch(0.50 0.15 145)'
-                              : 'oklch(0.45 0.14 250)',
+                              : st?.estadoDinamico === 'Completado' ? '#388C35'
+                              : '#1763A6',
                         display: 'flex', alignItems: 'center', gap: '0.5rem',
                       }}>
                         <span style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
                           background: st?.estadoDinamico === 'Retrasado' ? 'oklch(0.58 0.22 25)'
-                                      : st?.estadoDinamico === 'Completado' ? 'oklch(0.76 0.17 135)'
-                                      : 'oklch(0.52 0.14 250)',
+                                      : st?.estadoDinamico === 'Completado' ? '#388C35'
+                                      : '#1763A6',
                           boxShadow: `0 0 0 3px ${
                             st?.estadoDinamico === 'Retrasado' ? 'oklch(0.58 0.22 25 / 0.25)'
-                            : st?.estadoDinamico === 'Completado' ? 'oklch(0.76 0.17 135 / 0.25)'
-                            : 'oklch(0.52 0.14 250 / 0.25)'
+                            : st?.estadoDinamico === 'Completado' ? '#388C3540'
+                            : '#1763A640'
                           }`,
                         }} className={st?.estadoDinamico === 'En Progreso' ? 'pulse-dot' : ''} />
                         {st?.estadoDinamico || '—'}
@@ -580,8 +580,8 @@ export const LiveMapPage: React.FC = () => {
                       boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: 'oklch(0.72 0.18 138 / 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <MapPin size={14} style={{ color: 'oklch(0.52 0.14 138)' }} />
+                        <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: '#90BF491E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MapPin size={14} style={{ color: '#90BF49' }} />
                         </div>
                         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Progreso</span>
                       </div>
@@ -594,7 +594,7 @@ export const LiveMapPage: React.FC = () => {
                           height: '100%',
                           background: st?.estadoDinamico === 'Retrasado'
                             ? 'oklch(0.58 0.22 25)'
-                            : 'linear-gradient(90deg, oklch(0.52 0.14 250), oklch(0.72 0.18 138))',
+                            : 'linear-gradient(90deg, #1763A6, #90BF49)',
                           width: `${st?.porcentajeAvance || 0}%`,
                           borderRadius: '3px',
                           transition: 'width 0.5s linear, background-color 0.3s'
@@ -639,7 +639,7 @@ export const LiveMapPage: React.FC = () => {
                       fontSize: '0.8375rem',
                       boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.05)',
                     }}>
-                      <Truck size={14} style={{ color: 'oklch(0.52 0.14 250)', flexShrink: 0 }} />
+                      <Truck size={14} style={{ color: '#1763A6', flexShrink: 0 }} />
                       <span style={{ color: 'var(--text)' }}>Salió de:</span>
                       <strong style={{ color: 'var(--text-h)', letterSpacing: '-0.01em' }}>{st?.ultimoCheckpoint || '…'}</strong>
                     </div>
@@ -652,7 +652,7 @@ export const LiveMapPage: React.FC = () => {
                       fontSize: '0.8375rem',
                       boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.05)',
                     }}>
-                      <MapPin size={14} style={{ color: 'oklch(0.52 0.14 250)', flexShrink: 0 }} />
+                      <MapPin size={14} style={{ color: '#1763A6', flexShrink: 0 }} />
                       <span style={{ color: 'var(--text)' }}>Hacia:</span>
                       <strong style={{ color: 'var(--text-h)', letterSpacing: '-0.01em' }}>{st?.proximoCheckpoint || '…'}</strong>
                     </div>
@@ -665,9 +665,9 @@ export const LiveMapPage: React.FC = () => {
           <div style={{
             width: '100%', height: '600px',
             borderRadius: '0.875rem',
-            border: '1px solid oklch(0.52 0.14 250 / 0.20)',
+            border: '1px solid #1763A633',
             overflow: 'hidden',
-            boxShadow: '0 4px 24px oklch(0.2 0.04 240 / 0.12), 0 0 0 4px oklch(0.52 0.14 250 / 0.05)',
+            boxShadow: '0 4px 24px oklch(0.2 0.04 240 / 0.12), 0 0 0 4px #1763A60D',
           }}>
             <APIProvider apiKey={API_KEY}>
               <Map

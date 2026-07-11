@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import iconoCamion from "../../assets/images/icono.png";
 import {
   LayoutDashboard,
   Route,
@@ -287,27 +288,28 @@ export const AppSidebar: React.FC = () => {
           flexShrink: 0,
         }}
       >
-        {/* Logo mark */}
-        <span
+        {/* Logo mark (NUEVO: Imagen en lugar de SVG) */}
+        <div
           style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '9px',
-            background: 'linear-gradient(135deg, oklch(0.52 0.14 250) 0%, oklch(0.42 0.05 170) 100%)',
+            width: '58px', // Ligeramente más grande para que luzca bien el círculo
+            height: '58px',
+            borderRadius: '50%', // Lo hace un círculo perfecto
+            overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            boxShadow: '0 2px 10px oklch(0.52 0.14 250 / 0.40)',
+            boxShadow: '0 2px 10px oklch(0.52 0.14 250 / 0.40)', // Conservé tu sombra
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
-        </span>
-        {/* Wordmark */}
+          <img
+            src={iconoCamion}
+            alt="CleanGo"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        </div>
+
+        {/* Wordmark (SE QUEDA EXACTAMENTE IGUAL) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
           <span
             style={{
@@ -315,7 +317,7 @@ export const AppSidebar: React.FC = () => {
               fontSize: '1.05rem',
               fontWeight: 700,
               letterSpacing: '-0.03em',
-              background: 'linear-gradient(135deg, oklch(0.82 0.08 240) 0%, oklch(0.72 0.18 138) 100%)',
+              background: 'linear-gradient(135deg, oklch(0.82 0.08 240) 0%, #90BF49 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               lineHeight: 1.15,
@@ -388,7 +390,7 @@ export const AppSidebar: React.FC = () => {
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, oklch(0.52 0.14 250), oklch(0.42 0.05 170))',
+            background: 'linear-gradient(135deg, #1763A6, #152C40)',
             border: '1.5px solid oklch(0.42 0.07 250)',
             display: 'flex',
             alignItems: 'center',

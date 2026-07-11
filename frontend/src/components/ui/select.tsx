@@ -79,7 +79,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               if (!disabled) {
                 e.target.style.borderColor = error
                   ? 'oklch(0.58 0.22 25)'
-                  : 'oklch(0.52 0.14 250)';
+                  : '#1763A6';
                 e.target.style.boxShadow = error
                   ? '0 0 0 3px oklch(0.58 0.22 25 / 0.15)'
                   : '0 0 0 3px oklch(0.52 0.14 250 / 0.15)';

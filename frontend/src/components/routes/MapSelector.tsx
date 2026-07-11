@@ -325,7 +325,7 @@ const MapSelectorInner: React.FC<MapSelectorProps> = ({
     height: '2.5rem',
     borderRadius: '0.625rem',
     border: 'none',
-    background: 'linear-gradient(135deg, oklch(0.52 0.14 250), oklch(0.42 0.05 170))',
+    background: 'linear-gradient(135deg, #1763A6, #152C40)',
     color: '#fff',
     fontSize: '0.875rem',
     fontWeight: 700,
