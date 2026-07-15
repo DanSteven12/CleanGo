@@ -84,8 +84,8 @@
 
 .form-select:focus,
 .form-input:focus {
-  border-color: var(--primary, oklch(0.52 0.14 250));
-  box-shadow: 0 0 0 3px oklch(0.52 0.14 250 / 0.15);
+  border-color: var(--primary, #1763A6);
+  box-shadow: 0 0 0 3px rgb(23 99 166 / 0.15);
 }
 
 .form-select:hover:not(:focus),
@@ -135,7 +135,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: linear-gradient(135deg, oklch(0.52 0.14 250), oklch(0.42 0.05 170));
+  background: linear-gradient(135deg, #1763A6, #152C40);
   color: #fff;
   padding: 0 1.25rem;
   height: 40px;
@@ -146,14 +146,14 @@
   font-weight: 600;
   font-family: inherit;
   letter-spacing: -0.01em;
-  box-shadow: 0 2px 12px oklch(0.52 0.14 250 / 0.28);
+  box-shadow: 0 2px 12px rgb(23 99 166 / 0.28);
   transition: box-shadow 0.15s ease, filter 0.15s ease, transform 0.1s ease;
   white-space: nowrap;
 }
 
 .save-button:hover:not(:disabled) {
   filter: brightness(1.1);
-  box-shadow: 0 4px 20px oklch(0.52 0.14 250 / 0.42);
+  box-shadow: 0 4px 20px rgb(23 99 166 / 0.42);
 }
 
 .save-button:active:not(:disabled) {
@@ -426,8 +426,8 @@
 }
 
 .routes-table tr.row-editing {
-  background: oklch(0.52 0.14 250 / 0.06);
-  outline: 2px solid oklch(0.52 0.14 250 / 0.25);
+  background: rgb(23 99 166 / 0.06);
+  outline: 2px solid rgb(23 99 166 / 0.25);
   outline-offset: -2px;
 }
 
@@ -550,21 +550,21 @@
   font-weight: 700;
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   border-radius: 0.75rem;
-  background: linear-gradient(135deg, oklch(0.52 0.14 250) 0%, oklch(0.42 0.05 170) 100%);
-  box-shadow: 0 4px 18px oklch(0.52 0.14 250 / 0.32);
+  background: linear-gradient(135deg, #1763A6 0%, #152C40 100%);
+  box-shadow: 0 4px 18px rgb(23 99 166 / 0.32);
   transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
   letter-spacing: -0.01em;
 }
 
 .crear-ruta-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px oklch(0.52 0.14 250 / 0.45);
+  box-shadow: 0 6px 24px rgb(23 99 166 / 0.45);
   filter: brightness(1.08);
 }
 
 .crear-ruta-btn:active:not(:disabled) {
   transform: scale(0.97);
-  box-shadow: 0 2px 10px oklch(0.52 0.14 250 / 0.28);
+  box-shadow: 0 2px 10px rgb(23 99 166 / 0.28);
 }
 
 /* ─── Spin animation ─── */

@@ -149,10 +149,17 @@ CREATE TABLE incidencias_calendario (
 
     hora_nueva TIME NULL,
 
+    fecha_original DATE NULL,
+
+    hora_inicio_original TIME NULL,
+
+    hora_fin_original TIME NULL,
+
     descripcion TEXT NULL,
 
     estatus ENUM(
         'Activa',
+        'Aplicada',
         'Resuelta'
     ) DEFAULT 'Activa',
 

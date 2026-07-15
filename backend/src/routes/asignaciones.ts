@@ -50,11 +50,22 @@ router.get('/', async (_req: Request, res: Response) => {
         c.numero_economico,
         c.placa,
         d.nombre_completo AS conductor_nombre,
-        d.num_licencia
+        d.num_licencia,
+        ic.id AS incidencia_id,
+        ic.tipo AS incidencia_tipo,
+        ic.motivo AS incidencia_motivo,
+        ic.fecha_nueva AS incidencia_fecha_nueva,
+        ic.hora_nueva AS incidencia_hora_nueva,
+        ic.descripcion AS incidencia_descripcion,
+        ic.estatus AS incidencia_estatus,
+        ic.fecha_original AS incidencia_fecha_original,
+        ic.hora_inicio_original AS incidencia_hora_inicio_original,
+        ic.hora_fin_original AS incidencia_hora_fin_original
       FROM asignaciones_rutas ar
       INNER JOIN rutas r       ON r.id = ar.ruta_id
       INNER JOIN camiones c    ON c.id = ar.camion_id
       INNER JOIN conductores d ON d.id = ar.conductor_id
+      LEFT JOIN incidencias_calendario ic ON ic.asignacion_id = ar.id AND ic.estatus IN ('Activa', 'Aplicada')
       ORDER BY ar.fecha DESC, ar.id DESC
     `);
     res.json(rows);
@@ -83,11 +94,22 @@ router.get('/:id', async (req: Request, res: Response) => {
         c.numero_economico,
         c.placa,
         d.nombre_completo AS conductor_nombre,
-        d.num_licencia
+        d.num_licencia,
+        ic.id AS incidencia_id,
+        ic.tipo AS incidencia_tipo,
+        ic.motivo AS incidencia_motivo,
+        ic.fecha_nueva AS incidencia_fecha_nueva,
+        ic.hora_nueva AS incidencia_hora_nueva,
+        ic.descripcion AS incidencia_descripcion,
+        ic.estatus AS incidencia_estatus,
+        ic.fecha_original AS incidencia_fecha_original,
+        ic.hora_inicio_original AS incidencia_hora_inicio_original,
+        ic.hora_fin_original AS incidencia_hora_fin_original
       FROM asignaciones_rutas ar
       INNER JOIN rutas r       ON r.id = ar.ruta_id
       INNER JOIN camiones c    ON c.id = ar.camion_id
       INNER JOIN conductores d ON d.id = ar.conductor_id
+      LEFT JOIN incidencias_calendario ic ON ic.asignacion_id = ar.id AND ic.estatus IN ('Activa', 'Aplicada')
       WHERE ar.id = ?
     `, [id]);
 
@@ -146,11 +168,19 @@ router.post('/', async (req: Request, res: Response) => {
         ar.estatus_recorrido,
         r.nombre AS ruta_nombre, r.color AS ruta_color,
         c.numero_economico, c.placa,
-        d.nombre_completo AS conductor_nombre, d.num_licencia
+        d.nombre_completo AS conductor_nombre, d.num_licencia,
+        ic.id AS incidencia_id,
+        ic.tipo AS incidencia_tipo,
+        ic.motivo AS incidencia_motivo,
+        ic.fecha_nueva AS incidencia_fecha_nueva,
+        ic.hora_nueva AS incidencia_hora_nueva,
+        ic.descripcion AS incidencia_descripcion,
+        ic.estatus AS incidencia_estatus
       FROM asignaciones_rutas ar
       INNER JOIN rutas r       ON r.id = ar.ruta_id
       INNER JOIN camiones c    ON c.id = ar.camion_id
       INNER JOIN conductores d ON d.id = ar.conductor_id
+      LEFT JOIN incidencias_calendario ic ON ic.asignacion_id = ar.id AND ic.estatus IN ('Activa', 'Aplicada')
       WHERE ar.id = ?
     `, [result.insertId]);
 
@@ -228,11 +258,19 @@ router.put('/:id', async (req: Request, res: Response) => {
         ar.estatus_recorrido,
         r.nombre AS ruta_nombre, r.color AS ruta_color,
         c.numero_economico, c.placa,
-        d.nombre_completo AS conductor_nombre, d.num_licencia
+        d.nombre_completo AS conductor_nombre, d.num_licencia,
+        ic.id AS incidencia_id,
+        ic.tipo AS incidencia_tipo,
+        ic.motivo AS incidencia_motivo,
+        ic.fecha_nueva AS incidencia_fecha_nueva,
+        ic.hora_nueva AS incidencia_hora_nueva,
+        ic.descripcion AS incidencia_descripcion,
+        ic.estatus AS incidencia_estatus
       FROM asignaciones_rutas ar
       INNER JOIN rutas r       ON r.id = ar.ruta_id
       INNER JOIN camiones c    ON c.id = ar.camion_id
       INNER JOIN conductores d ON d.id = ar.conductor_id
+      LEFT JOIN incidencias_calendario ic ON ic.asignacion_id = ar.id AND ic.estatus IN ('Activa', 'Aplicada')
       WHERE ar.id = ?
     `, [id]);
 

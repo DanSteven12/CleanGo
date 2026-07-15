@@ -46,12 +46,7 @@ function fmtDuracion(minutos: number | null): string {
   return m > 0 ? `${h}h ${m}min` : `${h}h`;
 }
 
-function getDesviacion(min: number | null): { label: string; cls: string } {
-  if (min === null || min === undefined) return { label: '—', cls: '' };
-  if (min <= 0) return { label: `${Math.abs(min)} min antes`, cls: 'historial-timeline-desviacion--ok' };
-  if (min <= 5)  return { label: `+${min} min`,               cls: 'historial-timeline-desviacion--tarde' };
-  return           { label: `+${min} min`,                    cls: 'historial-timeline-desviacion--muy-tarde' };
-}
+
 
 // ─── Sub-componente: Panel de detalle ─────────────────────────────────────────
 

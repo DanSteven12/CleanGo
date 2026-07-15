@@ -16,6 +16,7 @@ import {
   HardHat,
   TriangleAlert,
   ChevronDown,
+  Clock,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -67,10 +68,19 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'nav-historial', label: 'Historial', to: '/historial', icon: History },
     ],
   },
+  {
+    id: 'group-calendario',
+    label: 'Calendario',
+    icon: Calendar,
+    children: [
+      { id: 'nav-calendario-vista', label: 'Vista General', to: '/calendario', icon: Calendar },
+      { id: 'nav-horarios', label: 'Horarios Base', to: '/calendario/horarios', icon: Clock },
+      { id: 'nav-incidencias-calendario', label: 'Programación', to: '/calendario/incidencias', icon: TriangleAlert },
+    ],
+  },
 ];
 
 const STANDALONE_SECONDARY: NavItem[] = [
-  { id: 'nav-calendario', label: 'Calendario', to: '/calendario', icon: Calendar },
   { id: 'nav-notificaciones', label: 'Notificaciones', to: '/notificaciones', icon: Bell },
   { id: 'nav-reportes', label: 'Reportes', to: '/reportes', icon: BarChart3 },
 ];

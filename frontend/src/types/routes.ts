@@ -17,7 +17,6 @@ export type CheckpointInput = {
   name?: string;
 };
 
-/** Registro completo de asignación (con datos JOIN de ruta, camión y conductor). */
 export type AsignacionRecord = {
   id: number;
   ruta_id: number;
@@ -33,6 +32,16 @@ export type AsignacionRecord = {
   placa: string;
   conductor_nombre: string;
   num_licencia: string;
+  incidencia_id?: number;
+  incidencia_tipo?: string;
+  incidencia_motivo?: string;
+  incidencia_fecha_nueva?: string;
+  incidencia_hora_nueva?: string;
+  incidencia_descripcion?: string;
+  incidencia_estatus?: string;
+  incidencia_fecha_original?: string;
+  incidencia_hora_inicio_original?: string;
+  incidencia_hora_fin_original?: string;
 };
 
 // ─── Tipos para el Historial de Recorridos ────────────────────────────────────

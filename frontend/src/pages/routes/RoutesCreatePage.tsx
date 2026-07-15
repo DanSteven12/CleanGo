@@ -12,21 +12,21 @@ export const RoutesCreatePage: React.FC = () => {
   // ── Formulario de ruta (en memoria hasta "Crear Ruta") ───────────────────
   const [nombre, setNombre]             = useState('');
   const [descripcion, setDescripcion]   = useState('');
-  const [color, setColor]               = useState('#3498db');
+  const [color, setColor]               = useState('#1763A6');
 
   // ── Estado compartido: checkpoints (MapSelector notifica al padre vía onCheckpointsChange) ──
   const [checkpoints, setCheckpoints] = useState<CheckpointInput[]>([]);
 
   // ── UI feedback ──────────────────────────────────────────────────────────
   const [isCreating, setIsCreating]   = useState(false);
-  const [formError, setFormError]     = useState<string | null>(null);
+  const [, setFormError]     = useState<string | null>(null);
   const [mapResetKey, setMapResetKey] = useState(0);
 
   // ── Resetear formulario de creación ─────────────────────────────────────
   const resetCrearForm = () => {
     setNombre('');
     setDescripcion('');
-    setColor('#3498db');
+    setColor('#1763A6');
     setCheckpoints([]);
     setFormError(null);
     // Fuerza remount de MapSelector para limpiar su estado interno de checkpoints

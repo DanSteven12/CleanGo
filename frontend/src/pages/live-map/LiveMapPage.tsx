@@ -2,9 +2,44 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { APIProvider, Map, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Satellite, Truck, User, Clock, MapPin, TrendingUp, Timer, Loader2 } from 'lucide-react';
 import type { AsignacionRecord } from '../../types/routes';
+import { getEffectiveSchedule } from '../../utils/schedule';
 
 import '../../assets/styles/routes.css';
 import '../../assets/styles/assignments.css';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Returns a compact incidencia badge using the shared CSS classes. */
+function getIncidenciaBadgeLive(tipo?: string) {
+  if (!tipo) return null;
+  switch (tipo) {
+    case 'Reprogramación':    return <span className="incidencia-badge incidencia-reprogramacion">🟠 Reprogramada</span>;
+    case 'Cambio de horario': return <span className="incidencia-badge incidencia-horario">🟡 Horario</span>;
+    case 'Suspensión':        return <span className="incidencia-badge incidencia-suspension">🔴 Suspendida</span>;
+    case 'Clima':             return <span className="incidencia-badge incidencia-clima">🌧 Clima</span>;
+    case 'Evento':            return <span className="incidencia-badge incidencia-evento">🚧 Evento</span>;
+    default:                  return <span className="incidencia-badge">{tipo}</span>;
+  }
+}
+
+/**
+ * Returns whether a given incident type blocks starting the recorrido.
+ * Suspensión, Clima and Evento are blockers.
+ * Reprogramación and Cambio de horario are NOT blockers.
+ */
+function isIncidenciaBlocker(tipo?: string): boolean {
+  return tipo === 'Suspensión' || tipo === 'Clima' || tipo === 'Evento';
+}
+
+/** Returns a human-readable tooltip message for blocking incident types. */
+function getBlockerTooltip(tipo?: string): string {
+  switch (tipo) {
+    case 'Clima':      return 'No es posible iniciar el recorrido debido a condiciones climáticas.';
+    case 'Suspensión': return 'La ruta se encuentra suspendida.';
+    case 'Evento':     return 'El recorrido está bloqueado por un evento registrado.';
+    default:           return 'El recorrido no puede iniciarse en este momento.';
+  }
+}
 
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
 const DURATION_MS = 30000; // 30 seconds per segment
@@ -455,11 +490,16 @@ export const LiveMapPage: React.FC = () => {
                 boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06), 0 4px 16px -4px oklch(0.2 0.04 240 / 0.08)',
                 transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="ruta-pill"><span className="ruta-pill-dot" style={{ background: a.ruta_color }} />{a.ruta_nombre}</span>
+                {/* Route name + status badge + incident badge (flex-wrap so both fit inside the card) */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem' }}>
+                  <span className="ruta-pill" style={{ flexGrow: 1, minWidth: 0 }}>
+                    <span className="ruta-pill-dot" style={{ background: a.ruta_color }} />
+                    {a.ruta_nombre}
+                  </span>
                   <span className={`estatus-badge ${a.estatus_recorrido === 'Pendiente' ? 'estatus-pendiente' : 'estatus-en-progreso'}`}>
                     {a.estatus_recorrido}
                   </span>
+                  {getIncidenciaBadgeLive(a.incidencia_tipo)}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8375rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
@@ -474,29 +514,46 @@ export const LiveMapPage: React.FC = () => {
                   </div>
                   <div style={{ textAlign: 'right', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                     <Clock size={13} style={{ color: 'var(--text)' }} />
-                    <span>{a.horario_inicio.slice(0, 5)} – {a.horario_fin.slice(0, 5)}</span>
+                    {(() => {
+                      const eff = getEffectiveSchedule(a);
+                      return <span>{eff.start.slice(0, 5)} – {eff.end.slice(0, 5)}</span>;
+                    })()}
                   </div>
                 </div>
-                <button
-                  className="save-button"
-                  onClick={() => handleIniciarRecorrido(a)}
-                  disabled={isStartingRecorrido === a.id || !!activeAsignaciones[a.id]}
-                  style={{
-                    width: '100%', justifyContent: 'center',
-                    background: activeAsignaciones[a.id]
-                      ? 'transparent'
-                      : undefined,
-                    color: activeAsignaciones[a.id] ? 'var(--text)' : undefined,
-                    border: activeAsignaciones[a.id] ? '1px solid var(--panel-border)' : undefined,
-                    boxShadow: activeAsignaciones[a.id] ? 'none' : undefined,
-                  }}
-                >
-                  {activeAsignaciones[a.id] ? (
-                    <><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} className="pulse-dot" /> Monitoreando…</>
-                  ) : isStartingRecorrido === a.id ? (
-                    <><Loader2 size={15} className="spin" /> Iniciando…</>
-                  ) : 'Iniciar Monitoreo'}
-                </button>
+                {/* Iniciar Monitoreo button — blocked for Suspensión, Clima, Evento */}
+                {(() => {
+                  const isAlreadyMonitoring = !!activeAsignaciones[a.id];
+                  const isStarting = isStartingRecorrido === a.id;
+                  const isBlocked = isIncidenciaBlocker(a.incidencia_tipo);
+                  const tooltip = isBlocked ? getBlockerTooltip(a.incidencia_tipo) : undefined;
+
+                  return (
+                    <button
+                      className={`save-button${isBlocked && !isAlreadyMonitoring ? ' save-button--blocked' : ''}`}
+                      onClick={() => !isBlocked && !isAlreadyMonitoring && handleIniciarRecorrido(a)}
+                      disabled={isStarting || isAlreadyMonitoring || isBlocked}
+                      title={tooltip}
+                      aria-disabled={isBlocked ? 'true' : undefined}
+                      style={{
+                        width: '100%', justifyContent: 'center',
+                        background: isAlreadyMonitoring ? 'transparent' : undefined,
+                        color: isAlreadyMonitoring ? 'var(--text)' : undefined,
+                        border: isAlreadyMonitoring ? '1px solid var(--panel-border)' : undefined,
+                        boxShadow: isAlreadyMonitoring ? 'none' : undefined,
+                      }}
+                    >
+                      {isAlreadyMonitoring ? (
+                        <><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} className="pulse-dot" /> Monitoreando…</>
+                      ) : isStarting ? (
+                        <><Loader2 size={15} className="spin" /> Iniciando…</>
+                      ) : isBlocked ? (
+                        a.incidencia_tipo === 'Suspensión' ? '🔴 Ruta suspendida'
+                        : a.incidencia_tipo === 'Clima' ? '🌧 No disponible (Clima)'
+                        : '🚧 Bloqueado por evento'
+                      ) : 'Iniciar Monitoreo'}
+                    </button>
+                  );
+                })()}
               </div>
             ))}
           </div>

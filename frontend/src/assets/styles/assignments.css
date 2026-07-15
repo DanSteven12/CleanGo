@@ -47,6 +47,69 @@
   border-color: oklch(0.58 0.22 25 / 0.35);
 }
 
+/* ─── Incidencia badges — compact & uniform ─── */
+/*
+  Same height as estatus-badge.
+  Width is auto (content-driven) with a max-width cap.
+  No line-breaks, no overflow.
+*/
+.incidencia-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  border: 1px solid;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.incidencia-reprogramacion {
+  background: oklch(0.90 0.12 52 / 0.18);
+  color: oklch(0.35 0.10 48);
+  border-color: oklch(0.78 0.15 52 / 0.45);
+}
+
+.incidencia-horario {
+  background: oklch(0.92 0.12 90 / 0.18);
+  color: oklch(0.38 0.10 88);
+  border-color: oklch(0.85 0.14 90 / 0.45);
+}
+
+.incidencia-suspension {
+  background: oklch(0.72 0.16 25 / 0.14);
+  color: oklch(0.38 0.16 25);
+  border-color: oklch(0.62 0.18 25 / 0.45);
+}
+
+.incidencia-clima {
+  background: oklch(0.88 0.09 220 / 0.18);
+  color: oklch(0.32 0.10 220);
+  border-color: oklch(0.72 0.10 220 / 0.45);
+}
+
+.incidencia-evento {
+  background: oklch(0.88 0.10 75 / 0.18);
+  color: oklch(0.35 0.10 72);
+  border-color: oklch(0.78 0.11 75 / 0.45);
+}
+
+/* ─── Disabled monitoring button (blocked by incident) ─── */
+.save-button--blocked {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.3);
+  box-shadow: none;
+  pointer-events: none;
+}
+
 /* ─── Route color pill ─── */
 .ruta-pill {
   display: inline-flex;
@@ -106,23 +169,23 @@
 }
 
 .assignments-table tbody tr:hover {
-  background: oklch(0.72 0.18 138 / 0.07);
+  background: rgb(144 191 73 / 0.07);
 }
 
 .assignments-table tr.row-editing {
-  background: oklch(0.52 0.14 250 / 0.06);
-  outline: 2px solid oklch(0.52 0.14 250 / 0.25);
+  background: rgb(23 99 166 / 0.06);
+  outline: 2px solid rgb(23 99 166 / 0.25);
   outline-offset: -2px;
 }
 
 /* ─── Inline edit form ─── */
 .assignment-edit-card {
   background: var(--panel-bg);
-  border: 1px solid oklch(0.52 0.14 250 / 0.25);
+  border: 1px solid rgb(23 99 166 / 0.25);
   border-radius: 0.75rem;
   padding: 1.5rem;
   margin-top: 1.25rem;
-  box-shadow: 0 0 0 4px oklch(0.52 0.14 250 / 0.06),
+  box-shadow: 0 0 0 4px rgb(23 99 166 / 0.06),
               0 8px 24px -8px oklch(0.2 0.04 240 / 0.10);
 }
 

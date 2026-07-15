@@ -7,8 +7,11 @@ import { AssignmentsPage } from './pages/assignments/AssignmentsPage';
 import { AssignmentsCreatePage } from './pages/assignments/AssignmentsCreatePage';
 import { LiveMapPage } from './pages/live-map/LiveMapPage';
 import { HistorialRecorridosPage } from './pages/historial/HistorialRecorridosPage';
+import { HorariosPage } from './pages/calendario/horarios/HorariosPage';
+import { IncidenciasPage } from './pages/calendario/incidencias/IncidenciasPage';
+import { CalendarioPage } from './pages/calendario/CalendarioPage';
 
-type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos';
+type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario';
 
 function AppContent() {
   const location = useLocation();
@@ -19,6 +22,7 @@ function AppContent() {
   if (location.pathname.startsWith('/asignaciones')) activeModule = 'asignacion-rutas';
   if (location.pathname.startsWith('/mapa-vivo')) activeModule = 'mapa-vivo';
   if (location.pathname.startsWith('/historial')) activeModule = 'historial-recorridos';
+  if (location.pathname.startsWith('/calendario')) activeModule = 'calendario';
 
   const handleNavigate = (module: Module) => {
     if (module === 'gestion-rutas') {
@@ -27,8 +31,10 @@ function AppContent() {
       navigate('/asignaciones');
     } else if (module === 'mapa-vivo') {
       navigate('/mapa-vivo');
-    } else {
+    } else if (module === 'historial-recorridos') {
       navigate('/historial');
+    } else {
+      navigate('/calendario');
     }
   };
 
@@ -41,6 +47,9 @@ function AppContent() {
         <Route path="/asignaciones/nueva" element={<AssignmentsCreatePage />} />
         <Route path="/mapa-vivo" element={<LiveMapPage />} />
         <Route path="/historial" element={<HistorialRecorridosPage />} />
+        <Route path="/calendario" element={<CalendarioPage />} />
+        <Route path="/calendario/horarios" element={<HorariosPage />} />
+        <Route path="/calendario/incidencias" element={<IncidenciasPage />} />
         <Route path="*" element={<Navigate to="/rutas" replace />} />
       </Routes>
     </MainLayout>

@@ -26,7 +26,7 @@ export const RoutesPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [editNombre, setEditNombre] = useState('');
   const [editDescripcion, setEditDescripcion] = useState('');
-  const [editColor, setEditColor] = useState('#3498db');
+  const [editColor, setEditColor] = useState('#1763A6');
   const [editError, setEditError] = useState<string | null>(null);
 
   // ── Fetch rutas ──────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ export const RoutesPage: React.FC = () => {
       const res = await fetch('/api/rutas');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: RouteOption[] = await res.json();
-      setRoutes(data.map(r => ({ ...r, color: r.color || '#3498db' })));
+      setRoutes(data.map(r => ({ ...r, color: r.color || '#1763A6' })));
     } catch (e) {
       console.error('[RoutesPage] fetchRoutes:', e);
     } finally {
@@ -122,7 +122,7 @@ export const RoutesPage: React.FC = () => {
 
         {isLoadingRoutes ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', fontSize: '0.875rem', padding: '1rem 0' }}>
-            <Loader2 size={16} className="spin" style={{ color: '#1763A6' }} />
+            <Loader2 size={16} className="spin" style={{ color: 'var(--primary)' }} />
             Cargando rutas…
           </div>
         ) : routes.length === 0 ? (

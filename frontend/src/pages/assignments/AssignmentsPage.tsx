@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Pencil, Loader2, Check, X } from 'lucide-react';
 
 import type { AsignacionData, AsignacionRecord } from '../../types/routes';
+import { getEffectiveSchedule } from '../../utils/schedule';
 
 import '../../assets/styles/routes.css';
 import '../../assets/styles/assignments.css';
@@ -59,6 +60,18 @@ function formatTime12h(timeStr: string) {
   return `${strHours}:${minutes} ${ampm}`;
 }
 
+function getIncidenciaBadge(tipo?: string) {
+  if (!tipo) return null;
+  switch (tipo) {
+    case 'Reprogramación':   return <span className="incidencia-badge incidencia-reprogramacion">🟠 Reprogramada</span>;
+    case 'Cambio de horario': return <span className="incidencia-badge incidencia-horario">🟡 Horario</span>;
+    case 'Suspensión':        return <span className="incidencia-badge incidencia-suspension">🔴 Suspendida</span>;
+    case 'Clima':             return <span className="incidencia-badge incidencia-clima">🌧 Clima</span>;
+    case 'Evento':            return <span className="incidencia-badge incidencia-evento">🚧 Evento</span>;
+    default:                  return <span className="incidencia-badge">{tipo}</span>;
+  }
+}
+
 
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
@@ -87,6 +100,10 @@ export const AssignmentsPage: React.FC = () => {
   const [editRutaId, setEditRutaId] = useState<number | ''>('');
   const [isSaving, setIsSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // ── Modal Incidencia ───────────────────────────────────────────────────
+  const [viewingIncidencia, setViewingIncidencia] = useState<AsignacionRecord | null>(null);
+  const navigate = useNavigate();
 
 
   // ── Fetch catálogos ────────────────────────────────────────────────────
@@ -206,7 +223,7 @@ export const AssignmentsPage: React.FC = () => {
 
         {isLoadingList ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', fontSize: '0.875rem', padding: '1rem 0' }}>
-            <Loader2 size={16} className="spin" style={{ color: '#1763A6' }} />
+          <Loader2 size={16} className="spin" style={{ color: 'var(--primary)' }} />
             Cargando asignaciones…
           </div>
         ) : asignaciones.length === 0 ? (
@@ -223,7 +240,8 @@ export const AssignmentsPage: React.FC = () => {
                   <th>Camión</th>
                   <th>Conductor</th>
                   <th>Fecha y Horario</th>
-                  <th>Estatus</th>
+                  <th>Estado</th>
+                  <th>Incidencia</th>
                   <th style={{ width: '80px', textAlign: 'center' }}>Acciones</th>
                 </tr>
               </thead>
@@ -249,12 +267,24 @@ export const AssignmentsPage: React.FC = () => {
                       <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>Lic: {a.num_licencia}</div>
                     </td>
                     <td style={{ fontSize: '0.8125rem' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-h)' }}>
-                        {formatDate(a.fecha_programada)}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text)', marginTop: '0.15rem' }}>
-                        {formatTime12h(a.horario_inicio)} – {formatTime12h(a.horario_fin)}
-                      </div>
+                      {(() => {
+                        const schedule = getEffectiveSchedule(a);
+                        return (
+                          <>
+                            <div style={{ fontWeight: 600, color: 'var(--text-h)' }}>
+                              {formatDate(schedule.date)}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text)', marginTop: '0.15rem' }}>
+                              {formatTime12h(schedule.start)} – {formatTime12h(schedule.end)}
+                            </div>
+                            {a.incidencia_tipo && (
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text)', marginTop: '0.2rem', fontStyle: 'italic' }}>
+                                 ({a.incidencia_tipo === 'Reprogramación' ? 'Reprogramada por incidencia' : a.incidencia_tipo === 'Cambio de horario' ? 'Horario actualizado por incidencia' : a.incidencia_motivo})
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </td>
                     <td>
                       <span className={getEstatusBadgeClass(a.estatus_recorrido)}>
@@ -262,15 +292,34 @@ export const AssignmentsPage: React.FC = () => {
                       </span>
                     </td>
                     <td>
+                      {a.incidencia_tipo ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+                          {getIncidenciaBadge(a.incidencia_tipo)}
+                          <button 
+                            onClick={() => setViewingIncidencia(a)}
+                            style={{ fontSize: '0.75rem', background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                          >
+                            [ Ver incidencia ]
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text)', fontSize: '0.8125rem' }}>Ninguna</span>
+                      )}
+                    </td>
+                    <td>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <button
-                          id={`btn-edit-asignacion-${a.id}`}
-                          className="action-btn action-btn--edit"
-                          onClick={() => startEdit(a)}
-                          title="Editar asignación"
-                        >
-                          <Pencil size={14} />
-                        </button>
+                        {!a.incidencia_tipo ? (
+                          <button
+                            id={`btn-edit-asignacion-${a.id}`}
+                            className="action-btn action-btn--edit"
+                            onClick={() => startEdit(a)}
+                            title="Editar asignación"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        ) : (
+                           <span style={{ fontSize: '0.75rem', color: 'var(--text)' }}>Solo lectura</span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -424,6 +473,79 @@ export const AssignmentsPage: React.FC = () => {
           </div>
         )}
       </section>
+
+      {/* Modal Ver Incidencia */}
+      {viewingIncidencia && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
+          display: 'flex', justifyContent: 'center', alignItems: 'center'
+        }}>
+          <div style={{
+            background: 'var(--panel-bg)', padding: '2rem', borderRadius: '1rem',
+            width: '100%', maxWidth: '400px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ margin: '0 0 1rem 0', fontFamily: 'var(--font-display)', color: 'var(--text-h)' }}>Resumen de Incidencia</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text)' }}>Tipo:</span>
+                <strong style={{ color: 'var(--text-h)' }}>{viewingIncidencia.incidencia_tipo}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text)' }}>Motivo:</span>
+                <strong style={{ color: 'var(--text-h)', textAlign: 'right', maxWidth: '60%' }}>{viewingIncidencia.incidencia_motivo}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text)' }}>Fecha original:</span>
+                <strong style={{ color: 'var(--text-h)' }}>{formatDate(viewingIncidencia.incidencia_fecha_original || viewingIncidencia.fecha_programada)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text)' }}>Horario original:</span>
+                <strong style={{ color: 'var(--text-h)' }}>
+                  {formatTime12h(viewingIncidencia.incidencia_hora_inicio_original || viewingIncidencia.horario_inicio)} – {formatTime12h(viewingIncidencia.incidencia_hora_fin_original || viewingIncidencia.horario_fin)}
+                </strong>
+              </div>
+              {viewingIncidencia.incidencia_fecha_nueva && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text)' }}>Nueva fecha:</span>
+                  <strong style={{ color: 'var(--text-h)' }}>{formatDate(viewingIncidencia.incidencia_fecha_nueva)}</strong>
+                </div>
+              )}
+              {viewingIncidencia.incidencia_hora_nueva && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text)' }}>Nuevo horario:</span>
+                  <strong style={{ color: 'var(--text-h)' }}>
+                    {formatTime12h(getEffectiveSchedule(viewingIncidencia).start)} – {formatTime12h(getEffectiveSchedule(viewingIncidencia).end)}
+                  </strong>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text)' }}>Estado:</span>
+                <strong style={{ color: 'var(--text-h)' }}>{viewingIncidencia.incidencia_estatus}</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
+              <button
+                className="save-button"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => navigate('/calendario/incidencias')}
+              >
+                Ir a Calendario → Incidencias
+              </button>
+              <button
+                className="save-button"
+                style={{ width: '100%', justifyContent: 'center', background: 'transparent', color: 'var(--text)', border: '1px solid var(--panel-border)', boxShadow: 'none' }}
+                onClick={() => setViewingIncidencia(null)}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

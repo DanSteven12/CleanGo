@@ -56,8 +56,8 @@
 
 .historial-filter-group select:focus,
 .historial-filter-group input[type="date"]:focus {
-  border-color: oklch(0.52 0.14 250);
-  box-shadow: 0 0 0 3px oklch(0.52 0.14 250 / 0.15);
+  border-color: #1763A6;
+  box-shadow: 0 0 0 3px rgb(23 99 166 / 0.15);
 }
 
 .historial-filter-group select:hover:not(:focus),
@@ -83,7 +83,7 @@
   padding: 0 1.25rem;
   border: none;
   border-radius: 0.625rem;
-  background: linear-gradient(135deg, oklch(0.52 0.14 250), oklch(0.42 0.05 170));
+  background: linear-gradient(135deg, #1763A6, #152C40);
   color: white;
   font-size: 0.875rem;
   font-weight: 700;
@@ -91,12 +91,12 @@
   cursor: pointer;
   transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
   white-space: nowrap;
-  box-shadow: 0 2px 12px oklch(0.52 0.14 250 / 0.28);
+  box-shadow: 0 2px 12px rgb(23 99 166 / 0.28);
 }
 
 .historial-btn-buscar:hover:not(:disabled) {
   filter: brightness(1.1);
-  box-shadow: 0 4px 20px oklch(0.52 0.14 250 / 0.42);
+  box-shadow: 0 4px 20px rgb(23 99 166 / 0.42);
   transform: translateY(-1px);
 }
 .historial-btn-buscar:active:not(:disabled) {
@@ -131,7 +131,7 @@
 
 .historial-btn-limpiar:hover:not(:disabled) {
   background: var(--muted, oklch(0.96 0.005 240));
-  border-color: oklch(0.52 0.14 250 / 0.35);
+  border-color: rgb(23 99 166 / 0.35);
   color: var(--text-h);
 }
 
@@ -214,12 +214,12 @@
 }
 
 .historial-table tbody tr:hover {
-  background: oklch(0.72 0.18 138 / 0.07);
+  background: rgb(144 191 73 / 0.07);
 }
 
 .historial-table tbody tr.historial-row--selected {
-  background: oklch(0.52 0.14 250 / 0.06);
-  outline: 2px solid oklch(0.52 0.14 250 / 0.22);
+  background: rgb(23 99 166 / 0.06);
+  outline: 2px solid rgb(23 99 166 / 0.22);
   outline-offset: -2px;
 }
 
@@ -250,11 +250,11 @@
   display: inline-block;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: oklch(0.42 0.05 170);
-  background: oklch(0.42 0.05 170 / 0.10);
+  color: #152C40;
+  background: rgb(21 44 64 / 0.10);
   padding: 0.2rem 0.5rem;
   border-radius: 0.375rem;
-  border: 1px solid oklch(0.42 0.05 170 / 0.28);
+  border: 1px solid rgb(21 44 64 / 0.28);
 }
 
 /* ── Checkpoint progress bar ─── */
@@ -274,7 +274,7 @@
 
 .historial-checkpoint-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, oklch(0.52 0.14 250), oklch(0.72 0.18 138));
+  background: linear-gradient(90deg, #1763A6, #90BF49);
   border-radius: 3px;
   transition: width 0.4s ease;
 }
@@ -305,14 +305,14 @@
 
 .historial-btn-ver:hover {
   background: var(--muted, oklch(0.96 0.005 240));
-  border-color: oklch(0.52 0.14 250 / 0.4);
-  color: oklch(0.38 0.12 250);
+  border-color: rgb(23 99 166 / 0.4);
+  color: #1763A6;
 }
 
 .historial-btn-ver--active {
-  background: oklch(0.52 0.14 250 / 0.10);
-  border-color: oklch(0.52 0.14 250 / 0.35);
-  color: oklch(0.38 0.12 250);
+  background: rgb(23 99 166 / 0.10);
+  border-color: rgb(23 99 166 / 0.35);
+  color: #1763A6;
 }
 
 /* ── Pagination ─── */
@@ -344,8 +344,8 @@
 
 .historial-pag-btn:hover:not(:disabled) {
   background: var(--muted, oklch(0.96 0.005 240));
-  border-color: oklch(0.52 0.14 250 / 0.35);
-  color: oklch(0.38 0.12 250);
+  border-color: rgb(23 99 166 / 0.35);
+  color: #1763A6;
 }
 
 .historial-pag-btn:disabled {
@@ -380,8 +380,8 @@
 .historial-spinner {
   width: 24px;
   height: 24px;
-  border: 2.5px solid oklch(0.52 0.14 250 / 0.25);
-  border-top-color: oklch(0.52 0.14 250);
+  border: 2.5px solid rgb(23 99 166 / 0.25);
+  border-top-color: #1763A6;
   border-radius: 50%;
   animation: hist-spin 0.75s linear infinite;
 }
@@ -406,10 +406,10 @@
 /* ── Detail panel ─── */
 .historial-detail-panel {
   background: var(--panel-bg);
-  border: 1px solid oklch(0.52 0.14 250 / 0.22);
+  border: 1px solid rgb(23 99 166 / 0.22);
   border-radius: 0.875rem;
   overflow: hidden;
-  box-shadow: 0 0 0 4px oklch(0.52 0.14 250 / 0.06),
+  box-shadow: 0 0 0 4px rgb(23 99 166 / 0.06),
               0 8px 32px -8px oklch(0.2 0.04 240 / 0.12);
 }
 
@@ -419,7 +419,7 @@
   justify-content: space-between;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--panel-border);
-  background: oklch(0.52 0.14 250 / 0.04);
+  background: rgb(23 99 166 / 0.04);
 }
 
 .historial-detail-title {
