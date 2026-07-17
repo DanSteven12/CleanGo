@@ -1,14 +1,18 @@
 {
   "name": "cleango-monorepo",
   "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
     "predev": "npx kill-port 5001 5173",
-    "dev": "concurrently --kill-others-on-fail false --names \"frontend,backend\" --prefix-colors \"cyan,magenta\" \"pnpm --filter ./frontend run dev\" \"pnpm --filter ./backend run dev\"",
-    "dev:frontend": "pnpm --filter ./frontend run dev",
-    "dev:backend": "pnpm --filter ./backend run dev",
+    "dev": "concurrently --kill-others-on-fail false --names \"frontend,backend\" --prefix-colors \"cyan,magenta\" \"yarn workspace cleango-web-app run dev\" \"yarn workspace cleango-backend run dev\"",
+    "dev:frontend": "yarn workspace cleango-web-app run dev",
+    "dev:backend": "yarn workspace cleango-backend run dev",
     "check": "node dev-check.js"
   },
   "devDependencies": {
-    "concurrently": "^8.0.0"
+    "concurrently": "^8.2.2"
   }
 }
