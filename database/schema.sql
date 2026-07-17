@@ -46,14 +46,14 @@ CREATE TABLE camiones (
 );
 
 -- 4. TABLA DE CONDUCTORES
+-- Almacena únicamente los conductores fijos asignados a las unidades.
+-- La información de conductores temporales se registra en los recorridos cuando aplica.
 CREATE TABLE conductores (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre_completo VARCHAR(150) NOT NULL,
-    num_licencia VARCHAR(50) NOT NULL UNIQUE,
-    telefono VARCHAR(15),
-    estado_empleado VARCHAR(20) DEFAULT 'Activo',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
 
 -- 5. TABLA DE ASIGNACIONES
 -- Une la ruta con la unidad y el chofer asignado para el recorrido de un día y horario específico
@@ -73,14 +73,16 @@ CREATE TABLE asignaciones_rutas (
 );
 
 -- 6. TABLA DE ESTADO GENERAL DEL VIAJE (RECORRIDOS)
--- Registra la ejecución real del viaje asignado en el día
+-- Registra la ejecución real del recorrido y, si corresponde,
+-- el nombre del conductor que lo realizó cuando no fue el asignado.
 CREATE TABLE recorridos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     asignacion_id INT NOT NULL,
     hora_inicio DATETIME NOT NULL,
     hora_fin DATETIME NULL,
-    latitud_actual DECIMAL(10, 8) NULL,   -- Último reporte del GPS para el mapa
-    longitud_actual DECIMAL(11, 8) NULL,  -- Último reporte del GPS para el mapa
+    latitud_actual DECIMAL(10, 8) NULL,
+    longitud_actual DECIMAL(11, 8) NULL,
+    conductor_real_nombre VARCHAR(150) NULL,
     estado ENUM('En progreso', 'Completado', 'Cancelado') DEFAULT 'En progreso',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -126,50 +128,4 @@ CREATE TABLE horarios_rutas (
 );
 
 -- 9. TABLA DE INCIDENCIAS DEL CALENDARIO
--- Registra eventos excepcionales que afectan una asignación programada,
--- como suspensiones, reprogramaciones o cambios de horario.
--- Solo debe existir una incidencia activa por asignación al mismo tiempo.
-CREATE TABLE incidencias_calendario (
-
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    asignacion_id INT NOT NULL,
-
-    tipo ENUM(
-        'Suspensión',
-        'Reprogramación',
-        'Cambio de horario',
-        'Clima',
-        'Evento'
-    ) NOT NULL,
-
-    motivo VARCHAR(255) NOT NULL,
-
-    fecha_nueva DATE NULL,
-
-    hora_nueva TIME NULL,
-
-    fecha_original DATE NULL,
-
-    hora_inicio_original TIME NULL,
-
-    hora_fin_original TIME NULL,
-
-    descripcion TEXT NULL,
-
-    estatus ENUM(
-        'Activa',
-        'Aplicada',
-        'Resuelta'
-    ) DEFAULT 'Activa',
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (asignacion_id)
-        REFERENCES asignaciones_rutas(id)
-        ON DELETE CASCADE
-);
-
--- Índice para acelerar las consultas de incidencias por asignación
-CREATE INDEX idx_incidencia_asignacion
-ON incidencias_calendario(asignacion_id);
+-- [ELIMINADA] Esta tabla fue removida del sistema.

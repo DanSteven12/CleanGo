@@ -14,7 +14,6 @@ import {
   Users,
   Truck,
   HardHat,
-  TriangleAlert,
   ChevronDown,
   Clock,
 } from 'lucide-react';
@@ -75,7 +74,6 @@ const NAV_GROUPS: NavGroup[] = [
     children: [
       { id: 'nav-calendario-vista', label: 'Vista General', to: '/calendario', icon: Calendar },
       { id: 'nav-horarios', label: 'Horarios Base', to: '/calendario/horarios', icon: Clock },
-      { id: 'nav-incidencias-calendario', label: 'Programación', to: '/calendario/incidencias', icon: TriangleAlert },
     ],
   },
 ];
@@ -92,7 +90,6 @@ const STANDALONE_TERTIARY: NavItem[] = [
 ];
 
 const STANDALONE_QUATERNARY: NavItem[] = [
-  { id: 'nav-incidencias', label: 'Incidencias', to: '/incidencias', icon: TriangleAlert },
   { id: 'nav-auditoria', label: 'Auditoría', to: '/auditoria', icon: History },
 ];
 

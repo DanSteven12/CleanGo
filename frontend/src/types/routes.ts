@@ -31,17 +31,6 @@ export type AsignacionRecord = {
   numero_economico: string;
   placa: string;
   conductor_nombre: string;
-  num_licencia: string;
-  incidencia_id?: number;
-  incidencia_tipo?: string;
-  incidencia_motivo?: string;
-  incidencia_fecha_nueva?: string;
-  incidencia_hora_nueva?: string;
-  incidencia_descripcion?: string;
-  incidencia_estatus?: string;
-  incidencia_fecha_original?: string;
-  incidencia_hora_inicio_original?: string;
-  incidencia_hora_fin_original?: string;
 };
 
 // ─── Tipos para el Historial de Recorridos ────────────────────────────────────
@@ -104,7 +93,6 @@ export type RecorridoDetalle = {
   numero_economico: string;
   placa: string;
   conductor_nombre: string;
-  num_licencia: string;
   fecha_programada: string;
   horario_inicio: string;
   horario_fin: string;

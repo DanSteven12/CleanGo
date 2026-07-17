@@ -94,7 +94,6 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ detalle, onClose }) => {
         <div className="historial-info-card">
           <span className="historial-info-card__label">Conductor</span>
           <span className="historial-info-card__value">{detalle.conductor_nombre}</span>
-          <span className="historial-info-card__sub">Lic: {detalle.num_licencia}</span>
         </div>
         <div className="historial-info-card">
           <span className="historial-info-card__label">Fecha Programada</span>

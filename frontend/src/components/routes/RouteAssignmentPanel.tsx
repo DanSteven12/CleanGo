@@ -12,8 +12,6 @@ interface CamionOption {
 interface ConductorOption {
   id: number;
   nombre_completo: string;
-  num_licencia: string;
-  estado_empleado: string;
 }
 
 export type { AsignacionData };
@@ -114,7 +112,7 @@ export const RouteAssignmentPanel: React.FC<RouteAssignmentPanelProps> = ({ data
               <option value="">Seleccione un conductor</option>
               {conductores.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.nombre_completo} (Lic: {d.num_licencia})
+                  {d.nombre_completo}
                 </option>
               ))}
             </select>

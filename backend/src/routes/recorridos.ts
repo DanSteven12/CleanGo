@@ -335,7 +335,6 @@ router.get('/historial/:id', async (req: Request, res: Response): Promise<void> 
         c.numero_economico,
         c.placa,
         d.nombre_completo  AS conductor_nombre,
-        d.num_licencia,
         ar.fecha           AS fecha_programada,
         ar.hora_inicio     AS horario_inicio,
         ar.hora_fin        AS horario_fin

@@ -5,7 +5,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 // Locale español: importado explícitamente para traducción completa de FullCalendar
 import esLocale from '@fullcalendar/core/locales/es';
-import { Calendar, Route, Truck, HardHat, TriangleAlert, CheckCircle2, Clock, CalendarDays, CalendarClock, Loader2, X } from 'lucide-react';
+import { Calendar, Route, Truck, HardHat, CheckCircle2, Clock, CalendarDays, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import '../../assets/styles/routes.css';
@@ -31,22 +31,10 @@ interface AsignacionRecord {
   placa: string;
   conductor_id: number;
   conductor_nombre: string;
-  num_licencia: string;
   fecha_programada: string;
   horario_inicio: string;
   horario_fin: string;
   estatus_recorrido: string;
-}
-
-interface Incidencia {
-  id: number;
-  asignacion_id: number;
-  tipo: 'Suspensión' | 'Reprogramación' | 'Cambio de horario' | 'Clima' | 'Evento';
-  motivo: string;
-  fecha_nueva?: string;
-  hora_nueva?: string;
-  descripcion?: string;
-  estatus: 'Activa' | 'Aplicada' | 'Resuelta';
 }
 
 const dayMap: Record<string, number> = {
@@ -59,15 +47,11 @@ const dayMap: Record<string, number> = {
   'Sábado': 6,
 };
 
-// Tipos que representan cambios definitivos (permanentes)
-const TIPOS_PERMANENTES = ['Reprogramación', 'Cambio de horario'];
-
 // ─── CalendarioPage Component ───────────────────────────────────────────────
 
 export const CalendarioPage: React.FC = () => {
   const [horarios, setHorarios] = useState<Horario[]>([]);
   const [asignaciones, setAsignaciones] = useState<AsignacionRecord[]>([]);
-  const [incidencias, setIncidencias] = useState<Incidencia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
@@ -75,19 +59,16 @@ export const CalendarioPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [resH, resA, resI] = await Promise.all([
+      const [resH, resA] = await Promise.all([
         fetch('/api/horarios'),
-        fetch('/api/asignaciones'),
-        fetch('/api/incidencias')
+        fetch('/api/asignaciones')
       ]);
 
       if (!resH.ok) throw new Error('Error al cargar horarios');
       if (!resA.ok) throw new Error('Error al cargar asignaciones');
-      if (!resI.ok) throw new Error('Error al cargar incidencias');
 
       setHorarios(await resH.json());
       setAsignaciones(await resA.json());
-      setIncidencias(await resI.json());
     } catch (error) {
       console.error('[CalendarioPage] Error fetching data:', error);
       toast.error('Error al cargar los datos del calendario.');
@@ -126,18 +107,8 @@ export const CalendarioPage: React.FC = () => {
       }
     });
 
-    // Lookup para incidencias activas o aplicadas por asignacion_id
-    // Se incluye 'Aplicada' para que las reprogramaciones/cambios de horario sigan coloreando el calendario
-    const incidenciasActivas = incidencias.filter(i => i.estatus === 'Activa' || i.estatus === 'Aplicada');
-    const incidenciasMap = new Map<number, Incidencia>();
-    incidenciasActivas.forEach(i => incidenciasMap.set(i.asignacion_id, i));
-
     // 2. Asignaciones
     asignaciones.forEach(a => {
-      const incidencia = incidenciasMap.get(a.id);
-
-      // Fecha y horario ya actualizados directamente en la asignación para
-      // Reprogramación y Cambio de horario. No se hace override aquí.
       const startStr = a.fecha_programada ? a.fecha_programada.split('T')[0] : '';
       const startTime = a.horario_inicio ? a.horario_inicio.slice(0, 5) : '08:00';
       const endTime = a.horario_fin ? a.horario_fin.slice(0, 5) : '16:00';
@@ -145,29 +116,6 @@ export const CalendarioPage: React.FC = () => {
       let backgroundColor = a.ruta_color || '#1763A6';
       let borderColor = backgroundColor;
       let title = a.ruta_nombre || `Asignación #${a.id}`;
-      let isSuspended = false;
-
-      // Colores según tipo de incidencia activa
-      if (incidencia) {
-        if (incidencia.tipo === 'Suspensión') {
-          backgroundColor = '#ef4444';
-          borderColor = '#dc2626';
-          title = `[Suspendida] ${title}`;
-          isSuspended = true;
-        } else if (incidencia.tipo === 'Clima') {
-          backgroundColor = '#3b82f6';
-          borderColor = '#2563eb';
-          title = `[Clima] ${title}`;
-        } else if (incidencia.tipo === 'Evento') {
-          backgroundColor = '#8b5cf6';
-          borderColor = '#7c3aed';
-          title = `[Evento] ${title}`;
-        } else if (TIPOS_PERMANENTES.includes(incidencia.tipo)) {
-          // Reprogramación / Cambio de horario ya aplicados — color ámbar como indicador histórico
-          backgroundColor = '#f59e0b';
-          borderColor = '#d97706';
-        }
-      }
 
       if (startStr) {
         calendarEvents.push({
@@ -179,16 +127,14 @@ export const CalendarioPage: React.FC = () => {
           borderColor,
           extendedProps: {
             isBase: false,
-            asignacion: a,
-            incidencia,
-            isSuspended
+            asignacion: a
           }
         });
       }
     });
 
     return calendarEvents;
-  }, [horarios, asignaciones, incidencias]);
+  }, [horarios, asignaciones]);
 
   // ─── Summary Stats ────────────────────────────────────────────────────────
 
@@ -196,28 +142,19 @@ export const CalendarioPage: React.FC = () => {
     const todayStr = new Date().toISOString().split('T')[0];
 
     let scheduledToday = 0;
-    let activeReschedules = 0;
-    let activeSuspensions = 0;
 
     asignaciones.forEach(a => {
       const dateStr = a.fecha_programada ? a.fecha_programada.split('T')[0] : '';
       if (dateStr === todayStr) scheduledToday++;
     });
 
-    incidencias.forEach(i => {
-      if (i.estatus === 'Activa') {
-        if (i.tipo === 'Suspensión') activeSuspensions++;
-        if (TIPOS_PERMANENTES.includes(i.tipo)) activeReschedules++;
-      }
-    });
-
-    return { scheduledToday, activeReschedules, activeSuspensions };
-  }, [asignaciones, incidencias]);
+    return { scheduledToday };
+  }, [asignaciones]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
   const renderEventContent = (eventInfo: any) => {
-    const { isBase, incidencia, isSuspended } = eventInfo.event.extendedProps;
+    const { isBase } = eventInfo.event.extendedProps;
 
     if (isBase) {
       return (
@@ -237,23 +174,6 @@ export const CalendarioPage: React.FC = () => {
             {eventInfo.timeText} {eventInfo.event.title}
           </strong>
         </div>
-        {incidencia && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
-            <TriangleAlert size={9} style={{ color: '#fff', flexShrink: 0 }} />
-            <span style={{
-              fontSize: '0.62rem',
-              fontWeight: 700,
-              color: '#fff',
-              background: 'rgba(0,0,0,0.35)',
-              borderRadius: '3px',
-              padding: '0 3px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '100%'
-            }}>{incidencia.tipo}</span>
-          </div>
-        )}
       </div>
     );
   };
@@ -285,24 +205,6 @@ export const CalendarioPage: React.FC = () => {
             <div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text)', margin: 0 }}>Programados hoy</p>
               <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-h)', margin: 0 }}>{stats.scheduledToday}</p>
-            </div>
-          </div>
-          <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '0.75rem', padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ background: 'oklch(0.30 0.06 250 / 0.5)', padding: '0.75rem', borderRadius: '0.5rem' }}>
-              <CalendarClock size={20} style={{ color: '#f59e0b' }} />
-            </div>
-            <div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text)', margin: 0 }}>Reprogramaciones</p>
-              <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-h)', margin: 0 }}>{stats.activeReschedules}</p>
-            </div>
-          </div>
-          <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '0.75rem', padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ background: 'oklch(0.30 0.06 250 / 0.5)', padding: '0.75rem', borderRadius: '0.5rem' }}>
-              <TriangleAlert size={20} style={{ color: '#ef4444' }} />
-            </div>
-            <div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text)', margin: 0 }}>Suspensiones</p>
-              <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-h)', margin: 0 }}>{stats.activeSuspensions}</p>
             </div>
           </div>
         </div>
@@ -443,35 +345,6 @@ export const CalendarioPage: React.FC = () => {
                     </span>
                   </div>
 
-                  {selectedEvent.extendedProps.incidencia && (
-                    <div style={{
-                      marginTop: '0.5rem', padding: '1rem',
-                      background: selectedEvent.extendedProps.isSuspended ? '#fef2f2' : '#fffbeb',
-                      border: `1px solid ${selectedEvent.extendedProps.isSuspended ? '#fca5a5' : '#fde68a'}`,
-                      borderRadius: '0.5rem'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: selectedEvent.extendedProps.isSuspended ? '#dc2626' : '#d97706', fontWeight: 600 }}>
-                        <TriangleAlert size={16} />
-                        {TIPOS_PERMANENTES.includes(selectedEvent.extendedProps.incidencia.tipo)
-                          ? `Historial — ${selectedEvent.extendedProps.incidencia.tipo}`
-                          : `Incidencia Activa: ${selectedEvent.extendedProps.incidencia.tipo}`
-                        }
-                      </div>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#475569' }}>
-                        <strong>Motivo:</strong> {selectedEvent.extendedProps.incidencia.motivo}
-                      </p>
-                      {selectedEvent.extendedProps.incidencia.descripcion && (
-                        <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#475569' }}>
-                          <strong>Detalle:</strong> {selectedEvent.extendedProps.incidencia.descripcion}
-                        </p>
-                      )}
-                      {TIPOS_PERMANENTES.includes(selectedEvent.extendedProps.incidencia.tipo) && (
-                        <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: '#92400e', fontStyle: 'italic' }}>
-                          Este cambio fue aplicado definitivamente a la programación de esta asignación.
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </>
               )}
 
