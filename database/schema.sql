@@ -126,6 +126,3 @@ CREATE TABLE horarios_rutas (
         REFERENCES rutas(id)
         ON DELETE CASCADE
 );
-
--- 9. TABLA DE INCIDENCIAS DEL CALENDARIO
--- [ELIMINADA] Esta tabla fue removida del sistema.

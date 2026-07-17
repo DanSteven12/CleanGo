@@ -93,6 +93,7 @@ export type RecorridoDetalle = {
   numero_economico: string;
   placa: string;
   conductor_nombre: string;
+  conductor_real_nombre: string | null;
   fecha_programada: string;
   horario_inicio: string;
   horario_fin: string;

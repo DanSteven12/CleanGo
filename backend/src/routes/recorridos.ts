@@ -6,7 +6,7 @@ const router = Router();
 
 // ─── POST /api/recorridos/iniciar ────────────────────────────────────────────
 router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
-  const { asignacion_id, ruta_id } = req.body;
+  const { asignacion_id, ruta_id, conductorRealNombre } = req.body;
 
   if (!asignacion_id || !ruta_id) {
     res.status(400).json({ error: 'Faltan parámetros requeridos: asignacion_id, ruta_id' });
@@ -22,9 +22,13 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
     const horaInicio = new Date();
 
     // 1. Insertar un nuevo registro en la tabla recorridos
+    // conductor_real_nombre se almacena solo si el conductor que realiza el viaje
+    // es distinto al asignado; en caso contrario se guarda NULL.
+    const conductorReal = conductorRealNombre?.trim() || null;
+
     const [resultRecorrido] = await connection.execute<ResultSetHeader>(
-      'INSERT INTO recorridos (asignacion_id, hora_inicio, estado) VALUES (?, ?, ?)',
-      [asignacion_id, horaInicio, 'En progreso']
+      'INSERT INTO recorridos (asignacion_id, hora_inicio, estado, conductor_real_nombre) VALUES (?, ?, ?, ?)',
+      [asignacion_id, horaInicio, 'En progreso', conductorReal]
     );
 
     const recorrido_id = resultRecorrido.insertId;
@@ -112,8 +116,8 @@ router.put('/:recorridoId/checkpoint', async (req: Request, res: Response): Prom
       return;
     }
 
-    const asignacionId  = recorridos[0].asignacion_id;
-    const horaInicio    = new Date(recorridos[0].hora_inicio);
+    const asignacionId = recorridos[0].asignacion_id;
+    const horaInicio = new Date(recorridos[0].hora_inicio);
 
     // 2. Obtener el orden del checkpoint para calcular la hora_llegada acumulativa.
     //    Se usa el mismo intervalo de 5 minutos por tramo que emplea /iniciar.
@@ -127,9 +131,9 @@ router.put('/:recorridoId/checkpoint', async (req: Request, res: Response): Prom
       return;
     }
 
-    const orden           = puntoRows[0].orden as number;
+    const orden = puntoRows[0].orden as number;
     const minutosTranscurridos = (orden - 1) * 5;
-    const horaLlegada    = new Date(horaInicio.getTime() + minutosTranscurridos * 60_000);
+    const horaLlegada = new Date(horaInicio.getTime() + minutosTranscurridos * 60_000);
 
     // 3. Actualizar la tabla recorridos (latitud_actual, longitud_actual)
     await connection.execute(
@@ -329,6 +333,7 @@ router.get('/historial/:id', async (req: Request, res: Response): Promise<void> 
         r.estado,
         r.latitud_actual,
         r.longitud_actual,
+        r.conductor_real_nombre,
         TIMESTAMPDIFF(MINUTE, r.hora_inicio, r.hora_fin) AS duracion_minutos,
         ru.nombre          AS ruta_nombre,
         ru.color           AS ruta_color,

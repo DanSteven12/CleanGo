@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { APIProvider, Map, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
-import { Satellite, Truck, User, Clock, MapPin, TrendingUp, Timer, Loader2 } from 'lucide-react';
+import { Satellite, Truck, User, Clock, MapPin, TrendingUp, Timer, Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import type { AsignacionRecord } from '../../types/routes';
 
 import '../../assets/styles/routes.css';
@@ -305,6 +305,14 @@ export const LiveMapPage: React.FC = () => {
 
   const [statsMap, setStatsMap] = useState<Record<number, LiveStats>>({});
 
+  // ── Modal de confirmación de conductor ────────────────────────────────────
+  // pendingAsignacion: la asignación que el usuario quiere iniciar
+  // confirmStep: 'ask' = pregunta si eres tú; 'capture' = captura nombre del conductor real
+  const [pendingAsignacion, setPendingAsignacion] = useState<AsignacionRecord | null>(null);
+  const [confirmStep, setConfirmStep] = useState<'ask' | 'capture'>('ask');
+  const [conductorRealNombre, setConductorRealNombre] = useState('');
+  const [conductorRealError, setConductorRealError] = useState<string | null>(null);
+
   // Cerrojo para cada recorrido individual: una vez que llega a 'Completado'
   // se congela el estado y se bloquea cualquier actualización adicional.
   const recorridosCompletadosRef = useRef<Set<number>>(new Set());
@@ -330,13 +338,18 @@ export const LiveMapPage: React.FC = () => {
     fetchAsignaciones();
   }, [fetchAsignaciones]);
 
-  const handleIniciarRecorrido = async (asignacion: AsignacionRecord) => {
+  const handleIniciarRecorrido = async (asignacion: AsignacionRecord, conductorReal?: string) => {
     setIsStartingRecorrido(asignacion.id);
+    // Cerrar el modal antes de iniciar
+    setPendingAsignacion(null);
     try {
+      const body: Record<string, unknown> = { asignacion_id: asignacion.id, ruta_id: asignacion.ruta_id };
+      if (conductorReal?.trim()) body.conductorRealNombre = conductorReal.trim();
+
       const res = await fetch('/api/recorridos/iniciar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ asignacion_id: asignacion.id, ruta_id: asignacion.ruta_id })
+        body: JSON.stringify(body)
       });
       if (!res.ok) throw new Error('Error al iniciar recorrido');
       const data = await res.json();
@@ -412,6 +425,39 @@ export const LiveMapPage: React.FC = () => {
     setStatsMap(prev => ({ ...prev, [recorridoId]: newStats }));
   }, []);
 
+  // ── Handlers del modal ────────────────────────────────────────────────────
+  const openConfirmModal = (asignacion: AsignacionRecord) => {
+    setPendingAsignacion(asignacion);
+    setConfirmStep('ask');
+    setConductorRealNombre('');
+    setConductorRealError(null);
+  };
+
+  const handleConfirmSelf = () => {
+    if (!pendingAsignacion) return;
+    void handleIniciarRecorrido(pendingAsignacion, undefined);
+  };
+
+  const handleConfirmOther = () => {
+    setConductorRealError(null);
+    setConfirmStep('capture');
+  };
+
+  const handleConfirmOtherSubmit = () => {
+    if (!conductorRealNombre.trim()) {
+      setConductorRealError('El nombre del conductor es obligatorio.');
+      return;
+    }
+    if (!pendingAsignacion) return;
+    void handleIniciarRecorrido(pendingAsignacion, conductorRealNombre);
+  };
+
+  const handleCloseModal = () => {
+    setPendingAsignacion(null);
+    setConductorRealNombre('');
+    setConductorRealError(null);
+  };
+
   // Format ETA from seconds to MM:SS
   const formatEta = (totalSeconds: number) => {
     const m = Math.floor(totalSeconds / 60);
@@ -420,7 +466,8 @@ export const LiveMapPage: React.FC = () => {
   };
 
   return (
-    <div className="assignments-page" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <>
+      <div className="assignments-page" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
 
       {/* ─── Encabezado y Selector ─── */}
       <section className="routes-section" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -486,7 +533,7 @@ export const LiveMapPage: React.FC = () => {
                     })()}
                   </div>
                 </div>
-                {/* Iniciar Monitoreo button — blocked for Suspensión, Clima, Evento */}
+                {/* Iniciar Monitoreo button */}
                 {(() => {
                   const isAlreadyMonitoring = !!activeAsignaciones[a.id];
                   const isStarting = isStartingRecorrido === a.id;
@@ -494,7 +541,7 @@ export const LiveMapPage: React.FC = () => {
                   return (
                     <button
                       className="save-button"
-                      onClick={() => !isAlreadyMonitoring && handleIniciarRecorrido(a)}
+                      onClick={() => !isAlreadyMonitoring && openConfirmModal(a)}
                       disabled={isStarting || isAlreadyMonitoring}
                       style={{
                         width: '100%', justifyContent: 'center',
@@ -709,5 +756,185 @@ export const LiveMapPage: React.FC = () => {
       )}
 
     </div>
+
+      {/* ─── Modal de Confirmación de Conductor ─── */}
+      {pendingAsignacion && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-confirmacion-titulo"
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(5px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9999, padding: '1rem'
+          }}
+          onClick={(e) => e.target === e.currentTarget && handleCloseModal()}
+        >
+          <div style={{
+            background: 'var(--panel-bg)',
+            border: '1px solid var(--panel-border)',
+            borderRadius: '1.125rem',
+            width: '100%', maxWidth: '400px',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)',
+            overflow: 'hidden',
+          }}>
+
+            {/* Header del modal */}
+            <div style={{
+              padding: '1.25rem 1.5rem 1rem',
+              borderBottom: '1px solid var(--panel-border)',
+              display: 'flex', alignItems: 'center', gap: '0.75rem'
+            }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #1763A6, #152C40)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+              }}>
+                <User size={18} color="white" />
+              </div>
+              <div>
+                <h3 id="modal-confirmacion-titulo" style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--text-h)', fontWeight: 700 }}>
+                  {confirmStep === 'ask' ? 'Confirmación del conductor' : 'Ingresa tu nombre'}
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text)', marginTop: '0.15rem' }}>
+                  {pendingAsignacion.ruta_nombre} · {pendingAsignacion.numero_economico}
+                </p>
+              </div>
+            </div>
+
+            {/* Body del modal */}
+            <div style={{ padding: '1.5rem' }}>
+
+              {confirmStep === 'ask' ? (
+                /* ── Paso 1: ¿Eres tú? ── */
+                <>
+                  {/* Chip de conductor asignado */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    background: 'oklch(0.30 0.06 250 / 0.18)',
+                    border: '1px solid oklch(0.50 0.12 250 / 0.3)',
+                    borderRadius: '0.75rem', padding: '0.875rem 1rem',
+                    marginBottom: '1.25rem'
+                  }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #1763A6, #90BF49)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                    }}>
+                      <span style={{ color: '#fff', fontWeight: 700, fontSize: '1rem' }}>
+                        {pendingAsignacion.conductor_nombre.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Conductor asignado</p>
+                      <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-h)' }}>
+                        {pendingAsignacion.conductor_nombre}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p style={{ margin: '0 0 1.25rem', fontSize: '0.9rem', color: 'var(--text)', fontWeight: 500 }}>
+                    ¿Eres tú quien realizará este recorrido?
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                    <button
+                      id="btn-confirmar-conductor-si"
+                      className="save-button"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={handleConfirmSelf}
+                      disabled={isStartingRecorrido === pendingAsignacion.id}
+                    >
+                      {isStartingRecorrido === pendingAsignacion.id ? (
+                        <><Loader2 size={15} className="spin" /> Iniciando…</>
+                      ) : (
+                        <><CheckCircle2 size={16} /> Sí, iniciar recorrido</>
+                      )}
+                    </button>
+                    <button
+                      id="btn-confirmar-conductor-no"
+                      className="save-button"
+                      style={{
+                        width: '100%', justifyContent: 'center',
+                        background: 'transparent', color: 'var(--text-h)',
+                        border: '1px solid var(--panel-border)', boxShadow: 'none'
+                      }}
+                      onClick={handleConfirmOther}
+                      disabled={isStartingRecorrido === pendingAsignacion.id}
+                    >
+                      <User size={15} /> No, soy otra persona
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* ── Paso 2: Capturar nombre ── */
+                <>
+                  <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: 'var(--text)' }}>
+                    Escribe tu nombre completo para registrarlo en este recorrido.
+                  </p>
+
+                  <div className="form-field" style={{ marginBottom: '1rem' }}>
+                    <label className="form-label" htmlFor="input-conductor-real">
+                      Nombre completo *
+                    </label>
+                    <input
+                      id="input-conductor-real"
+                      type="text"
+                      className="form-input"
+                      placeholder="Ej. Leodan Hernández"
+                      value={conductorRealNombre}
+                      onChange={e => {
+                        setConductorRealNombre(e.target.value);
+                        if (conductorRealError) setConductorRealError(null);
+                      }}
+                      onKeyDown={e => e.key === 'Enter' && handleConfirmOtherSubmit()}
+                      autoFocus
+                    />
+                    {conductorRealError && (
+                      <div className="validation-error-banner" role="alert" style={{ marginTop: '0.5rem' }}>
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <span>{conductorRealError}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                    <button
+                      id="btn-confirmar-conductor-otro-iniciar"
+                      className="save-button"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={handleConfirmOtherSubmit}
+                      disabled={isStartingRecorrido === pendingAsignacion.id}
+                    >
+                      {isStartingRecorrido === pendingAsignacion.id ? (
+                        <><Loader2 size={15} className="spin" /> Iniciando…</>
+                      ) : (
+                        <><CheckCircle2 size={16} /> Iniciar recorrido</>
+                      )}
+                    </button>
+                    <button
+                      id="btn-confirmar-conductor-regresar"
+                      className="save-button"
+                      style={{
+                        width: '100%', justifyContent: 'center',
+                        background: 'transparent', color: 'var(--text-h)',
+                        border: '1px solid var(--panel-border)', boxShadow: 'none'
+                      }}
+                      onClick={() => { setConfirmStep('ask'); setConductorRealError(null); }}
+                    >
+                      <ArrowLeft size={15} /> Regresar
+                    </button>
+                  </div>
+                </>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };

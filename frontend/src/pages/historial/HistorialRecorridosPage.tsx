@@ -13,9 +13,9 @@ import '../../assets/styles/historial.css';
 // ─── Interfaces locales ───────────────────────────────────────────────────────
 
 interface FiltrosCatalogo {
-  camiones:   { id: number; numero_economico: string; placa: string }[];
+  camiones: { id: number; numero_economico: string; placa: string }[];
   conductores: { id: number; nombre_completo: string }[];
-  rutas:       { id: number; nombre: string; color: string }[];
+  rutas: { id: number; nombre: string; color: string }[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -92,9 +92,20 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ detalle, onClose }) => {
           <span className="historial-info-card__sub">{detalle.placa}</span>
         </div>
         <div className="historial-info-card">
-          <span className="historial-info-card__label">Conductor</span>
+          <span className="historial-info-card__label">
+            {detalle.conductor_real_nombre ? 'Conductor Asignado' : 'Conductor'}
+          </span>
           <span className="historial-info-card__value">{detalle.conductor_nombre}</span>
         </div>
+        {detalle.conductor_real_nombre && (
+          <div className="historial-info-card" style={{
+            borderLeft: '3px solid var(--accent)',
+            paddingLeft: 'calc(1rem - 3px)',
+          }}>
+            <span className="historial-info-card__label" style={{ color: 'var(--accent)' }}>Conductor del Recorrido</span>
+            <span className="historial-info-card__value">{detalle.conductor_real_nombre}</span>
+          </div>
+        )}
         <div className="historial-info-card">
           <span className="historial-info-card__label">Fecha Programada</span>
           <span className="historial-info-card__value">{fmtDate(detalle.fecha_programada)}</span>
@@ -137,8 +148,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ detalle, onClose }) => {
                   const globalIdx = rowIdx * 6 + colIdx;
                   const dotCls =
                     cp.estado === 'Completado' ? 'historial-timeline-dot historial-timeline-dot--completado'
-                    : cp.estado === 'Omitido'  ? 'historial-timeline-dot historial-timeline-dot--omitido'
-                    :                            'historial-timeline-dot';
+                      : cp.estado === 'Omitido' ? 'historial-timeline-dot historial-timeline-dot--omitido'
+                        : 'historial-timeline-dot';
 
                   // Tiempo transcurrido entre el checkpoint anterior y éste (índice global)
                   let deltaLabel: string | null = null;
@@ -170,8 +181,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ detalle, onClose }) => {
                         <span
                           className={
                             cp.estado === 'Completado' ? 'estatus-badge estatus-completado'
-                            : cp.estado === 'Omitido'  ? 'estatus-badge'
-                            :                            'estatus-badge estatus-pendiente'
+                              : cp.estado === 'Omitido' ? 'estatus-badge'
+                                : 'estatus-badge estatus-pendiente'
                           }
                           style={cp.estado === 'Omitido' ? {
                             background: 'oklch(0.58 0.22 25 / 0.1)',
@@ -200,26 +211,26 @@ export const HistorialRecorridosPage: React.FC = () => {
   const [catalogo, setCatalogo] = useState<FiltrosCatalogo>({ camiones: [], conductores: [], rutas: [] });
 
   // ── Estado de filtros ────────────────────────────────────────────────────
-  const [fechaInicio,  setFechaInicio]  = useState('');
-  const [fechaFin,     setFechaFin]     = useState('');
-  const [camionId,     setCamionId]     = useState('');
-  const [conductorId,  setConductorId]  = useState('');
-  const [rutaId,       setRutaId]       = useState('');
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
+  const [camionId, setCamionId] = useState('');
+  const [conductorId, setConductorId] = useState('');
+  const [rutaId, setRutaId] = useState('');
 
   // ── Estado de resultados ─────────────────────────────────────────────────
-  const [recorridos,   setRecorridos]   = useState<RecorridoCompletado[]>([]);
-  const [total,        setTotal]        = useState(0);
-  const [currentPage,  setCurrentPage]  = useState(1);
-  const [totalPages,   setTotalPages]   = useState(1);
-  const [isLoading,    setIsLoading]    = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
-  const [hasBuscado,   setHasBuscado]   = useState(false);
+  const [recorridos, setRecorridos] = useState<RecorridoCompletado[]>([]);
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasBuscado, setHasBuscado] = useState(false);
 
   // ── Estado del detalle ───────────────────────────────────────────────────
-  const [selectedId,        setSelectedId]        = useState<number | null>(null);
-  const [detalle,           setDetalle]           = useState<RecorridoDetalle | null>(null);
-  const [isLoadingDetalle,  setIsLoadingDetalle]  = useState(false);
-  const [errorDetalle,      setErrorDetalle]      = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detalle, setDetalle] = useState<RecorridoDetalle | null>(null);
+  const [isLoadingDetalle, setIsLoadingDetalle] = useState(false);
+  const [errorDetalle, setErrorDetalle] = useState<string | null>(null);
 
   // ── Cargar catálogos al montar ───────────────────────────────────────────
   useEffect(() => {
@@ -244,11 +255,11 @@ export const HistorialRecorridosPage: React.FC = () => {
     setDetalle(null);
 
     const params = new URLSearchParams({ page: String(page) });
-    if (fechaInicio)  params.set('fecha_inicio',  fechaInicio);
-    if (fechaFin)     params.set('fecha_fin',      fechaFin);
-    if (camionId)     params.set('camion_id',      camionId);
-    if (conductorId)  params.set('conductor_id',   conductorId);
-    if (rutaId)       params.set('ruta_id',        rutaId);
+    if (fechaInicio) params.set('fecha_inicio', fechaInicio);
+    if (fechaFin) params.set('fecha_fin', fechaFin);
+    if (camionId) params.set('camion_id', camionId);
+    if (conductorId) params.set('conductor_id', conductorId);
+    if (rutaId) params.set('ruta_id', rutaId);
 
     try {
       const res = await fetch(`/api/recorridos/historial?${params.toString()}`);
@@ -375,7 +386,6 @@ export const HistorialRecorridosPage: React.FC = () => {
             ))}
           </select>
         </div>
-
         <div className="historial-filter-actions">
           <button
             id="btn-buscar-historial"
