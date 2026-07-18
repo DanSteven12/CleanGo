@@ -8,6 +8,8 @@ import asignacionesRouter from './routes/asignaciones';
 import crearRutaRouter from './routes/crearRuta';
 import recorridosRouter from './routes/recorridos';
 import horariosRouter from './routes/horarios';
+import usuariosRouter from './routes/usuarios';
+import authRouter from './routes/auth';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -23,6 +25,9 @@ app.use('/api/asignaciones', asignacionesRouter);
 app.use('/api/crear-ruta', crearRutaRouter);
 app.use('/api/recorridos', recorridosRouter);
 app.use('/api/horarios', horariosRouter);
+app.use('/api/usuarios', usuariosRouter);
+app.use('/api/auth', authRouter);
+
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);
 });

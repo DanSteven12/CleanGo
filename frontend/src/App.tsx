@@ -10,8 +10,11 @@ import { HistorialRecorridosPage } from './pages/historial/HistorialRecorridosPa
 import { HorariosPage } from './pages/calendario/horarios/HorariosPage';
 
 import { CalendarioPage } from './pages/calendario/CalendarioPage';
+import { UsuariosPage } from './pages/usuarios/UsuariosPage';
+import { UsuariosCreatePage } from './pages/usuarios/UsuariosCreatePage';
+import { UsuariosEditPage } from './pages/usuarios/UsuariosEditPage';
 
-type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario';
+type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios';
 
 function AppContent() {
   const location = useLocation();
@@ -23,6 +26,7 @@ function AppContent() {
   if (location.pathname.startsWith('/mapa-vivo')) activeModule = 'mapa-vivo';
   if (location.pathname.startsWith('/historial')) activeModule = 'historial-recorridos';
   if (location.pathname.startsWith('/calendario')) activeModule = 'calendario';
+  if (location.pathname.startsWith('/usuarios')) activeModule = 'usuarios';
 
   const handleNavigate = (module: Module) => {
     if (module === 'gestion-rutas') {
@@ -33,6 +37,8 @@ function AppContent() {
       navigate('/mapa-vivo');
     } else if (module === 'historial-recorridos') {
       navigate('/historial');
+    } else if (module === 'usuarios') {
+      navigate('/usuarios');
     } else {
       navigate('/calendario');
     }
@@ -49,6 +55,9 @@ function AppContent() {
         <Route path="/historial" element={<HistorialRecorridosPage />} />
         <Route path="/calendario" element={<CalendarioPage />} />
         <Route path="/calendario/horarios" element={<HorariosPage />} />
+        <Route path="/usuarios" element={<UsuariosPage />} />
+        <Route path="/usuarios/nuevo" element={<UsuariosCreatePage />} />
+        <Route path="/usuarios/:id/editar" element={<UsuariosEditPage />} />
 
         <Route path="*" element={<Navigate to="/rutas" replace />} />
       </Routes>

@@ -1,0 +1,187 @@
+/* ─── usuarios.css — Design System v2 ──────────────────────────────────────── */
+
+.usuarios-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  padding: 1.75rem;
+}
+
+/* ─── Table ─── */
+.usuarios-table-wrapper {
+  overflow-x: auto;
+  border-radius: 0.625rem;
+  border: 1px solid var(--panel-border);
+}
+
+.usuarios-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.usuarios-table th,
+.usuarios-table td {
+  padding: 0.7rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.usuarios-table th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--muted, oklch(0.96 0.005 240));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.usuarios-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.usuarios-table tbody tr {
+  transition: background 0.12s ease;
+}
+
+.usuarios-table tbody tr:hover {
+  background: rgb(144 191 73 / 0.07);
+}
+
+/* ─── Badges ─── */
+.estado-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+
+.estado-activo {
+  background: oklch(0.76 0.17 135 / 0.11);
+  color: oklch(0.38 0.12 145);
+  border-color: oklch(0.76 0.17 135 / 0.38);
+}
+
+.estado-bloqueado {
+  background: oklch(0.78 0.16 75 / 0.11);
+  color: oklch(0.38 0.12 72);
+  border-color: oklch(0.78 0.16 75 / 0.38);
+}
+
+.rol-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid;
+  background: oklch(0.52 0.14 250 / 0.11);
+  color: oklch(0.38 0.12 250);
+  border-color: oklch(0.52 0.14 250 / 0.35);
+}
+
+/* ─── Filter bar ─── */
+.usuarios-filters {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.usuarios-filters input, .usuarios-filters select {
+  min-width: 200px;
+}
+
+/* ─── Modals ─── */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--panel-bg);
+  border-radius: 0.75rem;
+  width: 100%;
+  max-width: 500px;
+  padding: 1.75rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 1rem;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+}
+
+.close-btn:hover {
+  background: var(--muted);
+  color: var(--text-h);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-h);
+  border: 1px solid var(--panel-border);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: var(--muted);
+}

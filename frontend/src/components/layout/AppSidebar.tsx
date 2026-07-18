@@ -64,7 +64,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Satellite,
     children: [
       { id: 'nav-mapa-vivo', label: 'Mapa en Vivo', to: '/mapa-vivo', icon: Map },
-      { id: 'nav-historial', label: 'Historial', to: '/historial', icon: History },
+      { id: 'nav-historial', label: 'Historial de Recorridos', to: '/historial', icon: History },
     ],
   },
   {
