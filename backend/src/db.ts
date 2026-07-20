@@ -24,7 +24,7 @@ export const pool = mysql.createPool({
 });
 
 // Optional generic query helper (no strict generic constraints)
-export async function query(sql: string, params?: any[]): Promise<any[]> {
-  const [rows] = await pool.query<any[]>(sql, params);
+export async function query(sql: string, params?: any[]): Promise<any> {
+  const [rows] = await pool.query(sql, params);
   return rows;
 }

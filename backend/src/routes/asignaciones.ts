@@ -9,10 +9,9 @@ const router = Router();
 router.get('/camiones', async (_req: Request, res: Response) => {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT c.id, c.numero_economico, c.placa, c.conductor_id, d.nombre_completo AS conductor_nombre 
-       FROM camiones c 
-       LEFT JOIN conductores d ON c.conductor_id = d.id 
-       ORDER BY c.numero_economico ASC`
+      `SELECT id, numero_economico, placa
+       FROM camiones
+       ORDER BY numero_economico ASC`
     );
     res.json(rows);
   } catch (err) {

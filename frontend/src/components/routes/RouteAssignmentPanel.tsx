@@ -126,6 +126,7 @@ export const RouteAssignmentPanel: React.FC<RouteAssignmentPanelProps> = ({ data
               className="form-input"
               value={data.fecha_programada}
               onChange={(e) => set({ fecha_programada: e.target.value })}
+              onClick={(e) => (e.target as any).showPicker && (e.target as any).showPicker()}
             />
           </div>
 

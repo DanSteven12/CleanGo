@@ -192,6 +192,7 @@ export const AssignmentsCreatePage: React.FC = () => {
                 className="form-input"
                 value={form.fecha_programada}
                 onChange={e => setF({ fecha_programada: e.target.value })}
+                onClick={(e) => (e.target as any).showPicker && (e.target as any).showPicker()}
               />
             </div>
 

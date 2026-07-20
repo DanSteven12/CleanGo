@@ -345,6 +345,7 @@ export const AssignmentsPage: React.FC = () => {
                   className="form-input"
                   value={editForm.fecha_programada}
                   onChange={e => setEF({ fecha_programada: e.target.value })}
+                  onClick={(e) => (e.target as any).showPicker && (e.target as any).showPicker()}
                 />
               </div>
 
