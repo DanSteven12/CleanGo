@@ -14,7 +14,11 @@ import { UsuariosPage } from './pages/usuarios/UsuariosPage';
 import { UsuariosCreatePage } from './pages/usuarios/UsuariosCreatePage';
 import { UsuariosEditPage } from './pages/usuarios/UsuariosEditPage';
 
-type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios';
+import { CamionesPage } from './pages/camiones/CamionesPage';
+import { CamionesCreatePage } from './pages/camiones/CamionesCreatePage';
+import { CamionesEditPage } from './pages/camiones/CamionesEditPage';
+
+type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones';
 
 function AppContent() {
   const location = useLocation();
@@ -27,6 +31,7 @@ function AppContent() {
   if (location.pathname.startsWith('/historial')) activeModule = 'historial-recorridos';
   if (location.pathname.startsWith('/calendario')) activeModule = 'calendario';
   if (location.pathname.startsWith('/usuarios')) activeModule = 'usuarios';
+  if (location.pathname.startsWith('/camiones')) activeModule = 'camiones';
 
   const handleNavigate = (module: Module) => {
     if (module === 'gestion-rutas') {
@@ -39,6 +44,8 @@ function AppContent() {
       navigate('/historial');
     } else if (module === 'usuarios') {
       navigate('/usuarios');
+    } else if (module === 'camiones') {
+      navigate('/camiones');
     } else {
       navigate('/calendario');
     }
@@ -58,6 +65,9 @@ function AppContent() {
         <Route path="/usuarios" element={<UsuariosPage />} />
         <Route path="/usuarios/nuevo" element={<UsuariosCreatePage />} />
         <Route path="/usuarios/:id/editar" element={<UsuariosEditPage />} />
+        <Route path="/camiones" element={<CamionesPage />} />
+        <Route path="/camiones/nuevo" element={<CamionesCreatePage />} />
+        <Route path="/camiones/:id/editar" element={<CamionesEditPage />} />
 
         <Route path="*" element={<Navigate to="/rutas" replace />} />
       </Routes>

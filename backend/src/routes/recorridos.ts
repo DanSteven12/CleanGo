@@ -246,8 +246,8 @@ router.get('/historial', async (req: Request, res: Response): Promise<void> => {
   const conditions: string[] = ["r.estado = 'Completado'"];
   const filterParams: (string | number)[] = [];
 
-  if (fecha_inicio) { conditions.push('ar.fecha >= ?'); filterParams.push(fecha_inicio); }
-  if (fecha_fin) { conditions.push('ar.fecha <= ?'); filterParams.push(fecha_fin); }
+  if (fecha_inicio) { conditions.push('ar.fecha_programada >= ?'); filterParams.push(fecha_inicio); }
+  if (fecha_fin) { conditions.push('ar.fecha_programada <= ?'); filterParams.push(fecha_fin); }
   if (camion_id) { conditions.push('ar.camion_id = ?'); filterParams.push(Number(camion_id)); }
   if (conductor_id) { conditions.push('ar.conductor_id = ?'); filterParams.push(Number(conductor_id)); }
   if (ruta_id) { conditions.push('ar.ruta_id = ?'); filterParams.push(Number(ruta_id)); }
@@ -289,15 +289,15 @@ router.get('/historial', async (req: Request, res: Response): Promise<void> => {
         c.placa,
         d.id               AS conductor_id,
         d.nombre_completo  AS conductor_nombre,
-        ar.fecha           AS fecha_programada,
-        ar.hora_inicio     AS horario_inicio,
-        ar.hora_fin        AS horario_fin,
+        ar.fecha_programada,
+        ar.horario_inicio,
+        ar.horario_fin,
         (SELECT COUNT(*)   FROM recorrido_checkpoints rc
          WHERE rc.recorrido_id = r.id)                                 AS total_checkpoints,
         (SELECT COUNT(*)   FROM recorrido_checkpoints rc
          WHERE rc.recorrido_id = r.id AND rc.estado = 'Completado')    AS checkpoints_completados
       ${fromJoins}
-      ORDER BY ar.fecha DESC, r.hora_inicio DESC
+      ORDER BY ar.fecha_programada DESC, r.hora_inicio DESC
       LIMIT ? OFFSET ?`,
       [...filterParams, HISTORIAL_PAGE_SIZE, offset]
     );
@@ -340,9 +340,9 @@ router.get('/historial/:id', async (req: Request, res: Response): Promise<void> 
         c.numero_economico,
         c.placa,
         d.nombre_completo  AS conductor_nombre,
-        ar.fecha           AS fecha_programada,
-        ar.hora_inicio     AS horario_inicio,
-        ar.hora_fin        AS horario_fin
+        ar.fecha_programada,
+        ar.horario_inicio,
+        ar.horario_fin
       FROM recorridos r
       INNER JOIN asignaciones_rutas ar ON ar.id  = r.asignacion_id
       INNER JOIN rutas               ru ON ru.id  = ar.ruta_id

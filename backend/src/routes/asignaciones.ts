@@ -9,7 +9,10 @@ const router = Router();
 router.get('/camiones', async (_req: Request, res: Response) => {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, numero_economico, placa, estatus_operativo FROM camiones ORDER BY numero_economico ASC'
+      `SELECT c.id, c.numero_economico, c.placa, c.conductor_id, d.nombre_completo AS conductor_nombre 
+       FROM camiones c 
+       LEFT JOIN conductores d ON c.conductor_id = d.id 
+       ORDER BY c.numero_economico ASC`
     );
     res.json(rows);
   } catch (err) {
@@ -41,9 +44,9 @@ router.get('/', async (_req: Request, res: Response) => {
         ar.ruta_id,
         ar.camion_id,
         ar.conductor_id,
-        ar.fecha        AS fecha_programada,
-        ar.hora_inicio  AS horario_inicio,
-        ar.hora_fin     AS horario_fin,
+        ar.fecha_programada,
+        ar.horario_inicio,
+        ar.horario_fin,
         ar.estatus_recorrido,
         r.nombre        AS ruta_nombre,
         r.color         AS ruta_color,
@@ -54,7 +57,7 @@ router.get('/', async (_req: Request, res: Response) => {
       INNER JOIN rutas r       ON r.id = ar.ruta_id
       INNER JOIN camiones c    ON c.id = ar.camion_id
       INNER JOIN conductores d ON d.id = ar.conductor_id
-      ORDER BY ar.fecha DESC, ar.id DESC
+      ORDER BY ar.fecha_programada DESC, ar.id DESC
     `);
     res.json(rows);
   } catch (err) {
@@ -73,9 +76,9 @@ router.get('/:id', async (req: Request, res: Response) => {
         ar.ruta_id,
         ar.camion_id,
         ar.conductor_id,
-        ar.fecha        AS fecha_programada,
-        ar.hora_inicio  AS horario_inicio,
-        ar.hora_fin     AS horario_fin,
+        ar.fecha_programada,
+        ar.horario_inicio,
+        ar.horario_fin,
         ar.estatus_recorrido,
         r.nombre        AS ruta_nombre,
         r.color         AS ruta_color,
@@ -130,7 +133,7 @@ router.post('/', async (req: Request, res: Response) => {
 
   try {
     const [result] = await pool.execute<ResultSetHeader>(
-      `INSERT INTO asignaciones_rutas (ruta_id, camion_id, conductor_id, fecha, hora_inicio, hora_fin, estatus_recorrido)
+      `INSERT INTO asignaciones_rutas (ruta_id, camion_id, conductor_id, fecha_programada, horario_inicio, horario_fin, estatus_recorrido)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [ruta_id, camion_id, conductor_id, fecha_programada, horario_inicio, horario_fin, resolvedEstatus]
     );
@@ -138,9 +141,9 @@ router.post('/', async (req: Request, res: Response) => {
     const [rows] = await pool.query<RowDataPacket[]>(`
       SELECT
         ar.id, ar.ruta_id, ar.camion_id, ar.conductor_id,
-        ar.fecha        AS fecha_programada,
-        ar.hora_inicio  AS horario_inicio,
-        ar.hora_fin     AS horario_fin,
+        ar.fecha_programada,
+        ar.horario_inicio,
+        ar.horario_fin,
         ar.estatus_recorrido,
         r.nombre AS ruta_nombre, r.color AS ruta_color,
         c.numero_economico, c.placa,
@@ -200,18 +203,18 @@ router.put('/:id', async (req: Request, res: Response) => {
          SET ruta_id           = ?,
              camion_id         = ?,
              conductor_id      = ?,
-             fecha             = ?,
-             hora_inicio       = ?,
-             hora_fin          = ?,
+             fecha_programada  = ?,
+             horario_inicio    = ?,
+             horario_fin       = ?,
              estatus_recorrido = ?
        WHERE id = ?`,
       [
         ruta_id           ?? existing.ruta_id,
         camion_id         ?? existing.camion_id,
         conductor_id      ?? existing.conductor_id,
-        fecha_programada  ?? existing.fecha,
-        horario_inicio    ?? existing.hora_inicio,
-        horario_fin       ?? existing.hora_fin,
+        fecha_programada  ?? existing.fecha_programada,
+        horario_inicio    ?? existing.horario_inicio,
+        horario_fin       ?? existing.horario_fin,
         estatus_recorrido ?? existing.estatus_recorrido,
         id,
       ]
@@ -220,9 +223,9 @@ router.put('/:id', async (req: Request, res: Response) => {
     const [updated] = await pool.query<RowDataPacket[]>(`
       SELECT
         ar.id, ar.ruta_id, ar.camion_id, ar.conductor_id,
-        ar.fecha        AS fecha_programada,
-        ar.hora_inicio  AS horario_inicio,
-        ar.hora_fin     AS horario_fin,
+        ar.fecha_programada,
+        ar.horario_inicio,
+        ar.horario_fin,
         ar.estatus_recorrido,
         r.nombre AS ruta_nombre, r.color AS ruta_color,
         c.numero_economico, c.placa,

@@ -10,6 +10,8 @@ import recorridosRouter from './routes/recorridos';
 import horariosRouter from './routes/horarios';
 import usuariosRouter from './routes/usuarios';
 import authRouter from './routes/auth';
+import camionesRouter from './routes/camiones';
+import conductoresRouter from './routes/conductores';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -27,6 +29,8 @@ app.use('/api/recorridos', recorridosRouter);
 app.use('/api/horarios', horariosRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/camiones', camionesRouter);
+app.use('/api/conductores', conductoresRouter);
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);

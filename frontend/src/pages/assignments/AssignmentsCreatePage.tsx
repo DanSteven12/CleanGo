@@ -15,7 +15,6 @@ interface CamionOption {
   id: number;
   numero_economico: string;
   placa: string;
-  estatus_operativo: string;
 }
 
 interface ConductorOption {
@@ -157,7 +156,7 @@ export const AssignmentsCreatePage: React.FC = () => {
                 <option value="" disabled>Selecciona un camión</option>
                 {camiones.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.numero_economico} ({c.placa}) — {c.estatus_operativo}
+                    {c.numero_economico} ({c.placa})
                   </option>
                 ))}
               </select>

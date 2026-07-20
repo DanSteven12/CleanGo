@@ -21,7 +21,6 @@ interface CamionOption {
   id: number;
   numero_economico: string;
   placa: string;
-  estatus_operativo: string;
 }
 
 interface ConductorOption {
