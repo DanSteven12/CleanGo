@@ -18,7 +18,10 @@ import { CamionesPage } from './pages/camiones/CamionesPage';
 import { CamionesCreatePage } from './pages/camiones/CamionesCreatePage';
 import { CamionesEditPage } from './pages/camiones/CamionesEditPage';
 
-type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones';
+import { ConductoresPage } from './pages/conductores/ConductoresPage';
+import { ConductoresCreatePage } from './pages/conductores/ConductoresCreatePage';
+import { ConductoresEditPage } from './pages/conductores/ConductoresEditPage';
+type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores';
 
 function AppContent() {
   const location = useLocation();
@@ -32,6 +35,7 @@ function AppContent() {
   if (location.pathname.startsWith('/calendario')) activeModule = 'calendario';
   if (location.pathname.startsWith('/usuarios')) activeModule = 'usuarios';
   if (location.pathname.startsWith('/camiones')) activeModule = 'camiones';
+  if (location.pathname.startsWith('/conductores')) activeModule = 'conductores';
 
   const handleNavigate = (module: Module) => {
     if (module === 'gestion-rutas') {
@@ -46,6 +50,8 @@ function AppContent() {
       navigate('/usuarios');
     } else if (module === 'camiones') {
       navigate('/camiones');
+    } else if (module === 'conductores') {
+      navigate('/conductores');
     } else {
       navigate('/calendario');
     }
@@ -68,7 +74,9 @@ function AppContent() {
         <Route path="/camiones" element={<CamionesPage />} />
         <Route path="/camiones/nuevo" element={<CamionesCreatePage />} />
         <Route path="/camiones/:id/editar" element={<CamionesEditPage />} />
-
+        <Route path="/conductores" element={<ConductoresPage />} />
+        <Route path="/conductores/create" element={<ConductoresCreatePage />} />
+        <Route path="/conductores/:id/edit" element={<ConductoresEditPage />} />
         <Route path="*" element={<Navigate to="/rutas" replace />} />
       </Routes>
     </MainLayout>
