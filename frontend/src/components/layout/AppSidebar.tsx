@@ -7,7 +7,6 @@ import {
   Map,
   MapPinned,
   Satellite,
-  History,
   Calendar,
   Bell,
   FileWarning,
@@ -16,6 +15,7 @@ import {
   HardHat,
   ChevronDown,
   Clock,
+  History,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -89,9 +89,6 @@ const STANDALONE_TERTIARY: NavItem[] = [
   { id: 'nav-conductores', label: 'Conductores', to: '/conductores', icon: HardHat },
 ];
 
-const STANDALONE_QUATERNARY: NavItem[] = [
-  { id: 'nav-auditoria', label: 'Auditoría', to: '/auditoria', icon: History },
-];
 
 // ─── Helper: is path active ──────────────────────────────────────────────────
 
@@ -372,11 +369,6 @@ export const AppSidebar: React.FC = () => {
           <SidebarLink key={item.id} item={item} pathname={pathname} />
         ))}
 
-        {/* ── Incidencias / Auditoría */}
-        <Divider />
-        {STANDALONE_QUATERNARY.map((item) => (
-          <SidebarLink key={item.id} item={item} pathname={pathname} />
-        ))}
       </nav>
 
       {/* ── Footer: User avatar ───────────────────────── */}

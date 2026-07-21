@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, Calendar } from 'lucide-react';
+import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { CamionData } from '../../types/camiones';
@@ -91,16 +91,6 @@ export const CamionesEditPage: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', justifyContent: 'flex-end' }}>
-        <button
-          className="btn-secondary"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          onClick={() => navigate(`/historial?camion_id=${id}`)}
-        >
-          <Calendar size={16} /> Ver historial de recorridos
-        </button>
-      </div>
-
       {isLoading ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', padding: '2rem' }}>
           <Loader2 size={16} className="spin" style={{ color: 'var(--primary)' }} /> Cargando información…
@@ -145,12 +135,6 @@ export const CamionesEditPage: React.FC = () => {
                     onChange={handleChange}
                     required
                   />
-                </div>
-
-                <div className="form-field" style={{ gridColumn: '1 / -1', marginTop: '1rem', padding: '1rem', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text)' }}>
-                    <strong>Nota:</strong> Todas las unidades se consideran equipadas con GPS por defecto debido a que utilizan la ubicación proporcionada por la aplicación móvil. La contraseña del dispositivo solo puede ser modificada a través de la acción dedicada en la lista de camiones.
-                  </p>
                 </div>
               </div>
 

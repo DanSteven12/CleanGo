@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Loader2, KeyRound, X } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Loader2,
+  KeyRound,
+  X,
+  Truck,
+  History,
+  MapPin,
+  CalendarDays,
+  Smartphone,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { CamionRecord } from '../../types/camiones';
-import '../../assets/styles/usuarios.css'; // Reutilizamos estilos
+import '../../assets/styles/usuarios.css';
+import '../../assets/styles/camiones-cards.css';
+
+/* ─── Inline Modal (unchanged logic) ──────────────────────────────────────── */
 
 interface ModalProps {
   isOpen: boolean;
@@ -28,21 +42,107 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
   );
 };
 
+/* ─── Truck Card ───────────────────────────────────────────────────────────── */
+
+interface TruckCardProps {
+  camion: CamionRecord;
+  onEdit: (c: CamionRecord) => void;
+  onPassword: (c: CamionRecord) => void;
+  onHistorial: () => void;
+  onAsignar: () => void;
+  formatDate: (d: string) => string;
+}
+
+const TruckCard: React.FC<TruckCardProps> = ({
+  camion,
+  onEdit,
+  onPassword,
+  onHistorial,
+  onAsignar,
+  formatDate,
+}) => (
+  <article className="truck-card">
+    {/* ── Header ── */}
+    <div className="truck-card__header">
+      <div className="truck-card__icon-wrap">
+        <Truck size={22} strokeWidth={1.8} />
+      </div>
+
+      <div className="truck-card__identity">
+        <span className="truck-card__eco">{camion.numero_economico}</span>
+        <span className="truck-card__placa">{camion.placa}</span>
+      </div>
+
+      {/* Edit + password actions grouped top-right */}
+      <div className="truck-card__meta-actions">
+        <button
+          className="truck-card__icon-btn truck-card__icon-btn--edit"
+          onClick={() => onEdit(camion)}
+          title="Editar unidad"
+        >
+          <Pencil size={13} />
+        </button>
+        <button
+          className="truck-card__icon-btn truck-card__icon-btn--key"
+          onClick={() => onPassword(camion)}
+          title="Cambiar contraseña"
+        >
+          <KeyRound size={13} />
+        </button>
+      </div>
+    </div>
+
+    {/* ── Divider ── */}
+    <div className="truck-card__divider" />
+
+    {/* ── Info rows ── */}
+    <div className="truck-card__info">
+      <div className="truck-card__info-row">
+        <span className="truck-card__info-label">
+          <Smartphone size={12} />
+          Usuario del dispositivo
+        </span>
+        <span className="truck-card__info-value">{camion.usuario_dispositivo}</span>
+      </div>
+
+      <div className="truck-card__info-row">
+        <span className="truck-card__info-label">
+          <CalendarDays size={12} />
+          Fecha de registro
+        </span>
+        <span className="truck-card__info-value">{formatDate(camion.created_at)}</span>
+      </div>
+    </div>
+
+    {/* ── Footer actions ── */}
+    <div className="truck-card__footer">
+      <button className="truck-card__action truck-card__action--outline" onClick={onHistorial}>
+        <History size={14} />
+        Ver historial
+      </button>
+      <button className="truck-card__action truck-card__action--primary" onClick={onAsignar}>
+        <MapPin size={14} />
+        Asignar ruta
+      </button>
+    </div>
+  </article>
+);
+
+/* ─── Page ─────────────────────────────────────────────────────────────────── */
+
 export const CamionesPage: React.FC = () => {
   const navigate = useNavigate();
   const [camiones, setCamiones] = useState<CamionRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-
-  const [page, setPage] = useState(1);
-  const itemsPerPage = 10;
-
+  /* password modal state — logic unchanged */
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [selectedCamion, setSelectedCamion] = useState<CamionRecord | null>(null);
   const [passwordData, setPasswordData] = useState({ password: '', confirmPassword: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  /* ── Fetch ── */
   const fetchCamiones = async () => {
     setIsLoading(true);
     try {
@@ -58,47 +158,37 @@ export const CamionesPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchCamiones();
-  }, []);
+  useEffect(() => { fetchCamiones(); }, []);
 
-  const totalPages = Math.ceil(camiones.length / itemsPerPage);
-  const currentCamiones = camiones.slice((page - 1) * itemsPerPage, page * itemsPerPage);
-
-  const handleOpenCreate = () => {
-    navigate('/camiones/nuevo');
-  };
-
-  const handleOpenEdit = (camion: CamionRecord) => {
-    navigate(`/camiones/${camion.id}/editar`);
-  };
-
-  const handleOpenPassword = (camion: CamionRecord) => {
-    setSelectedCamion(camion);
+  /* ── Navigation helpers ── */
+  const handleOpenCreate   = ()                   => navigate('/camiones/nuevo');
+  const handleOpenEdit     = (c: CamionRecord)    => navigate(`/camiones/${c.id}/editar`);
+  const handleOpenPassword = (c: CamionRecord)    => {
+    setSelectedCamion(c);
     setPasswordData({ password: '', confirmPassword: '' });
     setFormError(null);
     setIsPasswordOpen(true);
   };
+  const handleGoHistorial  = ()                   => navigate('/historial');
+  const handleGoAsignar    = ()                   => navigate('/asignaciones/nueva');
 
+  /* ── Save password (logic unchanged) ── */
   const handleSavePassword = async () => {
     setFormError(null);
-    if (!passwordData.password || passwordData.password.length < 6) {
+    if (!passwordData.password || passwordData.password.length < 6)
       return setFormError('La contraseña debe tener al menos 6 caracteres.');
-    }
-    if (passwordData.password !== passwordData.confirmPassword) {
+    if (passwordData.password !== passwordData.confirmPassword)
       return setFormError('Las contraseñas no coinciden.');
-    }
 
     setIsSaving(true);
     try {
       const res = await fetch(`/api/camiones/${selectedCamion!.id}/password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nueva_password: passwordData.password })
+        body: JSON.stringify({ nueva_password: passwordData.password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || 'Error al actualizar contraseña');
-
       toast.success('Contraseña actualizada correctamente');
       setIsPasswordOpen(false);
     } catch (e: any) {
@@ -108,105 +198,81 @@ export const CamionesPage: React.FC = () => {
     }
   };
 
-  const formatDate = (d: string) => d ? new Date(d).toLocaleDateString() : '—';
+  const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('es-MX') : '—';
 
+  /* ── Render ── */
   return (
     <div className="usuarios-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+
+      {/* Page header */}
+      <div className="page-header">
         <div>
-          <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Unidades de Recolección</h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Administración de camiones y credenciales móviles</p>
+          <h2 className="page-title">Unidades de Recolección</h2>
+          <p className="page-subtitle">Panel de gestión de camiones y credenciales móviles</p>
         </div>
         <button onClick={handleOpenCreate} className="save-button">
           <Plus size={16} /> Registrar Camión
         </button>
       </div>
 
+      {/* Loading state */}
       {isLoading ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', padding: '1rem 0' }}>
-          <Loader2 size={16} className="spin" style={{ color: 'var(--primary)' }} /> Cargando camiones…
+        <div className="trucks-loading">
+          <Loader2 size={18} className="spin" style={{ color: 'var(--primary)' }} />
+          <span>Cargando unidades…</span>
+        </div>
+      ) : camiones.length === 0 ? (
+        <div className="trucks-empty">
+          <Truck size={40} strokeWidth={1.4} />
+          <p>No hay camiones registrados todavía.</p>
+          <button className="save-button" onClick={handleOpenCreate}>
+            <Plus size={14} /> Registrar primer camión
+          </button>
         </div>
       ) : (
-        <>
-          <div className="usuarios-table-wrapper">
-            <table className="usuarios-table">
-              <thead>
-                <tr>
-                  <th>No. Económico</th>
-                  <th>Placa</th>
-                  <th>Usuario Disp.</th>
-                  <th>Registro</th>
-                  <th style={{ textAlign: 'center' }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentCamiones.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>No se encontraron camiones</td>
-                  </tr>
-                ) : (
-                  currentCamiones.map(c => (
-                    <tr key={c.id}>
-                      <td style={{ fontWeight: 600, color: 'var(--text-h)' }}>{c.numero_economico}</td>
-                      <td>{c.placa}</td>
-                      <td>{c.usuario_dispositivo}</td>
-                      <td style={{ fontSize: '0.8rem' }}>{formatDate(c.created_at)}</td>
-                      <td>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
-                          <button className="action-btn action-btn--edit" onClick={() => handleOpenEdit(c)} title="Editar Detalles y Ver Historial">
-                            <Pencil size={14} />
-                          </button>
-                          <button className="action-btn" onClick={() => handleOpenPassword(c)} title="Cambiar Contraseña" style={{ color: 'oklch(0.6 0.15 40)' }}>
-                            <KeyRound size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
-              <button
-                disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
-                className="btn-secondary"
-                style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
-              >
-                Anterior
-              </button>
-              <span style={{ fontSize: '0.85rem', alignSelf: 'center', color: 'var(--text)' }}>
-                Página {page} de {totalPages}
-              </span>
-              <button
-                disabled={page === totalPages}
-                onClick={() => setPage(p => p + 1)}
-                className="btn-secondary"
-                style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
-              >
-                Siguiente
-              </button>
-            </div>
-          )}
-        </>
+        /* Card grid */
+        <div className="trucks-grid">
+          {camiones.map(c => (
+            <TruckCard
+              key={c.id}
+              camion={c}
+              onEdit={handleOpenEdit}
+              onPassword={handleOpenPassword}
+              onHistorial={handleGoHistorial}
+              onAsignar={handleGoAsignar}
+              formatDate={formatDate}
+            />
+          ))}
+        </div>
       )}
 
-      {/* Modal Cambiar Contraseña */}
-      <Modal isOpen={isPasswordOpen} onClose={() => setIsPasswordOpen(false)} title="Cambiar Contraseña de Dispositivo">
+      {/* Password Modal — logic unchanged */}
+      <Modal
+        isOpen={isPasswordOpen}
+        onClose={() => setIsPasswordOpen(false)}
+        title="Cambiar Contraseña de Dispositivo"
+      >
         <p style={{ color: 'var(--text)', fontSize: '0.9rem', marginBottom: '1rem' }}>
           Unidad: <strong>{selectedCamion?.numero_economico}</strong> ({selectedCamion?.usuario_dispositivo})
         </p>
         <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
           <div className="form-field">
             <label className="form-label">Nueva Contraseña *</label>
-            <input type="password" className="form-input" value={passwordData.password} onChange={e => setPasswordData({ ...passwordData, password: e.target.value })} />
+            <input
+              type="password"
+              className="form-input"
+              value={passwordData.password}
+              onChange={e => setPasswordData({ ...passwordData, password: e.target.value })}
+            />
           </div>
           <div className="form-field">
             <label className="form-label">Confirmar Contraseña *</label>
-            <input type="password" className="form-input" value={passwordData.confirmPassword} onChange={e => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} />
+            <input
+              type="password"
+              className="form-input"
+              value={passwordData.confirmPassword}
+              onChange={e => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+            />
           </div>
         </div>
 
@@ -217,13 +283,14 @@ export const CamionesPage: React.FC = () => {
         )}
 
         <div className="modal-footer">
-          <button className="btn-secondary" onClick={() => setIsPasswordOpen(false)} disabled={isSaving}>Cancelar</button>
+          <button className="btn-secondary" onClick={() => setIsPasswordOpen(false)} disabled={isSaving}>
+            Cancelar
+          </button>
           <button className="save-button" onClick={handleSavePassword} disabled={isSaving}>
             {isSaving ? <Loader2 size={16} className="spin" /> : 'Actualizar'}
           </button>
         </div>
       </Modal>
-
     </div>
   );
 };

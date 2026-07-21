@@ -1,0 +1,289 @@
+/* ─── camiones-cards.css ────────────────────────────────────────────────────
+   Estilos exclusivos para la vista de tarjetas del módulo Camiones.
+   No modifica otros módulos.
+────────────────────────────────────────────────────────────────────────────── */
+
+/* ─── Loading / Empty states ──────────────────────────────────────────────── */
+
+.trucks-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--text);
+  padding: 2rem 0;
+  font-size: 0.9rem;
+}
+
+.trucks-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem 1rem;
+  color: var(--text);
+  text-align: center;
+}
+
+.trucks-empty svg {
+  color: var(--panel-border);
+}
+
+.trucks-empty p {
+  font-size: 0.925rem;
+  margin: 0;
+}
+
+/* ─── Card Grid ────────────────────────────────────────────────────────────── */
+
+.trucks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+@media (min-width: 1200px) {
+  .trucks-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .trucks-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .trucks-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Truck Card ────────────────────────────────────────────────────────────── */
+
+.truck-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg, 0.75rem);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+
+  /* Soft shadow */
+  box-shadow:
+    0 1px 3px 0 oklch(0.2 0.04 240 / 0.06),
+    0 4px 16px -4px oklch(0.2 0.04 240 / 0.08);
+
+  /* Hover lift */
+  transition:
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    transform 0.18s ease;
+
+  /* Staggered entry */
+  animation: card-in 0.28s ease both;
+}
+
+.truck-card:hover {
+  box-shadow:
+    0 2px 8px 0 oklch(0.2 0.04 240 / 0.08),
+    0 12px 32px -8px oklch(0.52 0.14 250 / 0.14);
+  border-color: #1763A640;
+  transform: translateY(-2px);
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Card Header ────────────────────────────────────────────────────────────── */
+
+.truck-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+}
+
+/* Truck icon pill */
+.truck-card__icon-wrap {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 0.625rem;
+  background: linear-gradient(135deg, #1763A6, #152C40);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px oklch(0.52 0.14 250 / 0.28);
+}
+
+.truck-card__identity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.truck-card__eco {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text-h);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.truck-card__placa {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Top-right icon buttons */
+.truck-card__meta-actions {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.truck-card__icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 0.4rem;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.truck-card__icon-btn--edit:hover {
+  background: oklch(0.52 0.14 250 / 0.10);
+  color: #1763A6;
+  border-color: #1763A640;
+}
+
+.truck-card__icon-btn--key:hover {
+  background: oklch(0.6 0.15 40 / 0.10);
+  color: oklch(0.5 0.15 40);
+  border-color: oklch(0.6 0.15 40 / 0.35);
+}
+
+/* ─── Divider ─────────────────────────────────────────────────────────────── */
+
+.truck-card__divider {
+  height: 1px;
+  background: var(--panel-border);
+  margin: 1rem 0;
+  opacity: 0.7;
+}
+
+/* ─── Info Rows ───────────────────────────────────────────────────────────── */
+
+.truck-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  flex: 1;
+}
+
+.truck-card__info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.truck-card__info-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.truck-card__info-label svg {
+  flex-shrink: 0;
+  color: var(--text);
+  opacity: 0.65;
+}
+
+.truck-card__info-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-h);
+  padding-left: 1rem; /* aligns under the label text after the icon */
+}
+
+/* ─── Footer Actions ─────────────────────────────────────────────────────── */
+
+.truck-card__footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.625rem;
+  margin-top: 1.125rem;
+}
+
+.truck-card__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+  white-space: nowrap;
+}
+
+.truck-card__action:active {
+  transform: scale(0.97);
+}
+
+/* Outline variant — Ver historial */
+.truck-card__action--outline {
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  color: var(--text-h);
+}
+
+.truck-card__action--outline:hover {
+  background: var(--muted, oklch(0.96 0.005 240));
+  border-color: #1763A640;
+  color: #1763A6;
+}
+
+/* Primary variant — Asignar ruta */
+.truck-card__action--primary {
+  background: linear-gradient(135deg, #1763A6, #152C40);
+  border: 1px solid transparent;
+  color: #fff;
+  box-shadow: 0 2px 8px oklch(0.52 0.14 250 / 0.25);
+}
+
+.truck-card__action--primary:hover {
+  box-shadow: 0 4px 16px oklch(0.52 0.14 250 / 0.38);
+  filter: brightness(1.08);
+}
