@@ -10,7 +10,7 @@ import {
   History,
   Calendar,
   Bell,
-  BarChart3,
+  FileWarning,
   Users,
   Truck,
   HardHat,
@@ -80,7 +80,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 const STANDALONE_SECONDARY: NavItem[] = [
   { id: 'nav-notificaciones', label: 'Notificaciones', to: '/notificaciones', icon: Bell },
-  { id: 'nav-reportes', label: 'Reportes', to: '/reportes', icon: BarChart3 },
+  { id: 'nav-reportes', label: 'Reportes Ciudadanos', to: '/reportes', icon: FileWarning },
 ];
 
 const STANDALONE_TERTIARY: NavItem[] = [

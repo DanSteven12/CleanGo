@@ -21,7 +21,8 @@ import { CamionesEditPage } from './pages/camiones/CamionesEditPage';
 import { ConductoresPage } from './pages/conductores/ConductoresPage';
 import { ConductoresCreatePage } from './pages/conductores/ConductoresCreatePage';
 import { ConductoresEditPage } from './pages/conductores/ConductoresEditPage';
-type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores';
+import { ReportesPage } from './pages/reportes/ReportesPage';
+type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos';
 
 function AppContent() {
   const location = useLocation();
@@ -36,6 +37,7 @@ function AppContent() {
   if (location.pathname.startsWith('/usuarios')) activeModule = 'usuarios';
   if (location.pathname.startsWith('/camiones')) activeModule = 'camiones';
   if (location.pathname.startsWith('/conductores')) activeModule = 'conductores';
+  if (location.pathname.startsWith('/reportes')) activeModule = 'reportes-ciudadanos';
 
   const handleNavigate = (module: Module) => {
     if (module === 'gestion-rutas') {
@@ -52,6 +54,8 @@ function AppContent() {
       navigate('/camiones');
     } else if (module === 'conductores') {
       navigate('/conductores');
+    } else if (module === 'reportes-ciudadanos') {
+      navigate('/reportes');
     } else {
       navigate('/calendario');
     }
@@ -77,6 +81,7 @@ function AppContent() {
         <Route path="/conductores" element={<ConductoresPage />} />
         <Route path="/conductores/create" element={<ConductoresCreatePage />} />
         <Route path="/conductores/:id/edit" element={<ConductoresEditPage />} />
+        <Route path="/reportes" element={<ReportesPage />} />
         <Route path="*" element={<Navigate to="/rutas" replace />} />
       </Routes>
     </MainLayout>
