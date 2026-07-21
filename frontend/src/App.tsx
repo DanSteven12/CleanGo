@@ -22,14 +22,17 @@ import { ConductoresPage } from './pages/conductores/ConductoresPage';
 import { ConductoresCreatePage } from './pages/conductores/ConductoresCreatePage';
 import { ConductoresEditPage } from './pages/conductores/ConductoresEditPage';
 import { ReportesPage } from './pages/reportes/ReportesPage';
-type Module = 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos';
+import { DashboardPage } from './pages/dashboard/DashboardPage';
+type Module = 'dashboard' | 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos';
 
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
 
   // Determine active module based on path
-  let activeModule: Module = 'gestion-rutas';
+  let activeModule: Module = 'dashboard';
+  if (location.pathname === '/' || location.pathname === '') activeModule = 'dashboard';
+  if (location.pathname.startsWith('/rutas')) activeModule = 'gestion-rutas';
   if (location.pathname.startsWith('/asignaciones')) activeModule = 'asignacion-rutas';
   if (location.pathname.startsWith('/mapa-vivo')) activeModule = 'mapa-vivo';
   if (location.pathname.startsWith('/historial')) activeModule = 'historial-recorridos';
@@ -40,7 +43,9 @@ function AppContent() {
   if (location.pathname.startsWith('/reportes')) activeModule = 'reportes-ciudadanos';
 
   const handleNavigate = (module: Module) => {
-    if (module === 'gestion-rutas') {
+    if (module === 'dashboard') {
+      navigate('/');
+    } else if (module === 'gestion-rutas') {
       navigate('/rutas');
     } else if (module === 'asignacion-rutas') {
       navigate('/asignaciones');
@@ -64,6 +69,7 @@ function AppContent() {
   return (
     <MainLayout activeModule={activeModule} onNavigate={handleNavigate}>
       <Routes>
+        <Route path="/" element={<DashboardPage />} />
         <Route path="/rutas" element={<RoutesPage />} />
         <Route path="/rutas/nueva" element={<RoutesCreatePage />} />
         <Route path="/asignaciones" element={<AssignmentsPage />} />
@@ -82,7 +88,7 @@ function AppContent() {
         <Route path="/conductores/create" element={<ConductoresCreatePage />} />
         <Route path="/conductores/:id/edit" element={<ConductoresEditPage />} />
         <Route path="/reportes" element={<ReportesPage />} />
-        <Route path="*" element={<Navigate to="/rutas" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </MainLayout>
   );

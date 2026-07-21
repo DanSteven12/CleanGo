@@ -13,6 +13,7 @@ import authRouter from './routes/auth';
 import camionesRouter from './routes/camiones';
 import conductoresRouter from './routes/conductores';
 import reportesRouter from './routes/reportes';
+import dashboardRouter from './routes/dashboard';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -33,6 +34,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/camiones', camionesRouter);
 app.use('/api/conductores', conductoresRouter);
 app.use('/api/reportes', reportesRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);
