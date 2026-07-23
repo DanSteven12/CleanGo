@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { pool, query } from '../db';
 import bcrypt from 'bcrypt';
 
+const SALT_ROUNDS = 12;
+
 const router = Router();
 
 // ==========================================
@@ -59,8 +61,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'El número económico, placa o usuario ya están en uso' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password_dispositivo, salt);
+    const hashedPassword = await bcrypt.hash(password_dispositivo, SALT_ROUNDS);
 
     const sql = `
       INSERT INTO camiones (numero_economico, placa, gps_instalado, usuario_dispositivo, password_dispositivo)
@@ -146,8 +147,7 @@ router.put('/:id/password', async (req, res) => {
       return res.status(400).json({ error: 'La nueva contraseña es obligatoria' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(nueva_password, salt);
+    const hashedPassword = await bcrypt.hash(nueva_password, SALT_ROUNDS);
 
     await query('UPDATE camiones SET password_dispositivo = ? WHERE id = ?', [hashedPassword, camionId]);
 

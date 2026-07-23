@@ -3,6 +3,8 @@ import { pool } from '../db';
 import bcrypt from 'bcrypt';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 
+const SALT_ROUNDS = 12;
+
 const router = Router();
 
 // ── GET /api/usuarios ─────────────────────────────────────────────────────────
@@ -64,7 +66,7 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'El correo ya está registrado.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     const [result] = await pool.execute<ResultSetHeader>(
       `INSERT INTO usuarios (nombre, correo, password, rol, estado) VALUES (?, ?, ?, ?, 'Activo')`,
@@ -145,7 +147,7 @@ router.put('/:id/password', async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Usuario no encontrado.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     await pool.execute('UPDATE usuarios SET password = ? WHERE id = ?', [hashedPassword, id]);
 

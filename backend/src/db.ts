@@ -10,6 +10,7 @@ const {
   DB_USER = 'root',
   DB_PASSWORD = '',
   DB_NAME = 'cleango',
+  DB_SSL_ENABLED = 'false',
 } = process.env as Record<string, string>;
 
 export const pool = mysql.createPool({
@@ -18,6 +19,7 @@ export const pool = mysql.createPool({
   user: DB_USER,
   password: DB_PASSWORD,
   database: DB_NAME,
+  ssl: DB_SSL_ENABLED === 'true' ? { rejectUnauthorized: false } : undefined,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

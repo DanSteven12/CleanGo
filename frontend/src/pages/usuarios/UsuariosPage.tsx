@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Pencil, Loader2, KeyRound, Lock, Unlock, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { UsuarioRecord, UsuarioData } from '../../types/usuarios';
+import type { UsuarioRecord } from '../../types/usuarios';
 import '../../assets/styles/usuarios.css';
 
 // ─── Componentes de Modal (Helpers locales) ───────────────────────────────────

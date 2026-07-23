@@ -1,6 +1,13 @@
+// frontend/src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/routes/ProtectedRoute';
 import { MainLayout } from './layouts/MainLayout';
+import { LoginPage } from './pages/auth/LoginPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { RoutesPage } from './pages/routes/RoutesPage';
 import { RoutesCreatePage } from './pages/routes/RoutesCreatePage';
 import { AssignmentsPage } from './pages/assignments/AssignmentsPage';
@@ -8,28 +15,26 @@ import { AssignmentsCreatePage } from './pages/assignments/AssignmentsCreatePage
 import { LiveMapPage } from './pages/live-map/LiveMapPage';
 import { HistorialRecorridosPage } from './pages/historial/HistorialRecorridosPage';
 import { HorariosPage } from './pages/calendario/horarios/HorariosPage';
-
 import { CalendarioPage } from './pages/calendario/CalendarioPage';
 import { UsuariosPage } from './pages/usuarios/UsuariosPage';
 import { UsuariosCreatePage } from './pages/usuarios/UsuariosCreatePage';
 import { UsuariosEditPage } from './pages/usuarios/UsuariosEditPage';
-
 import { CamionesPage } from './pages/camiones/CamionesPage';
 import { CamionesCreatePage } from './pages/camiones/CamionesCreatePage';
 import { CamionesEditPage } from './pages/camiones/CamionesEditPage';
-
 import { ConductoresPage } from './pages/conductores/ConductoresPage';
 import { ConductoresCreatePage } from './pages/conductores/ConductoresCreatePage';
 import { ConductoresEditPage } from './pages/conductores/ConductoresEditPage';
 import { ReportesPage } from './pages/reportes/ReportesPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
+
 type Module = 'dashboard' | 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos';
 
+// ─── Private app shell (sidebar + main content) ───────────────────────────────
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Determine active module based on path
   let activeModule: Module = 'dashboard';
   if (location.pathname === '/' || location.pathname === '') activeModule = 'dashboard';
   if (location.pathname.startsWith('/rutas')) activeModule = 'gestion-rutas';
@@ -43,27 +48,19 @@ function AppContent() {
   if (location.pathname.startsWith('/reportes')) activeModule = 'reportes-ciudadanos';
 
   const handleNavigate = (module: Module) => {
-    if (module === 'dashboard') {
-      navigate('/');
-    } else if (module === 'gestion-rutas') {
-      navigate('/rutas');
-    } else if (module === 'asignacion-rutas') {
-      navigate('/asignaciones');
-    } else if (module === 'mapa-vivo') {
-      navigate('/mapa-vivo');
-    } else if (module === 'historial-recorridos') {
-      navigate('/historial');
-    } else if (module === 'usuarios') {
-      navigate('/usuarios');
-    } else if (module === 'camiones') {
-      navigate('/camiones');
-    } else if (module === 'conductores') {
-      navigate('/conductores');
-    } else if (module === 'reportes-ciudadanos') {
-      navigate('/reportes');
-    } else {
-      navigate('/calendario');
-    }
+    const map: Record<Module, string> = {
+      'dashboard': '/',
+      'gestion-rutas': '/rutas',
+      'asignacion-rutas': '/asignaciones',
+      'mapa-vivo': '/mapa-vivo',
+      'historial-recorridos': '/historial',
+      'calendario': '/calendario',
+      'usuarios': '/usuarios',
+      'camiones': '/camiones',
+      'conductores': '/conductores',
+      'reportes-ciudadanos': '/reportes',
+    };
+    navigate(map[module]);
   };
 
   return (
@@ -94,17 +91,32 @@ function AppContent() {
   );
 }
 
+// ─── Root app with auth routing ───────────────────────────────────────────────
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
-      <Toaster
-        position="top-right"
-        richColors
-        closeButton
-        duration={3000}
-        toastOptions={{ style: { fontFamily: 'inherit' } }}
-      />
+      <AuthProvider>
+        <Routes>
+          {/* ── Public routes (no auth required) ── */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+          {/* ── Protected routes (requires valid JWT) ── */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/*" element={<AppContent />} />
+          </Route>
+        </Routes>
+
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          duration={3000}
+          toastOptions={{ style: { fontFamily: 'inherit' } }}
+        />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

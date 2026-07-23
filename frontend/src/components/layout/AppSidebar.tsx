@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import iconoCamion from "../../assets/images/icono.png";
+import { useAuth } from '../../hooks/useAuth';
 import {
   LayoutDashboard,
   Route,
@@ -16,6 +17,7 @@ import {
   ChevronDown,
   Clock,
   History,
+  LogOut,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -261,6 +263,18 @@ const Divider: React.FC = () => (
 export const AppSidebar: React.FC = () => {
   const location = useLocation();
   const pathname = location.pathname;
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  // Build initials from user name (up to 2 chars)
+  const initials = user?.nombre
+    ? user.nombre.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : 'U';
 
   return (
     <aside
@@ -371,7 +385,7 @@ export const AppSidebar: React.FC = () => {
 
       </nav>
 
-      {/* ── Footer: User avatar ───────────────────────── */}
+      {/* ── Footer: User info + logout ─────────────────── */}
       <div
         style={{
           padding: '0.75rem 1rem',
@@ -383,7 +397,7 @@ export const AppSidebar: React.FC = () => {
           background: 'oklch(0.19 0.035 250 / 0.5)',
         }}
       >
-        {/* Avatar */}
+        {/* Avatar with initials */}
         <div
           style={{
             width: '32px',
@@ -402,9 +416,11 @@ export const AppSidebar: React.FC = () => {
             letterSpacing: '-0.02em',
           }}
         >
-          A
+          {initials}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
+
+        {/* Name and email */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0, flex: 1 }}>
           <span
             style={{
               fontSize: '0.78rem',
@@ -416,7 +432,7 @@ export const AppSidebar: React.FC = () => {
               letterSpacing: '-0.01em',
             }}
           >
-            Administrador
+            {user?.nombre ?? 'Usuario'}
           </span>
           <span
             style={{
@@ -427,9 +443,38 @@ export const AppSidebar: React.FC = () => {
               whiteSpace: 'nowrap',
             }}
           >
-            admin@cleango.mx
+            {user?.correo ?? ''}
           </span>
         </div>
+
+        {/* Logout button */}
+        <button
+          id="sidebar-logout-btn"
+          onClick={handleLogout}
+          title="Cerrar sesión"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0.375rem',
+            borderRadius: '0.375rem',
+            color: 'oklch(0.52 0.04 250)',
+            display: 'flex',
+            alignItems: 'center',
+            transition: 'background 0.15s ease, color 0.15s ease',
+            flexShrink: 0,
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'oklch(0.58 0.22 25 / 0.15)';
+            (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.65 0.22 25)';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+            (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.52 0.04 250)';
+          }}
+        >
+          <LogOut size={15} />
+        </button>
       </div>
     </aside>
   );
