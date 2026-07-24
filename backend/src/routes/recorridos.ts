@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import { ResultSetHeader } from 'mysql2';
+import { getIO } from '../socket/socketServer';
+import { startSimulation } from '../services/simulationService';
 
 const router = Router();
 
@@ -33,6 +35,12 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
 
     const recorrido_id = resultRecorrido.insertId;
 
+    // Actualizar asignaciones_rutas a En Progreso
+    await connection.execute(
+      'UPDATE asignaciones_rutas SET estatus_recorrido = ? WHERE id = ?',
+      ['En Progreso', asignacion_id]
+    );
+
     // 2. Consultar la tabla puntos_control filtrando por ruta_id y ordenando por orden ASC
     const [puntosControl] = await connection.execute<any[]>(
       'SELECT id, orden FROM puntos_control WHERE ruta_id = ? ORDER BY orden ASC',
@@ -47,11 +55,12 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
         horaInicio.getTime() + minutosASumar * 60000
       );
 
-      const estado = 'Pendiente';
+      const estado = punto.orden === 1 ? 'Completado' : 'Pendiente';
+      const horaLlegada = punto.orden === 1 ? horaInicio : null;
 
       await connection.execute(
-        'INSERT INTO recorrido_checkpoints (recorrido_id, checkpoint_id, hora_estimada, estado) VALUES (?, ?, ?, ?)',
-        [recorrido_id, punto.id, horaEstimada, estado]
+        'INSERT INTO recorrido_checkpoints (recorrido_id, checkpoint_id, hora_estimada, estado, hora_llegada) VALUES (?, ?, ?, ?, ?)',
+        [recorrido_id, punto.id, horaEstimada, estado, horaLlegada]
       );
     }
 
@@ -69,6 +78,14 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
       [ruta_id]
     );
     const color = rutaResult.length > 0 ? rutaResult[0].color : null;
+
+    // Iniciar simulación en background usando WebSockets
+    try {
+      const io = getIO();
+      startSimulation(recorrido_id, checkpointsCompletos, io);
+    } catch (err) {
+      console.error('Error al iniciar la simulación del Socket:', err);
+    }
 
     res.json({
       recorrido_id,

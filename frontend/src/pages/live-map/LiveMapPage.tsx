@@ -10,7 +10,6 @@ import '../../assets/styles/assignments.css';
 
 
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
-const DURATION_MS = 30000; // 30 seconds per segment
 const ETA_MINUTES_PER_SEGMENT = 5; // 5 minutos simulados por segmento
 
 interface LiveStats {
@@ -23,6 +22,8 @@ interface LiveStats {
   horaEstimada: string;
   estadoDinamico: 'Pendiente' | 'En Progreso' | 'Retrasado' | 'Completado';
 }
+
+import { getSocket } from '../../services/socketService';
 
 // ─── Map Simulation Component ────────────────────────────────────────────────
 interface LiveMapSimulationProps {
@@ -37,175 +38,14 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
   const mapsLib = useMapsLibrary('maps');
 
   const camionMarkerRef = useRef<any>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const globalStartTimeRef = useRef<number | null>(null);
   const progressPolylineRef = useRef<{ traveled: any; remaining: any } | null>(null);
 
-  // Keep a ref of the callback to avoid re-running effects when the callback changes
   const onStatsUpdateRef = useRef(onStatsUpdate);
   useEffect(() => {
     onStatsUpdateRef.current = onStatsUpdate;
   }, [onStatsUpdate]);
 
-  const iniciarSimulacion = useCallback((cps: any[]) => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-
-    if (!camionMarkerRef.current || cps.length === 0) return;
-
-    const firstCp = cps[0];
-    const firstLat = Number(firstCp.latitud);
-    const firstLng = Number(firstCp.longitud);
-    camionMarkerRef.current.setPosition({ lat: firstLat, lng: firstLng });
-
-    fetch(`/api/recorridos/${recorridoId}/checkpoint`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        checkpoint_id: firstCp.id,
-        latitud: firstLat,
-        longitud: firstLng
-      })
-    }).catch(err => console.error('Error al actualizar checkpoint inicial:', err));
-
-    // Single wall-clock reference for the entire simulation run.
-    // All horaEstimada calculations derive from this fixed timestamp so
-    // the displayed arrival time never drifts between animation frames.
-    const simulationStartWallTime = Date.now();
-    const arrivalWallTime = simulationStartWallTime + (cps.length - 1) * ETA_MINUTES_PER_SEGMENT * 60 * 1000;
-
-    globalStartTimeRef.current = null; // Reset animation timer
-
-    const animateSegment = (startIndex: number) => {
-      const nextIndex = startIndex + 1;
-      const isLast = nextIndex >= cps.length;
-
-      if (isLast) {
-        onStatsUpdateRef.current(recorridoId, {
-          ultimoCheckpoint: 'Fin del Recorrido',
-          proximoCheckpoint: '-',
-          completados: cps.length,
-          pendientes: 0,
-          porcentajeAvance: 100,
-          etaSegundos: 0,
-          horaEstimada: new Date().toLocaleTimeString(),
-          estadoDinamico: 'Completado'
-        });
-        return;
-      }
-
-      const cpStart = cps[startIndex];
-      const cpEnd = cps[nextIndex];
-
-      const latStart = Number(cpStart.latitud);
-      const lngStart = Number(cpStart.longitud);
-      const latEnd = Number(cpEnd.latitud);
-      const lngEnd = Number(cpEnd.longitud);
-
-      if (isNaN(latStart) || isNaN(lngStart) || isNaN(latEnd) || isNaN(lngEnd)) {
-        animateSegment(nextIndex);
-        return;
-      }
-
-      // Full route as {lat, lng} array — used by the split-polyline logic below
-      const path = cps.map(cp => ({ lat: Number(cp.latitud), lng: Number(cp.longitud) }));
-
-      let segmentStartTime: number | null = null;
-      let lastUpdateTimestamp = 0;
-
-      const step = (timestamp: number) => {
-        if (!globalStartTimeRef.current) globalStartTimeRef.current = timestamp;
-        if (!segmentStartTime) segmentStartTime = timestamp;
-
-        const progress = Math.min((timestamp - segmentStartTime) / DURATION_MS, 1);
-
-        const currentLat = latStart + (latEnd - latStart) * progress;
-        const currentLng = lngStart + (lngEnd - lngStart) * progress;
-
-        camionMarkerRef.current.setPosition({ lat: currentLat, lng: currentLng });
-
-        // ── Update split polyline (traveled = green, remaining = gray) ──
-        if (progressPolylineRef.current) {
-          const currentPos = { lat: currentLat, lng: currentLng };
-          // Traveled: all fully-completed checkpoint coords + interpolated current position
-          const traveledPath = path.slice(0, startIndex + 1).concat(currentPos);
-          // Remaining: interpolated current position + all upcoming checkpoint coords
-          const remainingPath = [currentPos].concat(path.slice(startIndex + 1));
-          progressPolylineRef.current.traveled.setPath(traveledPath);
-          progressPolylineRef.current.remaining.setPath(remainingPath);
-        }
-
-        // Throttle UI updates to roughly every 500ms to avoid React render churn
-        if (timestamp - lastUpdateTimestamp > 500) {
-          lastUpdateTimestamp = timestamp;
-
-          const totalElapsedMs = timestamp - globalStartTimeRef.current;
-          const expectedCheckpoints = Math.floor(totalElapsedMs / DURATION_MS);
-          const TOLERANCIA = 1;
-          const isDelayed = (startIndex + TOLERANCIA) < expectedCheckpoints;
-
-          // Segmentos totales = cps.length - 1
-          // Segmentos restantes (incluyendo el actual, descontando su progreso)
-          const segmentosRestantes = (cps.length - 1 - startIndex) - progress;
-          const pendientes = cps.length - 1 - startIndex;
-          const etaMsPerSegment = ETA_MINUTES_PER_SEGMENT * 60 * 1000;
-          const etaTotalMs = Math.max(0, segmentosRestantes) * etaMsPerSegment;
-          const etaSecs = Math.max(0, Math.floor(etaTotalMs / 1000));
-
-          // Smoothed percentage including the current segment progress
-          const rawPercentage = ((startIndex + progress) / cps.length) * 100;
-
-          onStatsUpdateRef.current(recorridoId, {
-            ultimoCheckpoint: cpStart.nombre || `Punto ${cpStart.orden}`,
-            proximoCheckpoint: cpEnd.nombre || `Punto ${cpEnd.orden}`,
-            completados: startIndex,
-            pendientes: pendientes,
-            porcentajeAvance: Math.min(rawPercentage, 100),
-            etaSegundos: etaSecs,
-            horaEstimada: new Date(arrivalWallTime).toLocaleTimeString(),
-            estadoDinamico: isDelayed ? 'Retrasado' : 'En Progreso'
-          });
-        }
-
-        if (progress < 1) {
-          animationFrameRef.current = requestAnimationFrame(step);
-        } else {
-          // Reached the next checkpoint
-          fetch(`/api/recorridos/${recorridoId}/checkpoint`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              checkpoint_id: cpEnd.id,
-              latitud: latEnd,
-              longitud: lngEnd
-            })
-          }).catch(err => console.error('Error al actualizar checkpoint:', err));
-
-          animateSegment(nextIndex);
-        }
-      };
-
-      animationFrameRef.current = requestAnimationFrame(step);
-    };
-
-    if (cps.length > 1) {
-      animateSegment(0);
-    } else {
-      onStatsUpdateRef.current(recorridoId, {
-        ultimoCheckpoint: 'Fin del Recorrido',
-        proximoCheckpoint: '-',
-        completados: cps.length,
-        pendientes: 0,
-        porcentajeAvance: 100,
-        etaSegundos: 0,
-        horaEstimada: new Date().toLocaleTimeString(),
-        estadoDinamico: 'Completado'
-      });
-    }
-  }, [recorridoId]);
-
+  // Effect para dibujar el mapa estático y los checkpoints (solo 1 vez)
   useEffect(() => {
     if (!map || !mapsLib || checkpoints.length === 0) return;
 
@@ -231,10 +71,9 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
       markers.push(marker);
     });
 
-    // ── Split polyline: traveled (route color, full opacity) + remaining (route color, dimmed) ──
-    const routeColor = color || '#6366f1'; // fallback to indigo if no color provided
+    const routeColor = color || '#6366f1'; 
     const polylineTraveled = new googleMaps.Polyline({
-      path: path.slice(0, 1), // starts with just the first point; step() updates it live
+      path: path.slice(0, 1), 
       geodesic: true,
       strokeColor: routeColor,
       strokeOpacity: 1.0,
@@ -271,8 +110,6 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
       });
     }
 
-    iniciarSimulacion(checkpoints);
-
     return () => {
       if (progressPolylineRef.current) {
         progressPolylineRef.current.traveled.setMap(null);
@@ -280,16 +117,57 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
         progressPolylineRef.current = null;
       }
       markers.forEach((m: any) => m.setMap(null));
-
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+      
       if (camionMarkerRef.current) {
         camionMarkerRef.current.setMap(null);
         camionMarkerRef.current = null;
       }
     };
-  }, [map, mapsLib, checkpoints, color, iniciarSimulacion]);
+  }, [map, mapsLib, checkpoints, color]);
+
+  // Effect para manejar la conexión WebSocket en tiempo real
+  useEffect(() => {
+    if (!map || !mapsLib || checkpoints.length === 0) return;
+
+    const socket = getSocket();
+    const path = checkpoints.map(cp => ({ lat: Number(cp.latitud), lng: Number(cp.longitud) }));
+
+    // Conectar a la sala específica del recorrido
+    socket.emit('unirse_a_recorrido', recorridoId);
+
+    const handleUbicacion = (data: any) => {
+      if (data.recorridoId !== recorridoId) return;
+
+      const currentPos = { lat: Number(data.latitud), lng: Number(data.longitud) };
+      
+      if (camionMarkerRef.current) {
+        camionMarkerRef.current.setPosition(currentPos);
+      }
+
+      if (progressPolylineRef.current) {
+        const traveledPath = path.slice(0, data.completados + 1).concat(currentPos);
+        const remainingPath = [currentPos].concat(path.slice(data.completados + 1));
+        progressPolylineRef.current.traveled.setPath(traveledPath);
+        progressPolylineRef.current.remaining.setPath(remainingPath);
+      }
+
+      onStatsUpdateRef.current(recorridoId, data);
+    };
+
+    const handleFinalizado = (data: any) => {
+      if (data.recorridoId !== recorridoId) return;
+      onStatsUpdateRef.current(recorridoId, data);
+    };
+
+    socket.on('ubicacion_actualizada', handleUbicacion);
+    socket.on('recorrido_finalizado', handleFinalizado);
+
+    return () => {
+      socket.emit('salir_de_recorrido', recorridoId);
+      socket.off('ubicacion_actualizada', handleUbicacion);
+      socket.off('recorrido_finalizado', handleFinalizado);
+    };
+  }, [map, mapsLib, recorridoId, checkpoints]);
 
   return null;
 });

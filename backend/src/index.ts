@@ -83,10 +83,15 @@ app.use('/api/dashboard',      authMiddleware, dashboardRouter);
 
 // ─── Server ───────────────────────────────────────────────────────────────────
 
+import { initSocketServer } from './socket/socketServer';
+
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);
   console.log(`🔐 Auth routes: /api/auth/{login,register,forgot-password,reset-password,me}`);
 });
+
+// Initialize Socket.IO
+initSocketServer(server);
 
 server.on('error', (err: NodeJS.ErrnoException) => {
   if (err.code === 'EADDRINUSE') {
