@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import { ResultSetHeader } from 'mysql2';
 import { getIO } from '../socket/socketServer';
-import { startSimulation } from '../services/simulationService';
+import { stopSimulation, startSimulation, setSimulationSpeed } from '../services/simulationService';
 
 const router = Router();
 
@@ -79,12 +79,13 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
     );
     const color = rutaResult.length > 0 ? rutaResult[0].color : null;
 
-    // Iniciar simulación en background usando WebSockets
+    // Emitir evento global por Socket.IO e iniciar simulación en backend (Única fuente de verdad)
     try {
       const io = getIO();
+      io.emit('nuevo_recorrido_iniciado', { asignacion_id, recorrido_id });
       startSimulation(recorrido_id, checkpointsCompletos, io);
     } catch (err) {
-      console.error('Error al iniciar la simulación del Socket:', err);
+      console.error('Error al emitir nuevo_recorrido_iniciado o iniciar simulación:', err);
     }
 
     res.json({
@@ -197,6 +198,38 @@ router.put('/:recorridoId/checkpoint', async (req: Request, res: Response): Prom
     if (connection) {
       connection.release();
     }
+  }
+});
+
+// ─── PUT /api/recorridos/:recorridoId/ubicacion ──────────────────────────────
+router.put('/:recorridoId/ubicacion', async (req: Request, res: Response): Promise<void> => {
+  const recorridoId = Number(req.params.recorridoId);
+  const { latitud, longitud } = req.body;
+
+  if (!Number.isFinite(recorridoId) || latitud === undefined || longitud === undefined) {
+    res.status(400).json({ error: 'Faltan parámetros requeridos: latitud, longitud' });
+    return;
+  }
+
+  try {
+    await pool.execute(
+      'UPDATE recorridos SET latitud_actual = ?, longitud_actual = ? WHERE id = ? AND estado = "En progreso"',
+      [latitud, longitud, recorridoId]
+    );
+
+
+    try {
+      const io = getIO();
+      const roomName = `recorrido:${recorridoId}`;
+      io.to(roomName).emit('ubicacion_actualizada', req.body);
+    } catch (err) {
+      console.error('Error al emitir socket de ubicación:', err);
+    }
+
+    res.json({ message: 'Ubicación actualizada y emitida correctamente' });
+  } catch (error) {
+    console.error(`Error en PUT /api/recorridos/${recorridoId}/ubicacion:`, error);
+    res.status(500).json({ error: 'Error interno del servidor al actualizar ubicación' });
   }
 });
 
@@ -398,6 +431,169 @@ router.get('/historial/:id', async (req: Request, res: Response): Promise<void> 
   } catch (error) {
     console.error(`[historial] GET /historial/${recorridoId}:`, error);
     res.status(500).json({ error: 'Error interno al obtener el detalle del recorrido.' });
+  }
+});
+
+// ─── GET /api/recorridos/activo/:asignacion_id ───────────────────────────────────
+router.get('/activo/:asignacion_id', async (req: Request, res: Response): Promise<void> => {
+  const asignacionId = Number(req.params.asignacion_id);
+
+  if (!Number.isFinite(asignacionId) || asignacionId <= 0) {
+    res.status(400).json({ error: 'ID de asignación inválido.' });
+    return;
+  }
+
+  try {
+    const [rows] = await pool.execute<any[]>(
+      `SELECT 
+         r.id AS recorrido_id,
+         r.hora_inicio,
+         r.estado,
+         ar.ruta_id,
+         ru.nombre AS ruta_nombre,
+         ru.color,
+         ru.descripcion AS colonias,
+         c.numero_economico,
+         d.nombre_completo AS conductor_nombre
+       FROM recorridos r
+       INNER JOIN asignaciones_rutas ar ON ar.id = r.asignacion_id
+       INNER JOIN rutas ru ON ru.id = ar.ruta_id
+       INNER JOIN camiones c ON c.id = ar.camion_id
+       INNER JOIN conductores d ON d.id = ar.conductor_id
+       WHERE r.asignacion_id = ? AND r.estado = 'En progreso'
+       ORDER BY r.id DESC LIMIT 1`,
+      [asignacionId]
+    );
+
+    if (rows.length === 0) {
+      res.status(404).json({ error: 'No hay recorrido activo para esta asignación.' });
+      return;
+    }
+
+    const rec = rows[0];
+    const ruta_id = rec.ruta_id;
+
+    const [checkpointsCompletos] = await pool.execute<any[]>(
+      `SELECT pc.id, pc.nombre, pc.latitud, pc.longitud, pc.orden, rc.estado, rc.hora_llegada 
+       FROM puntos_control pc 
+       LEFT JOIN recorrido_checkpoints rc ON rc.checkpoint_id = pc.id AND rc.recorrido_id = ? 
+       WHERE pc.ruta_id = ? 
+       ORDER BY pc.orden ASC`,
+      [rec.recorrido_id, ruta_id]
+    );
+
+    res.json({
+      recorrido_id: rec.recorrido_id,
+      hora_inicio: rec.hora_inicio,
+      estado: rec.estado,
+      ruta_nombre: rec.ruta_nombre,
+      color: rec.color,
+      colonias: rec.colonias || 'Todas las colonias asignadas a la ruta',
+      numero_economico: rec.numero_economico,
+      conductor_nombre: rec.conductor_nombre,
+      checkpoints: checkpointsCompletos
+    });
+  } catch (error) {
+    console.error(`[recorridos] GET /activo/${asignacionId}:`, error);
+    res.status(500).json({ error: 'Error interno al obtener el recorrido activo.' });
+  }
+});
+
+// ─── POST /api/recorridos/:recorridoId/velocidad ───────────────────────────────
+// Cambia la velocidad de simulación del backend y la propaga por Socket.IO a todos los clientes
+router.post('/:recorridoId/velocidad', async (req: Request, res: Response): Promise<void> => {
+  const recorridoId = Number(req.params.recorridoId);
+  const { velocidad } = req.body;
+
+  if (!Number.isFinite(recorridoId) || recorridoId <= 0) {
+    res.status(400).json({ error: 'ID de recorrido inválido.' });
+    return;
+  }
+  if (!Number.isFinite(Number(velocidad)) || Number(velocidad) < 1) {
+    res.status(400).json({ error: 'Velocidad inválida. Debe ser un número >= 1.' });
+    return;
+  }
+
+  setSimulationSpeed(recorridoId, Number(velocidad));
+  res.json({ message: 'Velocidad de simulación actualizada', velocidad: Number(velocidad) });
+});
+
+// ─── POST /api/recorridos/:recorridoId/finalizar ───────────────────────────────────
+router.post('/:recorridoId/finalizar', async (req: Request, res: Response): Promise<void> => {
+  const recorridoId = Number(req.params.recorridoId);
+
+  if (!Number.isFinite(recorridoId) || recorridoId <= 0) {
+    res.status(400).json({ error: 'ID de recorrido inválido.' });
+    return;
+  }
+
+  let connection;
+
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const [recorridos] = await connection.execute<any[]>(
+      'SELECT id, asignacion_id, estado FROM recorridos WHERE id = ?',
+      [recorridoId]
+    );
+
+    if (recorridos.length === 0) {
+      res.status(404).json({ error: 'Recorrido no encontrado.' });
+      return;
+    }
+
+    if (recorridos[0].estado === 'Completado') {
+      // Ya está completado (el simulador lo terminó automáticamente): respuesta idempotente
+      res.json({ message: 'Recorrido ya estaba finalizado correctamente' });
+      return;
+    }
+
+    const asignacionId = recorridos[0].asignacion_id;
+    const horaFin = new Date();
+
+    await connection.execute(
+      'UPDATE recorridos SET hora_fin = ?, estado = ? WHERE id = ?',
+      [horaFin, 'Completado', recorridoId]
+    );
+
+    await connection.execute(
+      'UPDATE asignaciones_rutas SET estatus_recorrido = ? WHERE id = ?',
+      ['Completado', asignacionId]
+    );
+
+    await connection.commit();
+    stopSimulation(recorridoId);
+
+    try {
+      const io = getIO();
+      const roomName = `recorrido:${recorridoId}`;
+      io.to(roomName).emit('recorrido_finalizado', {
+        recorridoId,
+        ultimoCheckpoint: 'Fin del Recorrido (Manual)',
+        proximoCheckpoint: '-',
+        completados: 0,
+        pendientes: 0,
+        porcentajeAvance: 100,
+        etaSegundos: 0,
+        horaEstimada: new Date().toLocaleTimeString(),
+        estadoDinamico: 'Completado'
+      });
+    } catch (err) {
+      console.error('Error al emitir socket de finalización:', err);
+    }
+
+    res.json({ message: 'Recorrido finalizado correctamente' });
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error(`[recorridos] POST /${recorridoId}/finalizar:`, error);
+    res.status(500).json({ error: 'Error interno al finalizar el recorrido.' });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 });
 

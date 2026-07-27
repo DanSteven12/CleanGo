@@ -71,9 +71,9 @@ app.use('/api/rutas',          authMiddleware, rutasRouter);
 app.use('/api/puntos-control', authMiddleware, puntosControlRouter);
 app.use('/api/checkpoints',    authMiddleware, checkpointsRouter);
 app.use('/api/routes',         authMiddleware, routeCheckpointsRouter);
-app.use('/api/asignaciones',   authMiddleware, asignacionesRouter);
+app.use('/api/asignaciones',   asignacionesRouter);
 app.use('/api/crear-ruta',     authMiddleware, crearRutaRouter);
-app.use('/api/recorridos',     authMiddleware, recorridosRouter);
+app.use('/api/recorridos',     recorridosRouter);
 app.use('/api/horarios',       authMiddleware, horariosRouter);
 app.use('/api/usuarios',       authMiddleware, usuariosRouter);
 app.use('/api/camiones',       authMiddleware, camionesRouter);
@@ -84,14 +84,16 @@ app.use('/api/dashboard',      authMiddleware, dashboardRouter);
 // ─── Server ───────────────────────────────────────────────────────────────────
 
 import { initSocketServer } from './socket/socketServer';
+import { resumeActiveSimulations } from './services/simulationService';
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);
   console.log(`🔐 Auth routes: /api/auth/{login,register,forgot-password,reset-password,me}`);
 });
 
-// Initialize Socket.IO
-initSocketServer(server);
+// Initialize Socket.IO and resume any active simulations
+const io = initSocketServer(server);
+resumeActiveSimulations(io);
 
 server.on('error', (err: NodeJS.ErrnoException) => {
   if (err.code === 'EADDRINUSE') {

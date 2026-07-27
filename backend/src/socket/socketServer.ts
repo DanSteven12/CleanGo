@@ -2,7 +2,6 @@ import { Server } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { setupSocketAuth } from './socketAuth';
 import { setupSocketEvents } from './socketEvents';
-
 let io: Server;
 
 export function initSocketServer(httpServer: HttpServer): Server {

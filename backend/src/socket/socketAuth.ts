@@ -6,6 +6,11 @@ import { AuthPayload } from '../middlewares/authMiddleware';
 
 export function setupSocketAuth(io: Server) {
   io.use((socket: Socket, next) => {
+    // Si la conexión es de la app móvil (conductor), saltamos la autenticación por cookie
+    if (socket.handshake.auth?.client === 'mobile') {
+      return next();
+    }
+
     const cookieHeader = socket.handshake.headers.cookie;
     if (!cookieHeader) {
       return next(new Error('Authentication error: No cookies found'));

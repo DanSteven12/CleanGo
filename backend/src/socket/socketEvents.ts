@@ -1,4 +1,5 @@
 import { Server, Socket } from 'socket.io';
+import { setSimulationSpeed } from '../services/simulationService';
 
 export function setupSocketEvents(io: Server) {
   io.on('connection', (socket: Socket) => {
@@ -12,6 +13,12 @@ export function setupSocketEvents(io: Server) {
       if (!recorridoId) return;
       const roomName = `recorrido:${recorridoId}`;
       socket.leave(roomName);
+    });
+
+    // Cambio de velocidad desde mobile → backend actualiza y propaga a todos
+    socket.on('cambiar_velocidad', (data: { recorridoId: number; velocidad: number }) => {
+      if (!data?.recorridoId || !data?.velocidad) return;
+      setSimulationSpeed(data.recorridoId, data.velocidad);
     });
 
     socket.on('disconnect', (reason) => {

@@ -94,7 +94,11 @@ PORT=5000
 ### `frontend/.env`
 
 ```env
-# Variables VITE_* para el frontend (si se necesitan)
+# Google Maps API Key para la aplicación web
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+
+# URL del API backend (opcional, por defecto http://localhost:5001)
+VITE_API_URL=http://localhost:5001
 ```
 
 ## Scripts disponibles

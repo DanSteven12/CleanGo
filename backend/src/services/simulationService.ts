@@ -1,26 +1,59 @@
 import { Server } from 'socket.io';
 import { pool } from '../db';
 import { ResultSetHeader } from 'mysql2';
+import { getIO } from '../socket/socketServer';
 
-const SEGMENT_DURATION_MS = process.env.SIMULATION_SEGMENT_DURATION 
-  ? Number(process.env.SIMULATION_SEGMENT_DURATION) 
-  : 30000; // 30s por defecto
+const SEGMENT_DURATION_MS = process.env.SIMULATION_SEGMENT_DURATION
+  ? Number(process.env.SIMULATION_SEGMENT_DURATION)
+  : 300000; // 5 minutos por defecto (300000 ms)
 const TICK_RATE_MS = 1000; // 1 segundo
 const ETA_MINUTES_PER_SEGMENT = 5;
 
 // Mantiene los identificadores de los temporizadores activos
 const activeSimulations = new Map<number, NodeJS.Timeout>();
 
+// Velocidad actual de cada simulación (1 = 1x, 2 = 2x, etc.)
+const simulationSpeeds = new Map<number, number>();
+
+/** Establece la velocidad de simulación para un recorrido y notifica a todos los clientes */
+export function setSimulationSpeed(recorridoId: number, speed: number) {
+  if (!activeSimulations.has(recorridoId)) return; // No existe simulación activa
+  const validSpeed = Math.max(1, Math.min(speed, 20)); // Rango 1x–20x
+  simulationSpeeds.set(recorridoId, validSpeed);
+  console.log(`[Simulation] Velocidad cambiada a ${validSpeed}x para recorridoId: ${recorridoId}`);
+  try {
+    const io = getIO();
+    io.to(`recorrido:${recorridoId}`).emit('velocidad_simulacion_actualizada', {
+      recorridoId,
+      velocidad: validSpeed,
+    });
+  } catch (e) {
+    console.error('[Simulation] Error al emitir velocidad_simulacion_actualizada:', e);
+  }
+}
+
+export function stopSimulation(recorridoId: number) {
+  if (activeSimulations.has(recorridoId)) {
+    clearInterval(activeSimulations.get(recorridoId)!);
+    activeSimulations.delete(recorridoId);
+    simulationSpeeds.delete(recorridoId);
+    console.log(`[Simulation] Simulación detenida para recorridoId: ${recorridoId}`);
+  }
+}
+
 export async function startSimulation(recorridoId: number, checkpoints: any[], io: Server) {
   if (checkpoints.length === 0) return;
 
   // Si ya hay una simulación corriendo para este recorrido, la detenemos
-  if (activeSimulations.has(recorridoId)) {
-    clearInterval(activeSimulations.get(recorridoId)!);
-  }
+  stopSimulation(recorridoId);
+
+  // Velocidad inicial = 1x (se puede cambiar luego con setSimulationSpeed)
+  simulationSpeeds.set(recorridoId, 1);
 
   const roomName = `recorrido:${recorridoId}`;
-  
+  // Emitir velocidad inicial
+  io.to(roomName).emit('velocidad_simulacion_actualizada', { recorridoId, velocidad: 1 });
+
   const simulationStartWallTime = Date.now();
   const arrivalWallTime = simulationStartWallTime + (checkpoints.length - 1) * ETA_MINUTES_PER_SEGMENT * 60 * 1000;
 
@@ -28,24 +61,19 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
   let segmentStartTime = Date.now();
 
   const intervalId = setInterval(async () => {
+    if (!activeSimulations.has(recorridoId)) {
+      clearInterval(intervalId);
+      return;
+    }
+
     const nextIndex = startIndex + 1;
     const isLastSegment = nextIndex >= checkpoints.length;
 
+    // Si ya no quedan segmentos que recorrer, la simulaci\u00f3n termina
     if (isLastSegment) {
-      clearInterval(intervalId);
-      activeSimulations.delete(recorridoId);
-      
-      io.to(roomName).emit('recorrido_finalizado', {
-        recorridoId,
-        ultimoCheckpoint: 'Fin del Recorrido',
-        proximoCheckpoint: '-',
-        completados: checkpoints.length,
-        pendientes: 0,
-        porcentajeAvance: 100,
-        etaSegundos: 0,
-        horaEstimada: new Date().toLocaleTimeString(),
-        estadoDinamico: 'Completado'
-      });
+      // Solo detenemos el ticker sin tocar la BD ni emitir aqu\u00ed.
+      // updateCheckpointReached del \u00faltimo tick ya lo habr\u00e1 hecho.
+      stopSimulation(recorridoId);
       return;
     }
 
@@ -58,20 +86,22 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
     const lngEnd = Number(cpEnd.longitud);
 
     const now = Date.now();
-    const progress = Math.min((now - segmentStartTime) / SEGMENT_DURATION_MS, 1);
+    const currentSpeed = simulationSpeeds.get(recorridoId) ?? 1;
+    const effectiveDuration = SEGMENT_DURATION_MS / currentSpeed;
+    const progress = Math.min((now - segmentStartTime) / effectiveDuration, 1);
 
     const currentLat = latStart + (latEnd - latStart) * progress;
     const currentLng = lngStart + (lngEnd - lngStart) * progress;
 
     const totalElapsedMs = now - simulationStartWallTime;
-    const expectedCheckpoints = Math.floor(totalElapsedMs / SEGMENT_DURATION_MS);
+    const expectedCheckpoints = Math.floor(totalElapsedMs / effectiveDuration);
     const isDelayed = (startIndex + 1) < expectedCheckpoints;
 
     const pendientes = checkpoints.length - 1 - startIndex;
     const segmentosRestantes = pendientes - progress;
-    const etaTotalMs = Math.max(0, segmentosRestantes) * ETA_MINUTES_PER_SEGMENT * 60 * 1000;
+    const etaTotalMs = Math.max(0, segmentosRestantes) * ETA_MINUTES_PER_SEGMENT * 60 * 1000 / currentSpeed;
     const etaSecs = Math.max(0, Math.floor(etaTotalMs / 1000));
-    
+
     const rawPercentage = ((startIndex + progress) / checkpoints.length) * 100;
 
     const stats = {
@@ -82,20 +112,21 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
       proximoCheckpoint: cpEnd.nombre || `Punto ${cpEnd.orden}`,
       completados: startIndex,
       pendientes: pendientes,
-      porcentajeAvance: Math.min(rawPercentage, 100),
+      porcentajeAvance: Math.min(Math.round(rawPercentage), 100),
       etaSegundos: etaSecs,
       horaEstimada: new Date(arrivalWallTime).toLocaleTimeString(),
       estadoDinamico: isDelayed ? 'Retrasado' : 'En Progreso',
       timestamp: Date.now(),
-      rutaId: cpStart.ruta_id // asumiendo que lo podamos necesitar
+      rutaId: cpStart.ruta_id,
+      velocidad: currentSpeed,
     };
 
-    // Emitir ubicación en tiempo real
+    // Emitir ubicaci\u00f3n en tiempo real
     io.to(roomName).emit('ubicacion_actualizada', stats);
 
     // Actualizar continuamente en base de datos
     pool.execute(
-      'UPDATE recorridos SET latitud_actual = ?, longitud_actual = ? WHERE id = ?',
+      'UPDATE recorridos SET latitud_actual = ?, longitud_actual = ? WHERE id = ? AND estado = "En progreso"',
       [currentLat, currentLng, recorridoId]
     ).catch(err => {
       console.error(`[Simulation SQL] Error actualizando latitud/longitud:`, err);
@@ -105,21 +136,35 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
     if (progress >= 1) {
       segmentStartTime = now;
       startIndex++;
-      
-      // Actualizar en base de datos de manera asíncrona (no bloquea el tick)
-      updateCheckpointReached(recorridoId, cpEnd, currentLat, currentLng)
-        .then(() => {
-          io.to(roomName).emit('checkpoint_alcanzado', {
-            recorridoId,
-            checkpointId: cpEnd.id
-          });
-        })
-        .catch(err => console.error('Error DB update checkpoint:', err));
+
+      const isLastCheckpoint = startIndex >= checkpoints.length - 1;
+
+      if (isLastCheckpoint) {
+        // \u00daltimo checkpoint: esperamos la actualizaci\u00f3n en BD antes de emitir fin
+        try {
+          await updateCheckpointReached(recorridoId, cpEnd, currentLat, currentLng);
+          io.to(roomName).emit('checkpoint_alcanzado', { recorridoId, checkpointId: cpEnd.id });
+        } catch (err) {
+          console.error('Error DB update last checkpoint:', err);
+        }
+        // El stopSimulation ocurrir\u00e1 en el pr\u00f3ximo tick (isLastSegment = true)
+      } else {
+        // Checkpoints intermedios: as\u00edncrono para no bloquear el tick
+        updateCheckpointReached(recorridoId, cpEnd, currentLat, currentLng)
+          .then(() => {
+            io.to(roomName).emit('checkpoint_alcanzado', {
+              recorridoId,
+              checkpointId: cpEnd.id
+            });
+          })
+          .catch(err => console.error('Error DB update checkpoint:', err));
+      }
     }
   }, TICK_RATE_MS);
 
   activeSimulations.set(recorridoId, intervalId);
 }
+
 
 // Extraemos la lógica de DB para cuando se alcanza un checkpoint
 async function updateCheckpointReached(recorridoId: number, cpEnd: any, latitud: number, longitud: number) {
@@ -129,11 +174,17 @@ async function updateCheckpointReached(recorridoId: number, cpEnd: any, latitud:
     await connection.beginTransaction();
 
     const [recorridos] = await connection.execute<any[]>(
-      'SELECT id, asignacion_id, hora_inicio FROM recorridos WHERE id = ?',
+      'SELECT id, asignacion_id, hora_inicio, estado FROM recorridos WHERE id = ?',
       [recorridoId]
     );
 
-    if (recorridos.length === 0) throw new Error('Recorrido no encontrado');
+    if (recorridos.length === 0) {
+      if (connection) {
+        await connection.rollback();
+        connection.release();
+      }
+      return;
+    }
 
     const asignacionId = recorridos[0].asignacion_id;
     const horaInicio = new Date(recorridos[0].hora_inicio);
@@ -165,11 +216,29 @@ async function updateCheckpointReached(recorridoId: number, cpEnd: any, latitud:
         'UPDATE recorridos SET hora_fin = ?, estado = ? WHERE id = ?',
         [horaLlegada, 'Completado', recorridoId]
       );
-      
+
       await connection.execute(
         'UPDATE asignaciones_rutas SET estatus_recorrido = ? WHERE id = ?',
         ['Completado', asignacionId]
       );
+      try {
+        const io = getIO();
+        const roomName = `recorrido:${recorridoId}`;
+        io.to(roomName).emit('recorrido_finalizado', {
+          recorridoId,
+          ultimoCheckpoint: 'Fin del Recorrido',
+          proximoCheckpoint: '-',
+          completados: orden,
+          pendientes: 0,
+          porcentajeAvance: 100,
+          etaSegundos: 0,
+          horaEstimada: horaLlegada.toLocaleTimeString(),
+          estadoDinamico: 'Completado'
+        });
+      } catch (e) {
+        console.error('Error al emitir recorrido_finalizado:', e);
+      }
+      stopSimulation(recorridoId);
     }
 
     await connection.commit();
@@ -178,5 +247,25 @@ async function updateCheckpointReached(recorridoId: number, cpEnd: any, latitud:
     throw err;
   } finally {
     if (connection) connection.release();
+  }
+}
+
+export async function resumeActiveSimulations(io: Server) {
+  try {
+    const [recorridos] = await pool.execute<any[]>(
+      'SELECT r.id, ar.ruta_id FROM recorridos r JOIN asignaciones_rutas ar ON r.asignacion_id = ar.id WHERE r.estado = "En progreso"'
+    );
+    for (const rec of recorridos) {
+      if (!activeSimulations.has(rec.id)) {
+        const [checkpointsCompletos] = await pool.execute<any[]>(
+          'SELECT id, nombre, latitud, longitud, orden FROM puntos_control WHERE ruta_id = ? ORDER BY orden ASC',
+          [rec.ruta_id]
+        );
+        startSimulation(rec.id, checkpointsCompletos, io);
+        console.log(`[Simulation] Simulación reanudada en background para recorridoId: ${rec.id}`);
+      }
+    }
+  } catch (err) {
+    console.error('[Simulation] Error en resumeActiveSimulations:', err);
   }
 }
