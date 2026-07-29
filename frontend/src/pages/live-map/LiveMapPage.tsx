@@ -71,8 +71,12 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
     });
 
     const routeColor = color || '#6366f1';
+    const completedCount = checkpoints.filter((cp: any) => cp.estado === 'Completado').length;
+    const traveledPath = completedCount > 0 ? path.slice(0, completedCount) : path.slice(0, 1);
+    const remainingPath = completedCount > 0 ? path.slice(completedCount - 1) : path;
+
     const polylineTraveled = new googleMaps.Polyline({
-      path: path.slice(0, 1),
+      path: traveledPath,
       geodesic: true,
       strokeColor: routeColor,
       strokeOpacity: 1.0,
@@ -82,7 +86,7 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
     });
 
     const polylineRemaining = new googleMaps.Polyline({
-      path,
+      path: remainingPath,
       geodesic: true,
       strokeColor: routeColor,
       strokeOpacity: 0.3,
@@ -97,8 +101,14 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
       map.fitBounds(bounds);
     }
 
+    const lastCompletedCp = completedCount > 0 ? checkpoints[completedCount - 1] : checkpoints[0];
+    const initLat = Number(lastCompletedCp?.latitud);
+    const initLng = Number(lastCompletedCp?.longitud);
+    const initialPos = (!isNaN(initLat) && !isNaN(initLng)) ? { lat: initLat, lng: initLng } : undefined;
+
     if (!camionMarkerRef.current) {
       camionMarkerRef.current = new googleMaps.Marker({
+        position: initialPos,
         map,
         title: 'Camión',
         icon: {
@@ -107,6 +117,8 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
         },
         zIndex: 999
       });
+    } else if (initialPos) {
+      camionMarkerRef.current.setPosition(initialPos);
     }
 
     return () => {
@@ -155,6 +167,14 @@ const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({ checkp
 
     const handleFinalizado = (data: any) => {
       if (data.recorridoId !== recorridoId) return;
+      if (path.length > 0 && camionMarkerRef.current) {
+        const lastPos = path[path.length - 1];
+        camionMarkerRef.current.setPosition(lastPos);
+        if (progressPolylineRef.current) {
+          progressPolylineRef.current.traveled.setPath(path);
+          progressPolylineRef.current.remaining.setPath([lastPos]);
+        }
+      }
       onStatsUpdateRef.current(recorridoId, data);
     };
 

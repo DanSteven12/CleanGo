@@ -212,15 +212,10 @@ async function updateCheckpointReached(recorridoId: number, cpEnd: any, latitud:
     );
 
     if (pendientes.length === 0) {
-      await connection.execute(
-        'UPDATE recorridos SET hora_fin = ?, estado = ? WHERE id = ?',
-        [horaLlegada, 'Completado', recorridoId]
-      );
+      // Cambio 1: NO finalizar el recorrido en base de datos automáticamente.
+      // Se mantiene en estado 'En progreso' para que la web siga mostrando el mapa.
+      // Solo se emite el evento para que la app móvil habilite el botón de Finalizar.
 
-      await connection.execute(
-        'UPDATE asignaciones_rutas SET estatus_recorrido = ? WHERE id = ?',
-        ['Completado', asignacionId]
-      );
       try {
         const io = getIO();
         const roomName = `recorrido:${recorridoId}`;

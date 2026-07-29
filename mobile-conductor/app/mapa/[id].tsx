@@ -1,12 +1,16 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, Region } from 'react-native-maps';
-import { Truck, User, Clock, CheckCircle2, Navigation, Zap, ArrowLeft, ShieldCheck } from 'lucide-react-native';
 import { recorridosService } from '../../services/recorridosService';
-import { getMobileSocket } from '../../services/socketService';
 import { useRouteSimulation, Checkpoint } from '../../hooks/useRouteSimulation';
+import { NavigationArrow } from '../../components/navegacion/NavigationArrow';
+import { TurnInstructionCard } from '../../components/navegacion/TurnInstructionCard';
+import { NavigationHeader } from '../../components/navegacion/NavigationHeader';
+import { NavigationBottomBar } from '../../components/navegacion/NavigationBottomBar';
+import { CheckpointCompletedCard } from '../../components/navegacion/CheckpointCompletedCard';
+import { NavigationControls } from '../../components/navegacion/NavigationControls';
 
 // Función auxiliar para calcular distancia con fórmula Haversine (en km)
 const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -21,6 +25,18 @@ const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): 
   return R * c;
 };
 
+// Función auxiliar para calcular el heading (orientación)
+const getBearing = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const toDeg = (rad: number) => (rad * 180) / Math.PI;
+  const dLon = toRad(lon2 - lon1);
+  const y = Math.sin(dLon) * Math.cos(toRad(lat2));
+  const x =
+    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+};
+
 const MapaRecorridoScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -30,6 +46,12 @@ const MapaRecorridoScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isFinishing, setIsFinishing] = useState(false);
   const [recorridoData, setRecorridoData] = useState<any | null>(null);
+
+  const [heading, setHeading] = useState(0);
+  const prevPosRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  // Refs para el modo seguimiento automático (Cambios 2 y 3)
+  const isFollowingRef = useRef(false);
+  const hasMountedCameraRef = useRef(false);
 
   const fetchRecorridoActivo = useCallback(async () => {
     if (!id) return;
@@ -58,8 +80,8 @@ const MapaRecorridoScreen = () => {
   
   const {
     currentPosition,
-    speedMultiplier,
-    setSpeedMultiplier,
+    speedMultiplier, // Mantenemos para compatibilidad con useRouteSimulation
+    setSpeedMultiplier, // Mantenemos
     isCompleted,
     stats,
   } = useRouteSimulation({
@@ -68,6 +90,40 @@ const MapaRecorridoScreen = () => {
     horaInicio: recorridoData?.hora_inicio || null,
     rutaId: recorridoData?.ruta_id,
   });
+
+  // Calcular heading y manejar cámara automática (Cambios 2 y 3)
+  useEffect(() => {
+    if (!currentPosition) return;
+
+    // Cambio 2: posicionamiento inicial de la cámara en el primer fix de posición
+    if (!hasMountedCameraRef.current) {
+      hasMountedCameraRef.current = true;
+      isFollowingRef.current = true;
+      setTimeout(() => {
+        mapRef.current?.animateCamera(
+          { center: currentPosition, zoom: 17, heading: 0 },
+          { duration: 800 }
+        );
+      }, 900); // espera a que el mapa esté listo
+    }
+
+    if (prevPosRef.current) {
+      const { latitude: lat1, longitude: lon1 } = prevPosRef.current;
+      const { latitude: lat2, longitude: lon2 } = currentPosition;
+      if (lat1 !== lat2 || lon1 !== lon2) {
+        const newHeading = getBearing(lat1, lon1, lat2, lon2);
+        setHeading(newHeading);
+        // Cambio 3: seguimiento automático con rotación cuando el vehículo se mueve
+        if (isFollowingRef.current && mapRef.current) {
+          mapRef.current.animateCamera(
+            { center: currentPosition, heading: newHeading },
+            { duration: 350 }
+          );
+        }
+      }
+    }
+    prevPosRef.current = currentPosition;
+  }, [currentPosition]);
 
   // Ajustar la cámara inicial a los checkpoints una vez que cargan, sin bucles imperativos continuos
   useEffect(() => {
@@ -90,6 +146,15 @@ const MapaRecorridoScreen = () => {
       }
     }
   }, [checkpoints]);
+
+  const handleSpeedChange = (mult: number) => {
+    setSpeedMultiplier(mult);
+    if (recorridoData?.recorrido_id) {
+      recorridosService.cambiarVelocidad(recorridoData.recorrido_id, mult).catch((err) => {
+        console.error('[Velocidad] Error al cambiar velocidad en backend:', err);
+      });
+    }
+  };
 
   const handleFinalizar = async () => {
     if (!recorridoData?.recorrido_id) return;
@@ -185,260 +250,142 @@ const MapaRecorridoScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Cabecera Superior con botón de retorno */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
-          <ArrowLeft size={20} color="#0f172a" />
-          <Text style={styles.backButtonText}>Mis Asignaciones</Text>
-        </TouchableOpacity>
-        <View style={styles.statusPill}>
-          <View style={[styles.statusDot, { backgroundColor: '#10b981' }]} />
-          <Text style={styles.statusText}>{isCompleted ? 'Ruta Concluida' : 'GPS Activo'}</Text>
-        </View>
-      </View>
+    <View style={styles.container}>
+      {/* 1. Turn Instruction Card (Google Maps style top bar) */}
+      {!isCompleted && (
+        <TurnInstructionCard 
+          distancia={distanciaRestanteStr}
+          proximoDestino={stats.proximoCheckpoint}
+        />
+      )}
 
-      {/* Tarjeta Superior de Información Compacta */}
-      <View style={styles.infoCard}>
-        <View style={styles.cardHeader}>
-          <View style={styles.routeBadge}>
-            <View style={[styles.routeDot, { backgroundColor: '#10b981' }]} />
-            <Text style={styles.routeName} numberOfLines={1}>{recorridoData.ruta_nombre}</Text>
-          </View>
-          <View style={styles.ecoBadge}>
-            <Truck size={14} color="#10b981" />
-            <Text style={styles.ecoText}>{recorridoData.numero_economico}</Text>
-          </View>
-        </View>
+      {/* 2. Navigation Header (Compact info) */}
+      <NavigationHeader
+        rutaNombre={recorridoData.ruta_nombre}
+        numeroEconomico={recorridoData.numero_economico}
+        conductorNombre={recorridoData.conductor_nombre}
+        horaInicio={formattedHoraInicio}
+        tiempoTranscurrido={stats.tiempoTranscurrido}
+        porcentajeAvance={stats.porcentajeAvance}
+        completados={stats.completados}
+        totalCheckpoints={checkpoints.length}
+        isCompleted={isCompleted}
+        speedMultiplier={speedMultiplier}
+        onSpeedChange={handleSpeedChange}
+      />
 
-        <Text style={styles.coloniasText} numberOfLines={1}>
-          📍 {recorridoData.colonias}
-        </Text>
+      {/* 3. Checkpoint Completion Toast */}
+      <CheckpointCompletedCard 
+        completados={stats.completados}
+        ultimoCheckpoint={stats.ultimoCheckpoint}
+      />
 
-        <View style={styles.divider} />
+      {/* 4. Map */}
+      <MapView
+        ref={mapRef}
+        style={StyleSheet.absoluteFill}
+        initialRegion={initialRegion}
+        showsUserLocation={false}
+        showsCompass={false}
+        toolbarEnabled={false}
+        pitchEnabled={true}
+      >
+        {polylineCoords.length > 1 && (
+          <Polyline
+            coordinates={polylineCoords}
+            strokeColor="#10b981"
+            strokeWidth={6}
+          />
+        )}
 
-        <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <User size={13} color="#64748b" />
-            <Text style={styles.statLabel}>Conductor</Text>
-            <Text style={styles.statValue} numberOfLines={1}>{recorridoData.conductor_nombre}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Clock size={13} color="#64748b" />
-            <Text style={styles.statLabel}>Inicio / Transcur.</Text>
-            <Text style={styles.statValue}>{formattedHoraInicio} ({stats.tiempoTranscurrido})</Text>
-          </View>
-          <View style={styles.statItem}>
-            <ShieldCheck size={13} color="#64748b" />
-            <Text style={styles.statLabel}>Avance</Text>
-            <Text style={styles.statValue}>{Math.round(stats.porcentajeAvance)}% ({stats.completados}/{checkpoints.length})</Text>
-          </View>
-        </View>
+        {checkpoints.map((cp, idx) => {
+          const isStart = idx === 0;
+          const isEnd = idx === checkpoints.length - 1;
+          const isNext = !isCompleted && stats.proximoCheckpoint === (cp.nombre || `Punto ${cp.orden}`);
 
-        {/* Barra de progreso visual */}
-        <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${stats.porcentajeAvance}%`, backgroundColor: '#10b981' }]} />
-        </View>
+          let markerBg = '#475569';
+          let borderColor = '#94a3b8';
+          let markerSize = 22;
 
-        {/* Selector de velocidad configurable (Demo) */}
-        <View style={styles.speedSection}>
-          <View style={styles.speedLabelRow}>
-            <Zap size={14} color="#f59e0b" />
-            <Text style={styles.speedLabel}>Velocidad Simulación (Demo):</Text>
-          </View>
-          <View style={styles.speedButtonsRow}>
-            {[1, 2, 5, 10].map((mult) => (
-              <TouchableOpacity
-                key={mult}
-                style={[styles.speedBtn, speedMultiplier === mult && styles.speedBtnActive]}
-                onPress={() => {
-                  setSpeedMultiplier(mult);
-                  if (recorridoData?.recorrido_id) {
-                    recorridosService.cambiarVelocidad(recorridoData.recorrido_id, mult).catch((err) => {
-                      console.error('[Velocidad] Error al cambiar velocidad en backend:', err);
-                    });
-                  }
-                }}
-              >
-                <Text style={[styles.speedBtnText, speedMultiplier === mult && styles.speedBtnTextActive]}>
-                  {mult}x
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
+          if (isStart) {
+            markerBg = '#10b981';
+            borderColor = '#ffffff';
+          } else if (isEnd) {
+            markerBg = '#ef4444';
+            borderColor = '#ffffff';
+          } else if (isNext) {
+            markerBg = '#f59e0b';
+            borderColor = '#ffffff';
+            markerSize = 28;
+          }
 
-      {/* Contenedor del Mapa GPS */}
-      <View style={styles.mapContainer}>
-        {/* Renderizado del mapa estándar sin estilos oscuros ni bucles de cámara que bloqueen teselas */}
-        <MapView
-          ref={mapRef}
-          style={StyleSheet.absoluteFill}
-          initialRegion={initialRegion}
-          region={currentPosition && !isNaN(currentPosition.latitude) ? {
-            latitude: currentPosition.latitude,
-            longitude: currentPosition.longitude,
-            latitudeDelta: 0.025,
-            longitudeDelta: 0.025,
-          } : undefined}
-          showsUserLocation={false}
-          showsCompass={true}
-          toolbarEnabled={false}
-        >
-          {/* Polilínea de la ruta en verde distintivo de CleanGo */}
-          {polylineCoords.length > 1 && (
-            <Polyline
-              coordinates={polylineCoords}
-              strokeColor="#10b981"
-              strokeWidth={6}
-            />
-          )}
+          const lat = Number(cp.latitud);
+          const lng = Number(cp.longitud);
 
-          {/* Marcadores de Checkpoints */}
-          {checkpoints.map((cp, idx) => {
-            const isStart = idx === 0;
-            const isEnd = idx === checkpoints.length - 1;
-            const isNext = !isCompleted && stats.proximoCheckpoint === (cp.nombre || `Punto ${cp.orden}`);
+          if (isNaN(lat) || isNaN(lng)) return null;
 
-            let markerBg = '#475569';
-            let borderColor = '#94a3b8';
-            let markerSize = 22;
-
-            if (isStart) {
-              markerBg = '#10b981';
-              borderColor = '#ffffff';
-            } else if (isEnd) {
-              markerBg = '#ef4444';
-              borderColor = '#ffffff';
-            } else if (isNext) {
-              markerBg = '#f59e0b'; // Resaltado ámbar brillante para el próximo punto
-              borderColor = '#fef3c7';
-              markerSize = 28;
-            }
-
-            const lat = Number(cp.latitud);
-            const lng = Number(cp.longitud);
-
-            if (isNaN(lat) || isNaN(lng)) return null;
-
-            return (
-              <Marker
-                key={`cp-${cp.id}`}
-                coordinate={{ latitude: lat, longitude: lng }}
-                title={isNext ? `⚡ PRÓXIMO: ${cp.nombre || `Punto ${cp.orden}`}` : (cp.nombre || `Punto ${cp.orden}`)}
-                description={isStart ? 'Inicio de Ruta' : isEnd ? 'Fin de Ruta' : isNext ? 'Siguiente punto de recolección' : `Punto ${cp.orden}`}
-                zIndex={isNext ? 100 : idx}
-              >
-                <View style={[
-                  styles.cpMarker,
-                  {
-                    backgroundColor: markerBg,
-                    borderColor,
-                    width: markerSize,
-                    height: markerSize,
-                    borderRadius: markerSize / 2,
-                  },
-                  isNext && styles.cpMarkerNext,
-                ]}>
-                  <Text style={[styles.cpMarkerText, isNext && { fontSize: 12 }]}>
-                    {isStart ? 'A' : isEnd ? 'B' : cp.orden}
-                  </Text>
-                </View>
-              </Marker>
-            );
-          })}
-
-          {/* Marcador del Camión GPS (Posición actual en vivo, sincronizada con backend) */}
-          {currentPosition && !isNaN(currentPosition.latitude) && !isNaN(currentPosition.longitude) && (
+          return (
             <Marker
-              coordinate={currentPosition}
-              title="Camión CleanGo (En Ruta)"
-              description={`Avance: ${stats.porcentajeAvance}% - ETA: ${etaMinutos} min`}
-              zIndex={999}
-              flat={true}
+              key={`cp-${cp.id}`}
+              coordinate={{ latitude: lat, longitude: lng }}
+              zIndex={isNext ? 100 : idx}
             >
-              <View style={styles.truckMarkerContainer}>
-                <View style={styles.truckMarkerPulse} />
-                <View style={styles.truckMarkerInner}>
-                  <Truck size={20} color="#ffffff" />
-                </View>
+              <View style={[
+                styles.cpMarker,
+                {
+                  backgroundColor: markerBg,
+                  borderColor,
+                  width: markerSize,
+                  height: markerSize,
+                  borderRadius: markerSize / 2,
+                },
+                isNext && styles.cpMarkerNext,
+              ]}>
+                <Text style={[styles.cpMarkerText, isNext && { fontSize: 12 }]}>
+                  {isStart ? 'A' : isEnd ? 'B' : cp.orden}
+                </Text>
               </View>
             </Marker>
-          )}
-        </MapView>
+          );
+        })}
 
-        {/* Botón flotante para recentrar y reorientar la cámara GPS en perspectiva 3D */}
-        {currentPosition && (
-          <TouchableOpacity
-            style={styles.recenterButton}
-            onPress={() => {
-              mapRef.current?.animateCamera({
-                center: currentPosition,
-                pitch: 45,
-                zoom: 16,
-              }, { duration: 600 });
-            }}
+        {currentPosition && !isNaN(currentPosition.latitude) && !isNaN(currentPosition.longitude) && (
+          <Marker
+            coordinate={currentPosition}
+            zIndex={999}
+            flat={true}
+            anchor={{ x: 0.5, y: 0.5 }}
           >
-            <Navigation size={22} color="#10b981" style={{ transform: [{ rotate: '45deg' }] }} />
-          </TouchableOpacity>
+            <NavigationArrow heading={heading} />
+          </Marker>
         )}
-      </View>
+      </MapView>
 
-      {/* Panel Inferior Flotante Tipo Navegación GPS Profesional */}
-      <View style={styles.gpsNavPanel}>
-        {/* Banner de Próximo Checkpoint */}
-        <View style={styles.nextCpBanner}>
-          <View style={styles.nextCpIconBox}>
-            <Navigation size={20} color="#ffffff" style={{ transform: [{ rotate: '45deg' }] }} />
-          </View>
-          <View style={styles.nextCpTextBox}>
-            <Text style={styles.nextCpLabel}>PRÓXIMO CHECKPOINT</Text>
-            <Text style={styles.nextCpName} numberOfLines={1}>{stats.proximoCheckpoint}</Text>
-          </View>
-        </View>
+      {/* 5. Floating Controls */}
+      {currentPosition && (
+        <NavigationControls 
+          onRecenter={() => {
+            // Reactiva el seguimiento automático (Cambio 3)
+            isFollowingRef.current = true;
+            mapRef.current?.animateCamera({
+              center: currentPosition,
+              zoom: 17,
+              heading: heading,
+            }, { duration: 600 });
+          }}
+        />
+      )}
 
-        {/* Métricas de Navegación: ETA, Distancia y Hora Estimada */}
-        <View style={styles.navMetricsRow}>
-          <View style={styles.primaryMetric}>
-            <Text style={styles.etaTimeText}>{isCompleted ? '0 min' : `${etaMinutos} min`}</Text>
-            <View style={styles.metricSeparator} />
-            <Text style={styles.distText}>{distanciaRestanteStr}</Text>
-            <View style={styles.metricSeparator} />
-            <View style={styles.etaClockRow}>
-              <Clock size={14} color="#94a3b8" style={{ marginRight: 4 }} />
-              <Text style={styles.clockText}>{stats.horaEstimada}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Alerta si la ruta ha concluido */}
-        {isCompleted && (
-          <View style={styles.completedAlert}>
-            <CheckCircle2 size={18} color="#065f46" />
-            <Text style={styles.completedAlertText}>
-              El vehículo ha llegado al destino final. La ruta concluyó.
-            </Text>
-          </View>
-        )}
-
-        {/* Botón de Acción Principal */}
-        <TouchableOpacity
-          style={[styles.finishButton, isCompleted && styles.finishButtonPulse]}
-          onPress={handleFinalizar}
-          disabled={isFinishing}
-        >
-          {isFinishing ? (
-            <ActivityIndicator color="#ffffff" size="small" />
-          ) : (
-            <>
-              <CheckCircle2 size={20} color="#ffffff" style={styles.finishBtnIcon} />
-              <Text style={styles.finishButtonText}>Finalizar recorrido</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      {/* 6. Bottom Bar */}
+      <NavigationBottomBar
+        etaMinutos={etaMinutos}
+        distanciaRestanteStr={distanciaRestanteStr}
+        horaEstimada={stats.horaEstimada}
+        isCompleted={isCompleted}
+        isFinishing={isFinishing}
+        onFinalizar={handleFinalizar}
+      />
+    </View>
   );
 };
 
@@ -460,197 +407,10 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 15,
   },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
-    marginLeft: 6,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#065f46',
-  },
-  infoCard: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#cbd5e1',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-    zIndex: 10,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  routeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-  },
-  routeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  routeName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0f172a',
-    flex: 1,
-  },
-  ecoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  ecoText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#059669',
-    marginLeft: 4,
-  },
-  coloniasText: {
-    fontSize: 13,
-    color: '#64748b',
-    marginBottom: 8,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
-    marginBottom: 8,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    width: '32%',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  statValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  progressBarBg: {
-    height: 5,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 2.5,
-    overflow: 'hidden',
-    marginTop: 6,
-    marginBottom: 8,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 2.5,
-  },
-  speedSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fffbeb',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fef3c7',
-  },
-  speedLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  speedLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#b45309',
-    marginLeft: 4,
-  },
-  speedButtonsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  speedBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginLeft: 4,
-    backgroundColor: '#fef3c7',
-  },
-  speedBtnActive: {
-    backgroundColor: '#f59e0b',
-  },
-  speedBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#92400e',
-  },
-  speedBtnTextActive: {
-    color: '#ffffff',
-  },
-  mapContainer: {
-    flex: 1,
-    width: '100%',
-    position: 'relative',
-    overflow: 'hidden',
-    backgroundColor: '#e2e8f0',
-  },
   cpMarker: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#ffffff',
   },
   cpMarkerNext: {
     borderWidth: 3,
@@ -662,181 +422,6 @@ const styles = StyleSheet.create({
   },
   cpMarkerText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  truckMarkerContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 54,
-    height: 54,
-  },
-  truckMarkerPulse: {
-    position: 'absolute',
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: 'rgba(16, 185, 129, 0.35)',
-  },
-  truckMarkerInner: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#10b981',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 8,
-  },
-  recenterButton: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#0f172a',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#1e293b',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  gpsNavPanel: {
-    backgroundColor: '#0f172a',
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#1e293b',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 12,
-  },
-  nextCpBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#064e3b',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#059669',
-  },
-  nextCpIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#10b981',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  nextCpTextBox: {
-    flex: 1,
-  },
-  nextCpLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#a7f3d0',
-    letterSpacing: 0.5,
-  },
-  nextCpName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginTop: 2,
-  },
-  navMetricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  primaryMetric: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  etaTimeText: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#10b981',
-  },
-  metricSeparator: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#475569',
-    marginHorizontal: 10,
-  },
-  distText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#e2e8f0',
-  },
-  etaClockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  clockText: {
-    fontSize: 14,
-    color: '#94a3b8',
-    fontWeight: '500',
-  },
-  completedAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#d1fae5',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
-  },
-  completedAlertText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#065f46',
-    marginLeft: 8,
-    flex: 1,
-  },
-  finishButton: {
-    backgroundColor: '#10b981',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  finishButtonPulse: {
-    backgroundColor: '#059669',
-    borderWidth: 2,
-    borderColor: '#34d399',
-  },
-  finishBtnIcon: {
-    marginRight: 8,
-  },
-  finishButtonText: {
-    fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
   },
