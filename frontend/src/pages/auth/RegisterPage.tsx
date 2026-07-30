@@ -1,11 +1,12 @@
 // frontend/src/pages/auth/RegisterPage.tsx
 import React, { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../hooks/useAuth';
 import { registerUser } from '../../services/authService';
 import iconoCamion from '../../assets/images/icono.png';
+import { LoginLeftPanel } from '../../components/auth/LoginLeftPanel';
 import '../../assets/styles/auth.css';
 
 interface FieldErrors {
@@ -64,7 +65,11 @@ export const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError(null);
-    if (!validate()) return;
+
+    if (!validate()) {
+      toast.error('Por favor, corrige los errores en el formulario.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -74,8 +79,8 @@ export const RegisterPage: React.FC = () => {
         password,
         confirmPassword,
       });
-      toast.success('Cuenta creada correctamente. Ahora puedes iniciar sesión.');
-      navigate('/login', { replace: true });
+      toast.success('¡Registro exitoso! Redirigiendo...');
+      navigate('/dashboard');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error inesperado. Intenta de nuevo.';
       setServerError(msg);
@@ -84,51 +89,10 @@ export const RegisterPage: React.FC = () => {
     }
   };
 
-  // Password strength hints
-  const strengthChecks = [
-    { label: 'Al menos 8 caracteres', ok: password.length >= 8 },
-    { label: 'Una letra mayúscula', ok: /[A-Z]/.test(password) },
-    { label: 'Un número', ok: /[0-9]/.test(password) },
-  ];
-
   return (
     <div className="auth-root">
-      {/* Left panel */}
-      <div className="auth-panel-left">
-        <div className="auth-panel-bg-grid" />
-        <div className="auth-brand">
-          <div className="auth-brand-logo">
-            <img src={iconoCamion} alt="CleanGo" />
-          </div>
-          <div>
-            <div className="auth-brand-name">CleanGo</div>
-            <div className="auth-brand-sub">Logística Urbana</div>
-          </div>
-        </div>
-        <div className="auth-hero">
-          <h1 className="auth-hero-title">
-            Únete al equipo de<br />
-            <span>gestión urbana</span>
-          </h1>
-          <p className="auth-hero-desc">
-            Crea tu cuenta y comienza a administrar la operación de recolección de residuos de forma eficiente y segura.
-          </p>
-        </div>
-        <div className="auth-features">
-          {strengthChecks.map((c) => (
-            <div className="auth-feature-item" key={c.label} style={{ gap: '0.625rem' }}>
-              <CheckCircle2
-                size={18}
-                color={c.ok ? '#90BF49' : 'oklch(0.55 0.03 240)'}
-                style={{ flexShrink: 0, transition: 'color 0.2s' }}
-              />
-              <span className="auth-feature-title" style={{ fontSize: '0.85rem', color: c.ok ? '#90BF49' : 'oklch(0.65 0.03 240)' }}>
-                {c.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Left panel with modern TechOrbit animation */}
+      <LoginLeftPanel />
 
       {/* Right panel */}
       <div className="auth-panel-right">

@@ -1,14 +1,14 @@
 // frontend/src/pages/auth/LoginPage.tsx
 import React, { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Truck, MapPin, BarChart3 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../hooks/useAuth';
 import { loginUser, ApiError } from '../../services/authService';
-import iconoCamion from '../../assets/images/icono.png';
 import '../../assets/styles/auth.css';
 import { LoginSecurityBlock } from '../../components/auth/LoginSecurityBlock';
 import { LoginAttemptsWarning } from '../../components/auth/LoginAttemptsWarning';
+import { LoginLeftPanel } from '../../components/auth/LoginLeftPanel';
 
 // ─── Field-level error state ──────────────────────────────────────────────────
 interface FieldErrors {
@@ -67,8 +67,8 @@ export const LoginPage: React.FC = () => {
           const event = new CustomEvent('block-login', { detail: err.retryAfter });
           window.dispatchEvent(event);
         } else if (err.status === 401 && err.remaining !== undefined) {
-          const event = new CustomEvent('login-attempts-update', { 
-            detail: { remaining: err.remaining } 
+          const event = new CustomEvent('login-attempts-update', {
+            detail: { remaining: err.remaining }
           });
           window.dispatchEvent(event);
           setServerError(err.message);
@@ -87,75 +87,12 @@ export const LoginPage: React.FC = () => {
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="auth-root">
-      {/* ── Left panel ─────────────────────────────────────── */}
-      <div className="auth-panel-left">
-        <div className="auth-panel-bg-grid" />
-
-        {/* Brand */}
-        <div className="auth-brand">
-          <div className="auth-brand-logo">
-            <img src={iconoCamion} alt="CleanGo" />
-          </div>
-          <div>
-            <div className="auth-brand-name">CleanGo</div>
-            <div className="auth-brand-sub">Logística Urbana</div>
-          </div>
-        </div>
-
-        {/* Hero */}
-        <div className="auth-hero">
-          <h1 className="auth-hero-title">
-            Gestión inteligente de<br />
-            <span>recolección de residuos</span>
-          </h1>
-          <p className="auth-hero-desc">
-            Plataforma centralizada para la administración de rutas, conductores y operación en tiempo real.
-          </p>
-        </div>
-
-        {/* Features */}
-        <div className="auth-features">
-          <div className="auth-feature-item">
-            <div className="auth-feature-icon">
-              <Truck size={18} color="#fff" />
-            </div>
-            <div className="auth-feature-text">
-              <span className="auth-feature-title">Gestión de Flota</span>
-              <span className="auth-feature-desc">Control total de camiones y conductores</span>
-            </div>
-          </div>
-          <div className="auth-feature-item">
-            <div className="auth-feature-icon">
-              <MapPin size={18} color="#fff" />
-            </div>
-            <div className="auth-feature-text">
-              <span className="auth-feature-title">Mapa en Vivo</span>
-              <span className="auth-feature-desc">Seguimiento GPS en tiempo real</span>
-            </div>
-          </div>
-          <div className="auth-feature-item">
-            <div className="auth-feature-icon">
-              <BarChart3 size={18} color="#fff" />
-            </div>
-            <div className="auth-feature-text">
-              <span className="auth-feature-title">Reportes y Métricas</span>
-              <span className="auth-feature-desc">Análisis detallado de la operación</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* ── Left panel — animated (LoginLeftPanel) ─────────── */}
+      <LoginLeftPanel />
 
       {/* ── Right panel ────────────────────────────────────── */}
       <div className="auth-panel-right overflow-hidden relative">
         <LoginSecurityBlock />
-        
-        {/* Mobile brand */}
-        <div className="auth-mobile-brand">
-          <div className="auth-mobile-brand-logo">
-            <img src={iconoCamion} alt="CleanGo" />
-          </div>
-          <span className="auth-mobile-brand-name">CleanGo</span>
-        </div>
 
         <div className="auth-form-card">
           <LoginAttemptsWarning />

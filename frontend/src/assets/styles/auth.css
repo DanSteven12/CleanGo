@@ -26,6 +26,14 @@
   }
 }
 
+/* Animated variant — removes text-layout padding so orbit has full space */
+.auth-panel-left--animated {
+  padding: 0;
+  overflow: hidden;
+  justify-content: center;
+  align-items: center;
+}
+
 /* Decorative orbs */
 .auth-panel-left::before {
   content: '';
