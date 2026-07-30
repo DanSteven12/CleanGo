@@ -47,9 +47,9 @@ interface NavGroup {
 // ─── Navigation config ────────────────────────────────────────────────────────
 
 const STANDALONE_TOP: NavItem[] = [
-  { id: 'nav-dashboard', label: 'Dashboard', to: '/', icon: LayoutDashboard },
+  { id: 'nav-dashboard', label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
 ];
-
+ 
 const NAV_GROUPS: NavGroup[] = [
   {
     id: 'group-rutas',
@@ -95,7 +95,7 @@ const STANDALONE_TERTIARY: NavItem[] = [
 // ─── Helper: is path active ──────────────────────────────────────────────────
 
 function isPathActive(pathname: string, to: string): boolean {
-  if (to === '/') return pathname === '/';
+  if (to === '/dashboard') return pathname === '/dashboard';
   return pathname.startsWith(to);
 }
 

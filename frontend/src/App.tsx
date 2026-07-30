@@ -27,6 +27,7 @@ import { ConductoresCreatePage } from './pages/conductores/ConductoresCreatePage
 import { ConductoresEditPage } from './pages/conductores/ConductoresEditPage';
 import { ReportesPage } from './pages/reportes/ReportesPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
+import { WelcomePage } from './pages/welcome/WelcomePage';
 
 type Module = 'dashboard' | 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos';
 
@@ -36,7 +37,7 @@ function AppContent() {
   const navigate = useNavigate();
 
   let activeModule: Module = 'dashboard';
-  if (location.pathname === '/' || location.pathname === '') activeModule = 'dashboard';
+  if (location.pathname === '/dashboard' || location.pathname === '/' || location.pathname === '') activeModule = 'dashboard';
   if (location.pathname.startsWith('/rutas')) activeModule = 'gestion-rutas';
   if (location.pathname.startsWith('/asignaciones')) activeModule = 'asignacion-rutas';
   if (location.pathname.startsWith('/mapa-vivo')) activeModule = 'mapa-vivo';
@@ -49,7 +50,7 @@ function AppContent() {
 
   const handleNavigate = (module: Module) => {
     const map: Record<Module, string> = {
-      'dashboard': '/',
+      'dashboard': '/dashboard',
       'gestion-rutas': '/rutas',
       'asignacion-rutas': '/asignaciones',
       'mapa-vivo': '/mapa-vivo',
@@ -66,7 +67,7 @@ function AppContent() {
   return (
     <MainLayout activeModule={activeModule} onNavigate={handleNavigate}>
       <Routes>
-        <Route path="/" element={<DashboardPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/rutas" element={<RoutesPage />} />
         <Route path="/rutas/nueva" element={<RoutesCreatePage />} />
         <Route path="/asignaciones" element={<AssignmentsPage />} />
@@ -85,7 +86,7 @@ function AppContent() {
         <Route path="/conductores/create" element={<ConductoresCreatePage />} />
         <Route path="/conductores/:id/edit" element={<ConductoresEditPage />} />
         <Route path="/reportes" element={<ReportesPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </MainLayout>
   );
@@ -98,6 +99,8 @@ function App() {
       <AuthProvider>
         <Routes>
           {/* ── Public routes (no auth required) ── */}
+          <Route path="/" element={<WelcomePage />} />
+          <Route path="/welcome" element={<WelcomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

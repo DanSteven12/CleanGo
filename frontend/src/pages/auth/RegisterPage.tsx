@@ -30,7 +30,7 @@ export const RegisterPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   if (!authLoading && isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   function validate(): boolean {

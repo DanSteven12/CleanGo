@@ -31,7 +31,7 @@ export const LoginPage: React.FC = () => {
 
   // Already authenticated → redirect to dashboard
   if (!authLoading && isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   // ─── Validation ────────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ export const LoginPage: React.FC = () => {
       const { user } = await loginUser({ email: email.trim(), password });
       login(user);
       toast.success(`¡Bienvenido, ${user.nombre}!`);
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         if (err.status === 429 && err.retryAfter) {
