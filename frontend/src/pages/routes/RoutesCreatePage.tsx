@@ -5,6 +5,7 @@ import { MapSelector } from '../../components/routes/MapSelector';
 import { Loader2, Check, X } from 'lucide-react';
 import type { CheckpointInput } from '../../types/routes';
 import '../../assets/styles/routes.css';
+import { Header } from '../../components/layout/Header';
 
 export const RoutesCreatePage: React.FC = () => {
   const navigate = useNavigate();
@@ -87,13 +88,14 @@ export const RoutesCreatePage: React.FC = () => {
   };
 
   return (
+    <>
+      <Header
+        subtitle="Define el nombre, descripción y color de la ruta"
+        title="Nueva Ruta"
+      />
     <div className="routes-page">
       {/* ─── SECCIÓN: Formulario crear ruta ─── */}
       <section className="routes-section" id="ruta-form">
-        <div>
-          <h2 className="section-title" style={{ margin: '0 0 0.2rem', fontFamily: 'var(--font-display)' }}>Nueva Ruta</h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text)', margin: '0 0 1.25rem' }}>Define el nombre, descripción y color de la ruta</p>
-        </div>
 
         <div className="form-grid">
           {/* Nombre */}
@@ -201,5 +203,6 @@ export const RoutesCreatePage: React.FC = () => {
         </div>
       </section>
     </div>
+    </>
   );
 };

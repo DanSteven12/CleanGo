@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import '../../assets/styles/usuarios.css';
+import { Header } from '../../components/layout/Header';
 
 export const CamionesCreatePage: React.FC = () => {
   const navigate = useNavigate();
@@ -56,17 +57,16 @@ export const CamionesCreatePage: React.FC = () => {
   };
 
   return (
+    <>
+      <Header
+        subtitle="Ingresa los datos de la unidad y sus credenciales"
+        title="Registrar Nuevo Camión"
+      />
     <div className="usuarios-page">
-      <div className="form-header-row">
-        <button className="back-button" onClick={() => navigate('/camiones')}>
-          <ArrowLeft size={20} />
+      <div className="form-header-row" style={{ marginTop: '1rem', padding: '0 2rem' }}>
+        <button className="back-button" onClick={() => navigate('/camiones')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: '1px solid var(--border)', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--text-h)' }}>
+          <ArrowLeft size={16} /> Volver a la lista
         </button>
-        <div>
-          <h2 className="section-title" style={{ margin: 0 }}>Registrar Nuevo Camión</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text)', margin: 0 }}>
-            Ingresa los datos de la unidad y sus credenciales
-          </p>
-        </div>
       </div>
 
       <div className="form-container">
@@ -148,5 +148,6 @@ export const CamionesCreatePage: React.FC = () => {
         </form>
       </div>
     </div>
+    </>
   );
 };

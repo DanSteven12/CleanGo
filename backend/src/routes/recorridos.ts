@@ -3,6 +3,8 @@ import { pool } from '../db';
 import { ResultSetHeader } from 'mysql2';
 import { getIO } from '../socket/socketServer';
 import { stopSimulation, startSimulation, setSimulationSpeed } from '../services/simulationService';
+import { NotificationService } from '../modules/notifications';
+import * as NotificationMessages from '../constants/notificationMessages';
 
 const router = Router();
 
@@ -93,6 +95,48 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
       color,
       checkpoints: checkpointsCompletos
     });
+
+    // ── Notificaciones automáticas: recorrido iniciado ────────────────────
+    // Se lanza de forma no bloqueante tras la respuesta exitosa.
+    ;(async () => {
+      try {
+        // Obtener conductor_id y nombre del conductor para las notificaciones
+        const [asignRows] = await pool.execute<any[]>(
+          `SELECT ar.conductor_id, c.nombre_completo AS conductor_nombre
+           FROM asignaciones_rutas ar
+           INNER JOIN conductores c ON c.id = ar.conductor_id
+           WHERE ar.id = ?`,
+          [asignacion_id]
+        );
+
+        if (asignRows.length > 0) {
+          const { conductor_id, conductor_nombre } = asignRows[0];
+
+          // Notificar al conductor
+          await NotificationService.crear({
+            conductor_id,
+            recorrido_id,
+            ...NotificationMessages.RECORRIDO_INICIADO_CONDUCTOR,
+            tipo: 'AUTOMATICA',
+            categoria: 'RECORRIDO',
+          });
+
+          // Notificar al administrador (único en el sistema)
+          const adminId = await NotificationService.obtenerAdminId();
+          if (adminId) {
+            await NotificationService.crear({
+              usuario_id: adminId,
+              recorrido_id,
+              ...NotificationMessages.RECORRIDO_INICIADO_ADMIN(conductor_nombre),
+              tipo: 'AUTOMATICA',
+              categoria: 'RECORRIDO',
+            });
+          }
+        }
+      } catch (notifErr) {
+        console.error('[recorridos] Error al crear notificaciones de RECORRIDO_INICIADO:', notifErr);
+      }
+    })();
 
   } catch (error) {
     if (connection) {
@@ -584,6 +628,46 @@ router.post('/:recorridoId/finalizar', async (req: Request, res: Response): Prom
     }
 
     res.json({ message: 'Recorrido finalizado correctamente' });
+
+    // ── Notificaciones automáticas: recorrido finalizado ─────────────────
+    ;(async () => {
+      try {
+        const [asignRows] = await pool.execute<any[]>(
+          `SELECT ar.conductor_id, c.nombre_completo AS conductor_nombre
+           FROM asignaciones_rutas ar
+           INNER JOIN conductores c ON c.id = ar.conductor_id
+           WHERE ar.id = ?`,
+          [asignacionId]
+        );
+
+        if (asignRows.length > 0) {
+          const { conductor_id, conductor_nombre } = asignRows[0];
+
+          // Notificar al conductor
+          await NotificationService.crear({
+            conductor_id,
+            recorrido_id: recorridoId,
+            ...NotificationMessages.RECORRIDO_FINALIZADO_CONDUCTOR,
+            tipo: 'AUTOMATICA',
+            categoria: 'RECORRIDO',
+          });
+
+          // Notificar al administrador
+          const adminId = await NotificationService.obtenerAdminId();
+          if (adminId) {
+            await NotificationService.crear({
+              usuario_id: adminId,
+              recorrido_id: recorridoId,
+              ...NotificationMessages.RECORRIDO_FINALIZADO_ADMIN(conductor_nombre),
+              tipo: 'AUTOMATICA',
+              categoria: 'RECORRIDO',
+            });
+          }
+        }
+      } catch (notifErr) {
+        console.error('[recorridos] Error al crear notificaciones de RECORRIDO_FINALIZADO:', notifErr);
+      }
+    })();
   } catch (error) {
     if (connection) {
       await connection.rollback();

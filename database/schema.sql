@@ -273,3 +273,58 @@ CREATE TABLE reportes_ciudadanos (
         ON DELETE RESTRICT
         ON UPDATE CASCADE
 );
+
+-- ============================================================
+-- 11. TABLA DE NOTIFICACIONES
+-- Almacena las notificaciones enviadas a ciudadanos y
+-- conductores, ya sean automáticas del sistema o manuales
+-- generadas por el administrador.
+-- ============================================================
+CREATE TABLE notificaciones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    usuario_id INT NULL,
+    conductor_id INT NULL,
+    recorrido_id INT NULL,
+
+    titulo VARCHAR(150) NOT NULL,
+    mensaje TEXT NOT NULL,
+
+    tipo ENUM(
+        'AUTOMATICA',
+        'MANUAL'
+    ) NOT NULL,
+
+    categoria ENUM(
+        'REPORTE',
+        'RECORRIDO',
+        'RUTA',
+        'AVISO'
+    ) NOT NULL,
+
+    destinatario ENUM(
+        'CIUDADANOS',
+        'CONDUCTORES',
+        'AMBOS'
+    ) NOT NULL,
+
+    leida BOOLEAN DEFAULT FALSE,
+
+    fecha_lectura DATETIME NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (conductor_id)
+        REFERENCES conductores(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (recorrido_id)
+        REFERENCES recorridos(id)
+        ON DELETE CASCADE
+);

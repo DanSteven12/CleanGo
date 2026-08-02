@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db';
+import { NotificationService } from '../modules/notifications';
+import * as NotificationMessages from '../constants/notificationMessages';
 
 const router = Router();
 
@@ -149,8 +151,9 @@ router.patch('/:id/estado', async (req, res) => {
       });
     }
 
+    // Obtener usuario_id del reporte para poder notificar al ciudadano
     const existing = await query(
-      'SELECT id FROM reportes_ciudadanos WHERE id = ?',
+      'SELECT id, usuario_id FROM reportes_ciudadanos WHERE id = ?',
       [req.params.id]
     );
 
@@ -164,6 +167,27 @@ router.patch('/:id/estado', async (req, res) => {
     );
 
     res.json({ message: 'Estado actualizado correctamente', estado });
+
+    // ── Notificación automática al ciudadano según el nuevo estado ─────────
+    // Se lanza de forma no bloqueante tras la respuesta exitosa.
+    const usuario_id: number | null = existing[0].usuario_id ?? null;
+
+    if (usuario_id) {
+      // Seleccionar la constante correspondiente al nuevo estado
+      const notifPayload =
+        estado === 'En proceso'
+          ? NotificationMessages.REPORTE_EN_REVISION
+          : NotificationMessages.REPORTE_RESUELTO; // 'Cerrado'
+
+      NotificationService.crear({
+        usuario_id,
+        ...notifPayload,
+        tipo: 'AUTOMATICA',
+        categoria: 'REPORTE',
+      }).catch((err) =>
+        console.error('[reportes] Error al crear notificación de cambio de estado:', err)
+      );
+    }
   } catch (error) {
     console.error('Error updating reporte estado:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

@@ -2,8 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Loader2, Check, X } from 'lucide-react';
 import '../../assets/styles/routes.css';
-
-
+import { Header } from '../../components/layout/Header';
+import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -106,14 +106,20 @@ export const RoutesPage: React.FC = () => {
 
   // ── Render ─────────────────────────────────────────────────────
   return (
+    <>
+      <Header
+        subtitle="Gestiona las rutas de recolección del sistema"
+        title="Administración de Rutas"
+      />
+      <PageSectionHeader
+        eyebrow="OPERACIÓN"
+        title="Rutas y checkpoints"
+        description="Planeación de recorridos, asignación de unidades y verificación de paradas."
+      />
     <div className="routes-page">
       {/* ─── SECCIÓN: Lista de rutas existentes ─── */}
       <section className="routes-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Administración de Rutas</h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Gestiona las rutas de recolección del sistema</p>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <Link to="/rutas/nueva" className="save-button" style={{ textDecoration: 'none' }}>
             <Plus size={16} />
             Crear Nueva Ruta
@@ -266,5 +272,6 @@ export const RoutesPage: React.FC = () => {
         )}
       </section>
     </div>
+    </>
   );
 };

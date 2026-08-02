@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 
 import type { Conductor } from '../../types/conductores';
 import '../../assets/styles/usuarios.css';
+import { Header } from '../../components/layout/Header';
+import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
 
 export const ConductoresPage: React.FC = () => {
   const navigate = useNavigate();
@@ -68,12 +70,18 @@ export const ConductoresPage: React.FC = () => {
   const formatDate = (d: string) => d ? new Date(d).toLocaleDateString() : '—';
 
   return (
+    <>
+      <Header
+        subtitle="Administración del catálogo de conductores"
+        title="Conductores"
+      />
+      <PageSectionHeader
+        eyebrow="PERSONAL"
+        title="Conductores"
+        description="Perfiles, rutas asignadas y rendimiento del personal operativo."
+      />
     <div className="usuarios-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Conductores</h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Administración del catálogo de conductores</p>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <button onClick={handleOpenCreate} className="save-button">
           <Plus size={16} /> Nuevo Conductor
         </button>
@@ -127,5 +135,6 @@ export const ConductoresPage: React.FC = () => {
         </div>
       )}
     </div>
+    </>
   );
 };

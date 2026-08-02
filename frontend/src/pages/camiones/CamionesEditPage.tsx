@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import type { CamionData } from '../../types/camiones';
 import '../../assets/styles/usuarios.css';
+import { Header } from '../../components/layout/Header';
 
 export const CamionesEditPage: React.FC = () => {
   const { id } = useParams();
@@ -78,17 +79,16 @@ export const CamionesEditPage: React.FC = () => {
 
 
   return (
+    <>
+      <Header
+        subtitle="Visualiza y edita la información de esta unidad"
+        title="Detalles del Camión"
+      />
     <div className="usuarios-page">
-      <div className="form-header-row">
-        <button className="back-button" onClick={() => navigate('/camiones')}>
-          <ArrowLeft size={20} />
+      <div className="form-header-row" style={{ marginTop: '1rem', padding: '0 2rem' }}>
+        <button className="back-button" onClick={() => navigate('/camiones')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: '1px solid var(--border)', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--text-h)' }}>
+          <ArrowLeft size={16} /> Volver a la lista
         </button>
-        <div>
-          <h2 className="section-title" style={{ margin: 0 }}>Detalles del Camión</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text)', margin: 0 }}>
-            Visualiza y edita la información de esta unidad
-          </p>
-        </div>
       </div>
 
       {isLoading ? (
@@ -158,5 +158,6 @@ export const CamionesEditPage: React.FC = () => {
         </>
       )}
     </div>
+    </>
   );
 };

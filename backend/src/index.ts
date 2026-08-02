@@ -18,6 +18,7 @@ import camionesRouter from './routes/camiones';
 import conductoresRouter from './routes/conductores';
 import reportesRouter from './routes/reportes';
 import dashboardRouter from './routes/dashboard';
+import { notificacionesRouter } from './modules/notifications';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -80,6 +81,7 @@ app.use('/api/camiones',       authMiddleware, camionesRouter);
 app.use('/api/conductores',    authMiddleware, conductoresRouter);
 app.use('/api/reportes',       authMiddleware, reportesRouter);
 app.use('/api/dashboard',      authMiddleware, dashboardRouter);
+app.use('/api/notificaciones', authMiddleware, notificacionesRouter);
 
 // ─── Server ───────────────────────────────────────────────────────────────────
 

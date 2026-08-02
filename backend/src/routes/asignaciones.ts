@@ -2,6 +2,8 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { NotificationService } from '../modules/notifications';
+import * as NotificationMessages from '../constants/notificationMessages';
 
 const router = Router();
 
@@ -155,6 +157,17 @@ router.post('/', async (req: Request, res: Response) => {
     `, [result.insertId]);
 
     res.status(201).json(rows[0]);
+
+    // ── Notificación automática: nueva ruta asignada al conductor ─────────
+    // Se lanza de forma no bloqueante después de la respuesta exitosa.
+    NotificationService.crear({
+      conductor_id,
+      ...NotificationMessages.RUTA_ASIGNADA,
+      tipo: 'AUTOMATICA',
+      categoria: 'RUTA',
+    }).catch((err) =>
+      console.error('[asignaciones] Error al crear notificación RUTA_ASIGNADA:', err)
+    );
   } catch (err: any) {
     console.error('[asignaciones] POST /:', err);
     if (err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW') {

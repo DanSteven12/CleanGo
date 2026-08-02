@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Plus, Pencil, Loader2, Check, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import '../../../assets/styles/routes.css';
+import { Header } from '../../../components/layout/Header';
+import { PageSectionHeader } from '../../../components/layout/PageSectionHeader';
 
 export interface RutaOption {
   id: number;
@@ -143,13 +145,19 @@ export const HorariosPage: React.FC = () => {
   };
 
   return (
+    <>
+      <Header
+        subtitle="Gestiona los horarios habituales de cada ruta"
+        title="Horarios Base"
+      />
+      <PageSectionHeader
+        eyebrow="PROGRAMACIÓN"
+        title="Horarios base"
+        description="Gestión y configuración de los horarios habituales de recolección por ruta."
+      />
     <div className="routes-page">
       <section className="routes-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Horarios Base</h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Gestiona los horarios habituales de cada ruta</p>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           {!isFormOpen && (
             <button className="save-button" onClick={handleOpenCreate} style={{ textDecoration: 'none' }}>
               <Plus size={16} />
@@ -306,5 +314,6 @@ export const HorariosPage: React.FC = () => {
         )}
       </section>
     </div>
+    </>
   );
 };

@@ -5,6 +5,8 @@ import type { AsignacionRecord } from '../../types/routes';
 
 import '../../assets/styles/routes.css';
 import '../../assets/styles/assignments.css';
+import { Header } from '../../components/layout/Header';
+import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -329,23 +331,18 @@ export const LiveMapPage: React.FC = () => {
   };
 
   return (
+    <>
+      <Header
+        subtitle="Plataforma de monitoreo en tiempo real de recorridos iniciados desde la app móvil"
+        title="Monitoreo en Vivo"
+      />
+      <PageSectionHeader
+        eyebrow="MONITOREO"
+        title="Mapa GPS en vivo"
+        description="Ubicación y estado de cada camión, rutas activas, checkpoints cumplidos y ETA."
+      />
     <div className="assignments-page" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-      {/* ─── Encabezado ─── */}
       <section className="routes-section" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.25rem' }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #1763A6, #152C40)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, boxShadow: '0 2px 10px #1763A659',
-          }}>
-            <Satellite size={18} color="white" />
-          </div>
-          <div>
-            <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Monitoreo en Vivo</h2>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text)', margin: 0 }}>Plataforma de monitoreo en tiempo real de recorridos iniciados desde la app móvil</p>
-          </div>
-        </div>
 
         {isLoading ? (
           <p style={{ color: 'var(--text)', fontSize: '0.875rem' }}>Cargando recorridos activos...</p>
@@ -544,5 +541,6 @@ export const LiveMapPage: React.FC = () => {
         )}
       </section>
     </div>
+    </>
   );
 };

@@ -19,6 +19,7 @@ import {
   History,
   LogOut,
 } from 'lucide-react';
+import { obtenerNotificacionesAdmin } from '../../services/notificacionesService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,9 +106,10 @@ interface SidebarLinkProps {
   item: NavItem;
   pathname: string;
   indented?: boolean;
+  badge?: number;
 }
 
-const SidebarLink: React.FC<SidebarLinkProps> = ({ item, pathname, indented = false }) => {
+const SidebarLink: React.FC<SidebarLinkProps> = ({ item, pathname, indented = false, badge = 0 }) => {
   const active = isPathActive(pathname, item.to);
   const Icon = item.icon;
 
@@ -161,7 +163,23 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ item, pathname, indented = fa
           transition: 'color 0.15s ease',
         }}
       />
-      <span style={{ lineHeight: 1.3 }}>{item.label}</span>
+      <span style={{ lineHeight: 1.3, flex: 1 }}>{item.label}</span>
+      {badge > 0 && (
+        <span
+          style={{
+            background: 'var(--primary)',
+            color: 'white',
+            fontSize: '0.65rem',
+            fontWeight: 700,
+            padding: '2px 6px',
+            borderRadius: '12px',
+            lineHeight: 1,
+            marginLeft: 'auto',
+          }}
+        >
+          {badge}
+        </span>
+      )}
     </Link>
   );
 };
@@ -265,6 +283,26 @@ export const AppSidebar: React.FC = () => {
   const pathname = location.pathname;
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnread = async () => {
+    try {
+      // Si en el futuro hay un endpoint /count?leida=false, se reemplaza aquí.
+      const unreadList = await obtenerNotificacionesAdmin({ leida: false });
+      setUnreadCount(unreadList.length);
+    } catch (error) {
+      console.error('Error fetching unread notifications count:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnread();
+    
+    // Escucha el evento disparado desde NotificacionesPage al marcar una como leída
+    const handleRead = () => fetchUnread();
+    window.addEventListener('notificacion-leida', handleRead);
+    return () => window.removeEventListener('notificacion-leida', handleRead);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -374,7 +412,12 @@ export const AppSidebar: React.FC = () => {
         {/* ── Calendario / Notificaciones / Reportes */}
         <Divider />
         {STANDALONE_SECONDARY.map((item) => (
-          <SidebarLink key={item.id} item={item} pathname={pathname} />
+          <SidebarLink 
+            key={item.id} 
+            item={item} 
+            pathname={pathname} 
+            badge={item.id === 'nav-notificaciones' ? unreadCount : 0}
+          />
         ))}
 
         {/* ── Usuarios / Camiones / Conductores */}

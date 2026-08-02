@@ -6,7 +6,8 @@ import type { AsignacionData, AsignacionRecord } from '../../types/routes';
 
 import '../../assets/styles/routes.css';
 import '../../assets/styles/assignments.css';
-
+import { Header } from '../../components/layout/Header';
+import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
 
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
@@ -188,14 +189,20 @@ export const AssignmentsPage: React.FC = () => {
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
+    <>
+      <Header
+        subtitle="Asignación de rutas a unidades y conductores"
+        title="Control y Registro de Asignaciones"
+      />
+      <PageSectionHeader
+        eyebrow="OPERACIÓN"
+        title="Asignaciones"
+        description="Control y registro de asignaciones de rutas a unidades y conductores."
+      />
     <div className="assignments-page" style={{ padding: '1.5rem' }}>
       {/* ─── SECCIÓN: Historial de asignaciones ─── */}
       <section className="routes-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Control y Registro de Asignaciones</h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Asignación de rutas a unidades y conductores</p>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <Link to="/asignaciones/nueva" className="save-button" style={{ textDecoration: 'none' }}>
             <Plus size={16} />
             Crear Nueva Asignación
@@ -425,6 +432,7 @@ export const AssignmentsPage: React.FC = () => {
 
 
     </div>
+    </>
   );
 };
 

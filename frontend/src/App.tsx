@@ -28,8 +28,9 @@ import { ConductoresEditPage } from './pages/conductores/ConductoresEditPage';
 import { ReportesPage } from './pages/reportes/ReportesPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { WelcomePage } from './pages/welcome/WelcomePage';
+import { NotificacionesPage } from './pages/notificaciones/NotificacionesPage';
 
-type Module = 'dashboard' | 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos';
+type Module = 'dashboard' | 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos' | 'notificaciones';
 
 // ─── Private app shell (sidebar + main content) ───────────────────────────────
 function AppContent() {
@@ -47,6 +48,7 @@ function AppContent() {
   if (location.pathname.startsWith('/camiones')) activeModule = 'camiones';
   if (location.pathname.startsWith('/conductores')) activeModule = 'conductores';
   if (location.pathname.startsWith('/reportes')) activeModule = 'reportes-ciudadanos';
+  if (location.pathname.startsWith('/notificaciones')) activeModule = 'notificaciones';
 
   const handleNavigate = (module: Module) => {
     const map: Record<Module, string> = {
@@ -60,6 +62,7 @@ function AppContent() {
       'camiones': '/camiones',
       'conductores': '/conductores',
       'reportes-ciudadanos': '/reportes',
+      'notificaciones': '/notificaciones',
     };
     navigate(map[module]);
   };
@@ -86,6 +89,7 @@ function AppContent() {
         <Route path="/conductores/create" element={<ConductoresCreatePage />} />
         <Route path="/conductores/:id/edit" element={<ConductoresEditPage />} />
         <Route path="/reportes" element={<ReportesPage />} />
+        <Route path="/notificaciones" element={<NotificacionesPage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </MainLayout>

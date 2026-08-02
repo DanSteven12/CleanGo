@@ -3,7 +3,7 @@ import { AppSidebar } from '../components/layout/AppSidebar';
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 // Legacy props kept to avoid breaking App.tsx call-sites.
-type Module = 'dashboard' | 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos';
+type Module = 'dashboard' | 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos' | 'notificaciones';
 
 interface MainLayoutProps {
   children: React.ReactNode;

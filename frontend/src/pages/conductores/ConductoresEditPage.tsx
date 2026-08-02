@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import '../../assets/styles/usuarios.css';
+import { Header } from '../../components/layout/Header';
 
 export const ConductoresEditPage: React.FC = () => {
   const navigate = useNavigate();
@@ -85,17 +86,16 @@ export const ConductoresEditPage: React.FC = () => {
   }
 
   return (
+    <>
+      <Header
+        subtitle="Modifica la información del conductor"
+        title="Editar Conductor"
+      />
     <div className="usuarios-page">
-      <div className="form-header-row">
-        <button className="back-button" onClick={() => navigate('/conductores')}>
-          <ArrowLeft size={20} />
+      <div className="form-header-row" style={{ marginTop: '1rem', padding: '0 2rem' }}>
+        <button className="back-button" onClick={() => navigate('/conductores')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: '1px solid var(--border)', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--text-h)' }}>
+          <ArrowLeft size={16} /> Volver a la lista
         </button>
-        <div>
-          <h2 className="section-title" style={{ margin: 0 }}>Editar Conductor</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text)', margin: 0 }}>
-            Modifica la información del conductor
-          </p>
-        </div>
       </div>
 
       <div className="form-container">
@@ -136,5 +136,6 @@ export const ConductoresEditPage: React.FC = () => {
         </form>
       </div>
     </div>
+    </>
   );
 };

@@ -9,6 +9,8 @@ import type {
 } from '../../types/routes';
 import '../../assets/styles/assignments.css';
 import '../../assets/styles/historial.css';
+import { Header } from '../../components/layout/Header';
+import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
 
 // ─── Interfaces locales ───────────────────────────────────────────────────────
 
@@ -330,6 +332,16 @@ export const HistorialRecorridosPage: React.FC = () => {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
+    <>
+      <Header
+        subtitle="Consulta de auditoría y reportes históricos"
+        title="Historial de Recorridos"
+      />
+      <PageSectionHeader
+        eyebrow="AUDITORÍA"
+        title="Historial de Recorridos"
+        description="Consulta y auditoría de recorridos finalizados, tiempos y checkpoints."
+      />
     <div className="historial-page">
 
       {/* ─── Barra de filtros ─── */}
@@ -616,5 +628,6 @@ export const HistorialRecorridosPage: React.FC = () => {
         </div>
       )}
     </div>
+    </>
   );
 };

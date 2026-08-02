@@ -8,7 +8,8 @@ import { toast } from 'sonner';
 
 import type { ReporteRecord, ReporteIndicadores, EstadoReporte, TipoReporte } from '../../types/reportes';
 import '../../assets/styles/reportes.css';
-
+import { Header } from '../../components/layout/Header';
+import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TIPOS_REPORTE: TipoReporte[] = [
@@ -398,17 +399,17 @@ export const ReportesPage: React.FC = () => {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="reportes-page">
-
-      {/* ── Cabecera ─────────────────────────────────────────── */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Reportes Ciudadanos</h1>
-          <p className="page-subtitle">
-            Bandeja de atención — Reportes enviados desde la app móvil
-          </p>
-        </div>
-      </div>
+    <>
+      <Header 
+        subtitle="Bandeja de atención — Reportes enviados desde la app móvil" 
+        title="Reportes Ciudadanos" 
+      />
+      <PageSectionHeader
+        eyebrow="ATENCIÓN CIUDADANA"
+        title="Reportes Ciudadanos"
+        description="Gestión y seguimiento de reportes enviados desde la app móvil."
+      />
+      <div className="reportes-page">
 
       {/* ── Indicadores ──────────────────────────────────────── */}
       <div className="reportes-stats-grid">
@@ -703,5 +704,6 @@ export const ReportesPage: React.FC = () => {
         />
       )}
     </div>
+    </>
   );
 };

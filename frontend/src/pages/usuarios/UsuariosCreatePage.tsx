@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { UserForm } from './components/UserForm';
 import type { UsuarioData } from '../../types/usuarios';
 import '../../assets/styles/usuarios.css';
+import { Header } from '../../components/layout/Header';
 
 export const UsuariosCreatePage: React.FC = () => {
   const navigate = useNavigate();
@@ -48,11 +49,12 @@ export const UsuariosCreatePage: React.FC = () => {
   };
 
   return (
+    <>
+      <Header
+        subtitle="Completa los datos para registrar un nuevo usuario en el sistema."
+        title="Nuevo Usuario"
+      />
     <div className="usuarios-page">
-      <div style={{ marginBottom: '1rem' }}>
-        <h2 className="section-title" style={{ margin: '0 0 0.2rem', fontFamily: 'var(--font-display)' }}>Nuevo Usuario</h2>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text)', margin: 0 }}>Completa los datos para registrar un nuevo usuario en el sistema.</p>
-      </div>
 
       <UserForm 
         onSubmit={handleCreate}
@@ -60,5 +62,6 @@ export const UsuariosCreatePage: React.FC = () => {
         formError={formError}
       />
     </div>
+    </>
   );
 };

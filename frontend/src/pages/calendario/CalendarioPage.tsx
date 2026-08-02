@@ -9,7 +9,8 @@ import { Calendar, Route, Truck, HardHat, CheckCircle2, Clock, CalendarDays, Loa
 import { toast } from 'sonner';
 
 import '../../assets/styles/routes.css';
-
+import { Header } from '../../components/layout/Header';
+import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
 interface Horario {
@@ -185,16 +186,18 @@ export const CalendarioPage: React.FC = () => {
   const closeDialog = () => setSelectedEvent(null);
 
   return (
+    <>
+      <Header
+        subtitle="Programación dinámica de asignaciones e incidencias"
+        title="Vista General de Calendario"
+      />
+      <PageSectionHeader
+        eyebrow="PROGRAMACIÓN"
+        title="Calendario de recolección"
+        description="Consulta horarios y estado del servicio por colonia, día y semana."
+      />
     <div className="routes-page">
       <section className="routes-section" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%', minHeight: 'calc(100vh - 3rem)' }}>
-
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Vista General de Calendario</h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Programación dinámica de asignaciones e incidencias</p>
-          </div>
-        </div>
 
         {/* Summary Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
@@ -354,5 +357,6 @@ export const CalendarioPage: React.FC = () => {
       )}
 
     </div>
+    </>
   );
 };

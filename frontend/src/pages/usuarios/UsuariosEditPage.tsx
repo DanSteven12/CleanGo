@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { UserForm } from './components/UserForm';
 import type { UsuarioData, UsuarioRecord } from '../../types/usuarios';
 import '../../assets/styles/usuarios.css';
+import { Header } from '../../components/layout/Header';
 
 export const UsuariosEditPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -81,11 +82,12 @@ export const UsuariosEditPage: React.FC = () => {
   }
 
   return (
+    <>
+      <Header
+        subtitle="Actualiza los datos del usuario"
+        title="Editar Usuario"
+      />
     <div className="usuarios-page">
-      <div style={{ marginBottom: '1rem' }}>
-        <h2 className="section-title" style={{ margin: '0 0 0.2rem', fontFamily: 'var(--font-display)' }}>Editar Usuario</h2>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text)', margin: 0 }}>Actualiza los datos del usuario</p>
-      </div>
 
       <UserForm 
         isEditing
@@ -96,5 +98,6 @@ export const UsuariosEditPage: React.FC = () => {
         formError={formError}
       />
     </div>
+    </>
   );
 };

@@ -28,7 +28,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { DashboardLiveMapEmbed } from './DashboardLiveMapEmbed';
-
+import { Header } from '../../components/layout/Header';
+import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 interface DashboardStats {
@@ -368,64 +369,55 @@ export const DashboardPage: React.FC = () => {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div
-      id="dashboard-page"
-      style={{
-        padding: '1.75rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '2rem',
-        maxWidth: 1400,
-        margin: '0 auto',
-        width: '100%',
-        boxSizing: 'border-box',
-      }}
-    >
+    <>
+      <Header 
+        subtitle="Ayuntamiento • Centro de Control" 
+        title="Panel de Monitoreo en Tiempo Real" 
+      />
+      <PageSectionHeader
+        eyebrow="CENTRO DE CONTROL"
+        title="Panel de Monitoreo en Tiempo Real"
+        description="Supervisa en tiempo real la operación de las unidades de recolección del municipio."
+      />
+      <div
+        id="dashboard-page"
+        style={{
+          padding: '1.75rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2rem',
+          maxWidth: 1400,
+          margin: '0 auto',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      >
 
-      {/* ════════ HEADER ════════════════════════════════════════════════════ */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.35rem' }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: '0.75rem',
-              background: 'linear-gradient(135deg, #1763A6, #152C40)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 12px #1763A659',
-            }}>
-              <LayoutDashboard size={20} color="white" />
-            </div>
-            <h1 className="page-title" style={{ margin: 0 }}>
-              Dashboard
-            </h1>
-          </div>
-          <p className="page-subtitle" style={{ textTransform: 'capitalize' }}>
-            {nowStr}
-          </p>
+        {/* ════════ REFRESH BUTTON ════════════════════════════════════════════════ */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-1rem' }}>
+          <button
+            id="dashboard-refresh"
+            onClick={handleRefresh}
+            title="Actualizar datos"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.5rem 1rem',
+              background: 'var(--panel-bg)',
+              border: '1px solid var(--panel-border)',
+              borderRadius: '0.625rem',
+              fontSize: '0.8125rem', fontWeight: 600,
+              color: 'var(--text)',
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--panel-bg)')}
+          >
+            <RefreshCw size={14} />
+            Actualizar
+          </button>
         </div>
-
-        <button
-          id="dashboard-refresh"
-          onClick={handleRefresh}
-          title="Actualizar datos"
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.4rem',
-            padding: '0.5rem 1rem',
-            background: 'var(--panel-bg)',
-            border: '1px solid var(--panel-border)',
-            borderRadius: '0.625rem',
-            fontSize: '0.8125rem', fontWeight: 600,
-            color: 'var(--text)',
-            cursor: 'pointer',
-            boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)',
-            transition: 'background 0.15s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--panel-bg)')}
-        >
-          <RefreshCw size={14} />
-          Actualizar
-        </button>
-      </div>
 
       {/* ════════ § 1. INDICADORES ══════════════════════════════════════════ */}
       <section id="dashboard-stats">
@@ -931,5 +923,6 @@ export const DashboardPage: React.FC = () => {
         {' · '}CleanGo Logística Urbana
       </div>
     </div>
+    </>
   );
 };

@@ -4,6 +4,7 @@ import { Loader2, Check, X } from 'lucide-react';
 import type { AsignacionData } from '../../types/routes';
 import '../../assets/styles/routes.css';
 import '../../assets/styles/assignments.css';
+import { Header } from '../../components/layout/Header';
 
 interface RouteOption {
   id: number;
@@ -112,15 +113,14 @@ export const AssignmentsCreatePage: React.FC = () => {
   const setF = (patch: Partial<AsignacionData>) => setForm(prev => ({ ...prev, ...patch }));
 
   return (
+    <>
+      <Header
+        subtitle="Completa los datos para registrar una nueva asignación"
+        title="Nueva Asignación"
+      />
     <div className="assignments-page" style={{ padding: '1.5rem' }}>
       {/* ─── SECCIÓN: Formulario nueva asignación ─── */}
       <section className="routes-section" id="asignacion-form">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <div>
-            <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Nueva Asignación</h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Completa los datos para registrar una nueva asignación</p>
-          </div>
-        </div>
 
         {isLoadingCatalogs ? (
           <p style={{ color: 'var(--text)', fontSize: '0.875rem' }}>Cargando opciones…</p>
@@ -271,5 +271,6 @@ export const AssignmentsCreatePage: React.FC = () => {
         </div>
       </section>
     </div>
+    </>
   );
 };

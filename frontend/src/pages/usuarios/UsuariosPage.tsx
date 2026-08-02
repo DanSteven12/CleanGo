@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 
 import type { UsuarioRecord } from '../../types/usuarios';
 import '../../assets/styles/usuarios.css';
+import { Header } from '../../components/layout/Header';
+import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
 
 // ─── Componentes de Modal (Helpers locales) ───────────────────────────────────
 
@@ -169,12 +171,18 @@ export const UsuariosPage: React.FC = () => {
   const formatDate = (d: string) => d ? new Date(d).toLocaleDateString() : '—';
   
   return (
+    <>
+      <Header
+        subtitle="Gestión de accesos y roles del sistema"
+        title="Administración de Usuarios"
+      />
+      <PageSectionHeader
+        eyebrow="ADMINISTRACIÓN"
+        title="Gestión de usuarios"
+        description="Roles, permisos y accesos al sistema municipal."
+      />
     <div className="usuarios-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 className="section-title" style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Administración de Usuarios</h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.2rem', marginBottom: 0 }}>Gestión de accesos y roles del sistema</p>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <button onClick={handleOpenCreate} className="save-button">
           <Plus size={16} /> Crear Usuario
         </button>
@@ -336,5 +344,6 @@ export const UsuariosPage: React.FC = () => {
       </Modal>
 
     </div>
+    </>
   );
 };

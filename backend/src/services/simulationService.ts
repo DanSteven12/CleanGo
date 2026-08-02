@@ -2,6 +2,8 @@ import { Server } from 'socket.io';
 import { pool } from '../db';
 import { ResultSetHeader } from 'mysql2';
 import { getIO } from '../socket/socketServer';
+import { NotificationService } from '../modules/notifications';
+import * as NotificationMessages from '../constants/notificationMessages';
 
 const SEGMENT_DURATION_MS = process.env.SIMULATION_SEGMENT_DURATION
   ? Number(process.env.SIMULATION_SEGMENT_DURATION)
@@ -121,8 +123,54 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
       velocidad: currentSpeed,
     };
 
-    // Emitir ubicaci\u00f3n en tiempo real
+    // Emitir ubicación en tiempo real
     io.to(roomName).emit('ubicacion_actualizada', stats);
+
+    // Si el recorrido está retrasado, emitir notificación automática ──────────────
+    // crearSiNoExiste() verifica en BD antes de insertar: deduplicación persistente.
+    // Esto garantiza una sola notificación por recorrido aunque haya miles de ticks.
+    if (isDelayed) {
+      ;(async () => {
+        try {
+          // Obtener conductor del recorrido para las notificaciones dinámicas
+          const [condRows] = await pool.execute<any[]>(
+            `SELECT ar.conductor_id, c.nombre_completo AS conductor_nombre
+             FROM recorridos r
+             INNER JOIN asignaciones_rutas ar ON ar.id = r.asignacion_id
+             INNER JOIN conductores c ON c.id = ar.conductor_id
+             WHERE r.id = ?`,
+            [recorridoId]
+          );
+
+          if (condRows.length > 0) {
+            const { conductor_id, conductor_nombre } = condRows[0];
+
+            // Notificar al conductor (deduplicada por recorrido_id + titulo en BD)
+            await NotificationService.crearSiNoExiste({
+              conductor_id,
+              recorrido_id: recorridoId,
+              ...NotificationMessages.RETRASO_DETECTADO_CONDUCTOR,
+              tipo: 'AUTOMATICA',
+              categoria: 'RECORRIDO',
+            });
+
+            // Notificar al administrador (deduplicada por recorrido_id + titulo en BD)
+            const adminId = await NotificationService.obtenerAdminId();
+            if (adminId) {
+              await NotificationService.crearSiNoExiste({
+                usuario_id: adminId,
+                recorrido_id: recorridoId,
+                ...NotificationMessages.RETRASO_DETECTADO_ADMIN(conductor_nombre),
+                tipo: 'AUTOMATICA',
+                categoria: 'RECORRIDO',
+              });
+            }
+          }
+        } catch (notifErr) {
+          console.error('[Simulation] Error al crear notificación de RETRASO_DETECTADO:', notifErr);
+        }
+      })();
+    }
 
     // Actualizar continuamente en base de datos
     pool.execute(

@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import type { CamionRecord } from '../../types/camiones';
 import '../../assets/styles/usuarios.css';
 import '../../assets/styles/camiones-cards.css';
+import { Header } from '../../components/layout/Header';
+import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
 
 /* ─── Inline Modal (unchanged logic) ──────────────────────────────────────── */
 
@@ -202,14 +204,19 @@ export const CamionesPage: React.FC = () => {
 
   /* ── Render ── */
   return (
+    <>
+      <Header
+        subtitle="Panel de gestión de camiones y credenciales móviles"
+        title="Unidades de Recolección"
+      />
+      <PageSectionHeader
+        eyebrow="FLOTA"
+        title="Camiones de recolección"
+        description="Estado, asignación y estadísticas de cada unidad."
+      />
     <div className="usuarios-page">
 
-      {/* Page header */}
-      <div className="page-header">
-        <div>
-          <h2 className="page-title">Unidades de Recolección</h2>
-          <p className="page-subtitle">Panel de gestión de camiones y credenciales móviles</p>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.5rem', marginTop: '1rem', padding: '0 2rem' }}>
         <button onClick={handleOpenCreate} className="save-button">
           <Plus size={16} /> Registrar Camión
         </button>
@@ -292,5 +299,6 @@ export const CamionesPage: React.FC = () => {
         </div>
       </Modal>
     </div>
+    </>
   );
 };
