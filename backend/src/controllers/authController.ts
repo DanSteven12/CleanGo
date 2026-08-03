@@ -1,7 +1,11 @@
-// backend/src/controllers/authController.ts
-import { Request, Response } from 'express';
+import { Request, Response, CookieOptions } from 'express';
 import { validationResult } from 'express-validator';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import * as authService from '../services/authService';
+import { logSecurityEvent } from '../services/securityLogService';
+import type { AuthPayload } from '../middlewares/authMiddleware';
+import { config } from '../config';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +38,27 @@ function getClientIp(req: Request): string {
   return req.ip ?? 'unknown';
 }
 
+function getCookieOptions(): CookieOptions {
+  return {
+    httpOnly: true,
+    secure: config.cookie.secure,
+    sameSite: config.cookie.sameSite,
+    domain: config.cookie.domain,
+    path: '/',
+  };
+}
+
+/** Configuración específica para CSRF (no es HttpOnly) */
+function getCsrfCookieOptions(): CookieOptions {
+  return {
+    httpOnly: false, // Debe poder ser leída por JS del lado del cliente
+    secure: config.cookie.secure,
+    sameSite: config.cookie.sameSite,
+    domain: config.cookie.domain,
+    path: '/',
+  };
+}
+
 // ─── Controllers ──────────────────────────────────────────────────────────────
 
 /**
@@ -42,7 +67,7 @@ function getClientIp(req: Request): string {
 export async function login(req: Request, res: Response): Promise<void> {
   if (handleValidationErrors(req, res)) return;
 
-  const { email, password } = req.body;
+  const { email, password, rememberMe = false } = req.body;
 
   // Network context passed to the service for audit logging
   const ip = getClientIp(req);
@@ -50,23 +75,31 @@ export async function login(req: Request, res: Response): Promise<void> {
   const endpoint = req.originalUrl;
 
   try {
-    const result = await authService.loginUser(email, password, { ip, userAgent, endpoint });
+    const result = await authService.loginUser(email, password, { ip, userAgent, endpoint }, rememberMe);
 
-    // ── Set JWT as HttpOnly cookie ────────────────────────────────────────
-    const cookieName = process.env.COOKIE_NAME || 'cleango_session';
-    const isProduction = process.env.NODE_ENV === 'production';
-    const cookieSecure = process.env.COOKIE_SECURE === 'true' || isProduction;
-    const cookieSameSite = (process.env.COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'lax';
-    const cookieDomain = process.env.COOKIE_DOMAIN; // Optional
+    // ── Set JWTs as HttpOnly cookies ────────────────────────────────────────
+    const sessionCookie = config.cookie.name;
+    const refreshCookie = config.cookie.refreshName;
+    const baseCookieOptions = getCookieOptions();
 
-    res.cookie(cookieName, result.token, {
-      httpOnly: true,                   // Not accessible via JavaScript
-      secure: cookieSecure,             // HTTPS only in production
-      sameSite: cookieSameSite,         // Protects against CSRF; compatible con proxy/Vite
-      domain: cookieDomain,             // Aplicar a subdominios si está configurado
-      maxAge: 8 * 60 * 60 * 1000,      // 8h en ms — matches JWT_EXPIRES_IN
-      path: '/',
+    // Access Token cookie
+    res.cookie(sessionCookie, result.token, {
+      ...baseCookieOptions,
+      maxAge: config.cookie.accessMaxAgeMs,
     });
+
+    // Refresh Token cookie (Largo o de sesión dependiendo de rememberMe)
+    const refreshCookieOptions = { ...baseCookieOptions };
+    if (rememberMe) {
+      refreshCookieOptions.maxAge = config.cookie.rememberMaxAgeMs;
+    }
+    // Si rememberMe es false, omitimos maxAge. El navegador la tratará como Session Cookie.
+
+    res.cookie(refreshCookie, result.refreshToken, refreshCookieOptions);
+
+    // Generar y enviar CSRF Token
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    res.cookie(config.cookie.csrfName, csrfToken, getCsrfCookieOptions());
 
     // Token intentionally omitted from body — it travels via cookie only
     res.status(200).json({
@@ -78,6 +111,48 @@ export async function login(req: Request, res: Response): Promise<void> {
   }
 }
 
+/**
+ * POST /api/auth/refresh
+ * Renueva el Access Token usando el Refresh Token en la cookie.
+ */
+export async function refresh(req: Request, res: Response): Promise<void> {
+  const refreshCookieName = config.cookie.refreshName;
+  const refreshToken = req.cookies?.[refreshCookieName];
+
+  if (!refreshToken) {
+    res.status(401).json({ message: 'No se proporcionó refresh token.' });
+    return;
+  }
+
+  const ip = getClientIp(req);
+  const userAgent = req.headers['user-agent'] ?? 'unknown';
+
+  try {
+    const result = await authService.refreshSession(refreshToken, ip, userAgent);
+
+    const sessionCookie = config.cookie.name;
+    const baseCookieOptions = getCookieOptions();
+
+    res.cookie(sessionCookie, result.token, {
+      ...baseCookieOptions,
+      maxAge: config.cookie.accessMaxAgeMs,
+    });
+
+    res.cookie(refreshCookieName, result.refreshToken, baseCookieOptions);
+    
+    // Rotar CSRF Token
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    res.cookie(config.cookie.csrfName, csrfToken, getCsrfCookieOptions());
+
+    res.status(200).json({ message: 'Token renovado.', user: result.user });
+  } catch (err) {
+    const baseCookieOptions = getCookieOptions();
+    res.clearCookie(config.cookie.name, baseCookieOptions);
+    res.clearCookie(refreshCookieName, baseCookieOptions);
+    res.clearCookie(config.cookie.csrfName, getCsrfCookieOptions());
+    handleServiceError(err, res);
+  }
+}
 
 export async function register(req: Request, res: Response): Promise<void> {
   if (handleValidationErrors(req, res)) return;
@@ -151,23 +226,40 @@ export async function getMe(req: Request, res: Response): Promise<void> {
 
 /**
  * POST /api/auth/logout
- * Clears the HttpOnly session cookie and ends the session.
+ * Clears the HttpOnly session cookie and ends the DB session.
  */
-export function logout(req: Request, res: Response): void {
-  const cookieName = process.env.COOKIE_NAME || 'cleango_session';
-  const isProduction = process.env.NODE_ENV === 'production';
-  const cookieSecure = process.env.COOKIE_SECURE === 'true' || isProduction;
-  const cookieSameSite = (process.env.COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'lax';
-  const cookieDomain = process.env.COOKIE_DOMAIN;
+export async function logout(req: Request, res: Response): Promise<void> {
+  const cookieName = config.cookie.name;
+  const token = req.cookies?.[cookieName];
 
-  // clearCookie must use the same attributes that were set (path, sameSite, secure, domain)
-  res.clearCookie(cookieName, {
-    httpOnly: true,
-    secure: cookieSecure,
-    sameSite: cookieSameSite,
-    domain: cookieDomain,
-    path: '/',
-  });
+  if (token) {
+    try {
+      const payload = jwt.verify(token, config.jwt.secret, { ignoreExpiration: true }) as AuthPayload;
+      if (payload?.id && payload?.jti) {
+        await authService.logoutSession(payload.id, payload.jti);
+
+        const ip = getClientIp(req);
+        const userAgent = req.headers['user-agent'] ?? 'unknown';
+        logSecurityEvent({
+          correo: payload.correo,
+          ip,
+          userAgent,
+          endpoint: req.originalUrl,
+          httpStatus: 200,
+          descripcion: 'Cierre de sesión manual exitoso (Sesión invalidada en BD).',
+        });
+      }
+    } catch (e) {
+      // Ignore decode errors or invalid signature
+    }
+  }
+
+  const refreshCookieName = config.cookie.refreshName;
+  const clearOptions = getCookieOptions();
+
+  res.clearCookie(cookieName, clearOptions);
+  res.clearCookie(refreshCookieName, clearOptions);
+  res.clearCookie(config.cookie.csrfName, getCsrfCookieOptions());
 
   res.status(200).json({ message: 'Sesión cerrada correctamente.' });
 }

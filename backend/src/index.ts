@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { csrfMiddleware } from './middlewares/csrfMiddleware';
 import { authMiddleware } from './middlewares/authMiddleware';
 import rutasRouter from './routes/rutas';
 import puntosControlRouter from './routes/puntosControl';
@@ -30,8 +31,13 @@ app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
 // ─── Security Headers (Helmet) ────────────────────────────────────────────────
-// Must be registered before CORS and routes so headers apply to all responses.
 app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'none'"], // Bloquea todo contenido ejecutable, asumiendo que la API solo devuelve JSON
+      frameAncestors: ["'none'"], // Protege contra Clickjacking si el navegador interpreta JSON como HTML
+    },
+  },
   hsts: process.env.NODE_ENV === 'production' 
     ? { maxAge: 31536000, includeSubDomains: true, preload: true } 
     : false, // Desactivar HSTS en desarrollo local para no romper HTTP
@@ -61,6 +67,10 @@ app.use(express.json({ limit: '1mb' }));
 // ─── Cookie Parser ────────────────────────────────────────────────────────────
 // Must be registered before routes so req.cookies is populated in authMiddleware.
 app.use(cookieParser());
+
+// ─── CSRF Protection ──────────────────────────────────────────────────────────
+// Applies to all mutating requests (POST, PUT, PATCH, DELETE), excluding public routes.
+app.use(csrfMiddleware);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 

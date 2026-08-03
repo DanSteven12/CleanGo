@@ -2,10 +2,15 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import bcrypt from 'bcrypt';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { authorizeRoles } from '../middlewares/roleMiddleware';
+import { sanitizeText } from '../utils/sanitize';
 
 const SALT_ROUNDS = 12;
 
 const router = Router();
+
+// ── Aplicar autorización a todas las rutas de este router ────────────────────
+router.use(authorizeRoles('Administrador'));
 
 // ── GET /api/usuarios ─────────────────────────────────────────────────────────
 router.get('/', async (_req: Request, res: Response) => {
@@ -45,7 +50,8 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // ── POST /api/usuarios ────────────────────────────────────────────────────────
 router.post('/', async (req: Request, res: Response) => {
-  const { nombre, correo, password, rol } = req.body;
+  const { correo, password, rol } = req.body;
+  const nombre = sanitizeText(req.body.nombre);
 
   if (!nombre || !correo || !password || !rol) {
     return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
@@ -87,7 +93,8 @@ router.post('/', async (req: Request, res: Response) => {
 // ── PUT /api/usuarios/:id ─────────────────────────────────────────────────────
 router.put('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { nombre, correo, rol, estado } = req.body;
+  const { correo, rol, estado } = req.body;
+  const nombre = sanitizeText(req.body.nombre);
 
   try {
     const [current] = await pool.query<RowDataPacket[]>('SELECT * FROM usuarios WHERE id = ?', [id]);

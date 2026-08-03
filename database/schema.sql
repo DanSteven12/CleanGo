@@ -328,3 +328,20 @@ CREATE TABLE notificaciones (
         REFERENCES recorridos(id)
         ON DELETE CASCADE
 );
+
+-- ============================================================
+-- 12. TABLA DE SESIONES
+-- Mantiene el registro del identificador de token (jti) activo
+-- para el control de sesiones concurrentes (1 por usuario).
+-- ============================================================
+CREATE TABLE sesiones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL UNIQUE,
+    jti VARCHAR(255) NOT NULL,
+    refresh_token_hash VARCHAR(255) NULL,
+    ip VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);

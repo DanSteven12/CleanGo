@@ -2,6 +2,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import type { ResultSetHeader } from 'mysql2';
+import { sanitizeText } from '../utils/sanitize';
 
 const router = Router();
 
@@ -29,11 +30,15 @@ router.post('/', async (req: Request, res: Response) => {
   const { ruta, checkpoints } = req.body as CrearRutaBody;
 
   // ── Validaciones básicas ───────────────────────────────────────────────
-  if (!ruta?.nombre || typeof ruta.nombre !== 'string' || ruta.nombre.trim() === '') {
+  const sanitizedNombre = sanitizeText(ruta?.nombre);
+  const sanitizedDescripcion = sanitizeText(ruta?.descripcion);
+  const sanitizedColor = sanitizeText(ruta?.color);
+
+  if (!sanitizedNombre || typeof sanitizedNombre !== 'string' || sanitizedNombre.trim() === '') {
     return res.status(400).json({ message: 'El campo "nombre" de la ruta es obligatorio.' });
   }
 
-  const resolvedColor         = ruta.color          ?? '#3498db';
+  const resolvedColor         = sanitizedColor          ?? '#3498db';
 
   // ── Transacción ────────────────────────────────────────────────────────
   const conn = await pool.getConnection();
@@ -45,8 +50,8 @@ router.post('/', async (req: Request, res: Response) => {
       `INSERT INTO rutas (nombre, descripcion, color)
        VALUES (?, ?, ?)`,
       [
-        ruta.nombre.trim(),
-        ruta.descripcion?.trim() ?? null,
+        sanitizedNombre.trim(),
+        sanitizedDescripcion?.trim() ?? null,
         resolvedColor,
       ]
     );
@@ -55,7 +60,8 @@ router.post('/', async (req: Request, res: Response) => {
     // 2. Insertar puntos de control (si hay)
     if (Array.isArray(checkpoints) && checkpoints.length > 0) {
       for (const cp of checkpoints) {
-        const nombre = cp.name?.trim() || `Checkpoint ${cp.route_order}`;
+        const sanitizedCpName = sanitizeText(cp.name);
+        const nombre = sanitizedCpName?.trim() || `Checkpoint ${cp.route_order}`;
         await conn.execute(
           'INSERT INTO puntos_control (ruta_id, nombre, latitud, longitud, orden) VALUES (?, ?, ?, ?, ?)',
           [rutaId, nombre, cp.latitude, cp.longitude, cp.route_order]

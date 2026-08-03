@@ -1,7 +1,7 @@
-// backend/src/routes/rutas.ts
 import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { sanitizeText } from '../utils/sanitize';
 
 const router = Router();
 
@@ -36,15 +36,9 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // ── POST /api/rutas ────────────────────────────────────────────────────────
 router.post('/', async (req: Request, res: Response) => {
-  const {
-    nombre,
-    descripcion,
-    color,
-  } = req.body as {
-    nombre: string;
-    descripcion?: string;
-    color?: string;
-  };
+  const nombre = sanitizeText(req.body.nombre);
+  const descripcion = sanitizeText(req.body.descripcion);
+  const color = sanitizeText(req.body.color);
 
   if (!nombre || typeof nombre !== 'string' || nombre.trim() === '') {
     return res.status(400).json({ message: 'El campo "nombre" es obligatorio.' });
@@ -77,15 +71,9 @@ router.post('/', async (req: Request, res: Response) => {
 // ── PUT /api/rutas/:id ─────────────────────────────────────────────────────
 router.put('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const {
-    nombre,
-    descripcion,
-    color,
-  } = req.body as {
-    nombre?: string;
-    descripcion?: string;
-    color?: string;
-  };
+  const nombre = sanitizeText(req.body.nombre);
+  const descripcion = sanitizeText(req.body.descripcion);
+  const color = sanitizeText(req.body.color);
 
   if (nombre !== undefined && nombre.trim() === '') {
     return res.status(400).json({ message: 'El campo "nombre" no puede estar vacío.' });

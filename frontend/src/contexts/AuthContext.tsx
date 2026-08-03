@@ -65,6 +65,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
   }, []);
 
+  /**
+   * Listen for global unauthorized events (e.g., session invalidated from another device).
+   */
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+      import('sonner').then(({ toast }) => {
+        toast.error('Sesión invalidada', {
+          description: 'Tu sesión expiró o iniciaste sesión desde otro dispositivo.',
+        });
+      });
+    };
+
+    const handleForbidden = () => {
+      import('sonner').then(({ toast }) => {
+        toast.error('Acceso denegado', {
+          description: 'No tienes permisos suficientes para realizar esta acción.',
+        });
+      });
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized as EventListener);
+    window.addEventListener('auth:forbidden', handleForbidden as EventListener);
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized as EventListener);
+      window.removeEventListener('auth:forbidden', handleForbidden as EventListener);
+    };
+  }, [logout]);
+
   const isAuthenticated = !!user;
 
   return (

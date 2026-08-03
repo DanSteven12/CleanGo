@@ -6,6 +6,7 @@ import nodemailer from 'nodemailer';
 import { pool } from '../db';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { logSecurityEvent } from './securityLogService';
+import { config } from '../config';
 
 const SALT_ROUNDS = 12;
 
@@ -20,6 +21,7 @@ export interface AuthUser {
 
 export interface LoginResult {
   token: string;
+  refreshToken: string;
   user: AuthUser;
 }
 
@@ -35,19 +37,18 @@ export interface RequestContext {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function generateToken(user: AuthUser): string {
-  const secret = process.env.JWT_SECRET;
-  const expiresIn = process.env.JWT_EXPIRES_IN || '8h';
-
-  if (!secret) {
-    throw new Error('JWT_SECRET no configurado en variables de entorno.');
-  }
-
+function generateToken(user: AuthUser, jti: string): string {
   return jwt.sign(
-    { id: user.id, correo: user.correo, rol: user.rol },
-    secret,
-    { expiresIn } as jwt.SignOptions
+    { id: user.id, correo: user.correo, rol: user.rol, jti },
+    config.jwt.secret,
+    { expiresIn: config.jwt.expiresIn } as jwt.SignOptions
   );
+}
+
+function generateRefreshToken(): { raw: string; hash: string } {
+  const raw = crypto.randomBytes(40).toString('hex');
+  const hash = crypto.createHash('sha256').update(raw).digest('hex');
+  return { raw, hash };
 }
 
 // ─── Service Functions ────────────────────────────────────────────────────────
@@ -60,7 +61,8 @@ function generateToken(user: AuthUser): string {
 export async function loginUser(
   email: string,
   password: string,
-  ctx?: RequestContext
+  ctx?: RequestContext,
+  rememberMe: boolean = false
 ): Promise<LoginResult> {
   const logCtx = ctx ?? { ip: 'unknown', userAgent: 'unknown', endpoint: '/api/auth/login' };
 
@@ -123,7 +125,17 @@ export async function loginUser(
     rol: usuario.rol,
   };
 
-  const token = generateToken(user);
+  const jti = crypto.randomUUID();
+  const token = generateToken(user, jti);
+  const refreshTokenData = generateRefreshToken();
+
+  // Registrar o actualizar la sesión activa (1 por usuario) con el jti y el refresh_token_hash
+  await pool.execute(
+    `INSERT INTO sesiones (usuario_id, jti, refresh_token_hash, ip, user_agent) 
+     VALUES (?, ?, ?, ?, ?) 
+     ON DUPLICATE KEY UPDATE jti = VALUES(jti), refresh_token_hash = VALUES(refresh_token_hash), ip = VALUES(ip), user_agent = VALUES(user_agent)`,
+    [user.id, jti, refreshTokenData.hash, logCtx.ip, logCtx.userAgent]
+  );
 
   // Audit: successful login
   logSecurityEvent({
@@ -135,7 +147,7 @@ export async function loginUser(
     descripcion: `Inicio de sesión exitoso (rol: ${user.rol}).`,
   });
 
-  return { token, user };
+  return { token, refreshToken: refreshTokenData.raw, user };
 }
 
 /**
@@ -313,4 +325,78 @@ export async function getAuthUser(userId: number): Promise<AuthUser> {
   }
 
   return rows[0] as AuthUser;
+}
+
+/**
+ * Invalida la sesión actual en la base de datos de manera segura,
+ * garantizando que el usuario solo cierre su propia sesión activa.
+ */
+export async function logoutSession(userId: number, jti: string): Promise<void> {
+  await pool.execute(
+    'DELETE FROM sesiones WHERE usuario_id = ? AND jti = ?',
+    [userId, jti]
+  );
+}
+
+/**
+ * Renueva la sesión usando un Refresh Token.
+ * Valida estado, implementa Refresh Token Rotation e invalida el anterior.
+ */
+export async function refreshSession(rawRefreshToken: string, ip: string, userAgent: string): Promise<LoginResult> {
+  const hash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+
+  // Buscar sesión por hash y verificar usuario activo
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT s.id as session_id, s.usuario_id, s.jti, u.nombre, u.correo, u.rol, u.estado 
+     FROM sesiones s
+     JOIN usuarios u ON s.usuario_id = u.id
+     WHERE s.refresh_token_hash = ?`,
+    [hash]
+  );
+
+  if (rows.length === 0) {
+    throw { status: 401, message: 'Refresh token inválido o expirado.' };
+  }
+
+  const session = rows[0];
+
+  if (session.estado !== 'Activo') {
+    // Si la cuenta fue desactivada, borrar la sesión
+    await pool.execute('DELETE FROM sesiones WHERE id = ?', [session.session_id]);
+    throw { status: 401, message: 'Tu cuenta ha sido deshabilitada.' };
+  }
+
+  const user: AuthUser = {
+    id: session.usuario_id,
+    nombre: session.nombre,
+    correo: session.correo,
+    rol: session.rol,
+  };
+
+  // Rotation: Generar nuevo jti (invalida el Access Token anterior) y nuevo Refresh Token
+  const newJti = crypto.randomUUID();
+  const newAccessToken = generateToken(user, newJti);
+  const newRefreshTokenData = generateRefreshToken();
+
+  await pool.execute(
+    'UPDATE sesiones SET jti = ?, refresh_token_hash = ?, ip = ?, user_agent = ? WHERE id = ?',
+    [newJti, newRefreshTokenData.hash, ip, userAgent, session.session_id]
+  );
+
+  return { token: newAccessToken, refreshToken: newRefreshTokenData.raw, user };
+}
+
+/**
+ * Reusable service: Permite a un administrador invalidar una sesión específica.
+ */
+export async function invalidateSessionByJti(jti: string): Promise<void> {
+  await pool.execute('DELETE FROM sesiones WHERE jti = ?', [jti]);
+}
+
+/**
+ * Reusable service: Permite a un administrador invalidar TODAS las sesiones de un usuario.
+ * (Preparado para cuando el sistema permita múltiples sesiones).
+ */
+export async function invalidateAllUserSessions(userId: number): Promise<void> {
+  await pool.execute('DELETE FROM sesiones WHERE usuario_id = ?', [userId]);
 }

@@ -6,7 +6,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
   Truck,
   Map,
   CalendarDays,
@@ -393,8 +392,12 @@ export const DashboardPage: React.FC = () => {
         }}
       >
 
-        {/* ════════ REFRESH BUTTON ════════════════════════════════════════════════ */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-1rem' }}>
+        {/* ════════ REFRESH BUTTON & TIMESTAMP ═══════════════════════════════════ */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '-1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+            <Clock size={14} />
+            <span>{nowStr}</span>
+          </div>
           <button
             id="dashboard-refresh"
             onClick={handleRefresh}

@@ -29,6 +29,8 @@ import { ReportesPage } from './pages/reportes/ReportesPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { WelcomePage } from './pages/welcome/WelcomePage';
 import { NotificacionesPage } from './pages/notificaciones/NotificacionesPage';
+import { PrivacyPolicyPage } from './pages/privacy-policy/PrivacyPolicyPage';
+import { TermsAndConditionsPage } from './pages/terms-and-conditions/TermsAndConditionsPage';
 
 type Module = 'dashboard' | 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos' | 'notificaciones';
 
@@ -109,6 +111,8 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
 
           {/* ── Protected routes (requires valid JWT) ── */}
           <Route element={<ProtectedRoute />}>

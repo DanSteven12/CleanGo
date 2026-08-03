@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 import * as NotificationService from './notification.service';
 import type { CrearAvisoManualDTO, FiltrosNotificaciones, NotificacionCategoria, NotificacionTipo } from './notification.types';
+import { sanitizeText } from '../../utils/sanitize';
 
 // ─── POST /api/notificaciones ────────────────────────────────────────────────
 
@@ -17,7 +18,11 @@ import type { CrearAvisoManualDTO, FiltrosNotificaciones, NotificacionCategoria,
  */
 export async function create(req: Request, res: Response): Promise<void> {
   try {
-    const { tipo, titulo, mensaje, categoria, destinatario } = req.body;
+    const tipo = req.body.tipo;
+    const categoria = req.body.categoria;
+    const destinatario = req.body.destinatario;
+    const titulo = sanitizeText(req.body.titulo);
+    const mensaje = sanitizeText(req.body.mensaje);
 
     if (tipo === 'MANUAL') {
       const dto: CrearAvisoManualDTO = {

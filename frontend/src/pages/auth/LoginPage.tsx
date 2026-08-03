@@ -1,7 +1,7 @@
 // frontend/src/pages/auth/LoginPage.tsx
 import React, { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../hooks/useAuth';
 import { loginUser, ApiError } from '../../services/authService';
@@ -57,7 +57,7 @@ export const LoginPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const { user } = await loginUser({ email: email.trim(), password });
+      const { user } = await loginUser({ email: email.trim(), password, rememberMe });
       login(user);
       toast.success(`¡Bienvenido, ${user.nombre}!`);
       navigate('/dashboard', { replace: true });
@@ -96,6 +96,16 @@ export const LoginPage: React.FC = () => {
 
         <div className="auth-form-card">
           <LoginAttemptsWarning />
+
+          {/* Return to home link */}
+          <Link
+            to="/"
+            className="inline-flex items-center text-xs font-medium text-ink-muted hover:text-primary transition-colors mb-6 group"
+          >
+            <ArrowLeft className="mr-1.5 h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+            Volver al inicio
+          </Link>
+
           <div className="auth-form-header">
             <h2 className="auth-form-title">Iniciar sesión</h2>
             <p className="auth-form-subtitle">Accede a tu cuenta para continuar</p>
@@ -189,6 +199,18 @@ export const LoginPage: React.FC = () => {
                 'Iniciar sesión'
               )}
             </button>
+
+            {/* Legal Notice */}
+            <div className="auth-legal-notice">
+              Al iniciar sesión aceptas nuestros{' '}
+              <Link to="/terms-and-conditions" state={{ from: '/login' }} className="auth-legal-link">
+                Términos y Condiciones
+              </Link>{' '}
+              y nuestra{' '}
+              <Link to="/privacy-policy" state={{ from: '/login' }} className="auth-legal-link">
+                Política de Privacidad
+              </Link>.
+            </div>
           </form>
 
           <div className="auth-bottom">

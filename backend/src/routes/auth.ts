@@ -15,6 +15,7 @@ import {
   forgotPassword,
   resetPassword,
   getMe,
+  refresh,
 } from '../controllers/authController';
 
 const router = Router();
@@ -32,6 +33,12 @@ router.post('/login', loginLimiter, loginValidators, login);
  * No rate limit needed — cookie is already required to reach this point.
  */
 router.post('/logout', logout);
+
+/**
+ * POST /api/auth/refresh
+ * Renueva el Access Token mediante el Refresh Token
+ */
+router.post('/refresh', refresh);
 
 /**
  * POST /api/auth/register

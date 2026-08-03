@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 
 export default function Footer() {
   return (
@@ -68,8 +69,8 @@ export default function Footer() {
             CleanGo © {new Date().getFullYear()} Todos los derechos reservados.
           </p>
           <div className="flex gap-6">
-            <a href="#" className="text-xs text-ink-muted hover:text-white transition-colors">Política de privacidad</a>
-            <a href="#" className="text-xs text-ink-muted hover:text-white transition-colors">Términos y condiciones</a>
+            <Link to="/privacy-policy" state={{ from: '/' }} className="text-xs text-ink-muted hover:text-white transition-colors">Política de privacidad</Link>
+            <Link to="/terms-and-conditions" state={{ from: '/' }} className="text-xs text-ink-muted hover:text-white transition-colors">Términos y condiciones</Link>
           </div>
         </div>
       </div>

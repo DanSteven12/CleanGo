@@ -531,3 +531,33 @@
   margin-top: 0.3rem;
   line-height: 1.5;
 }
+
+/* Legal Notice */
+.auth-legal-notice {
+  text-align: center;
+  font-size: 0.78rem; /* approx 12.5px */
+  color: var(--text);
+  margin-top: 1rem;
+  line-height: 1.5;
+}
+
+.auth-legal-link {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0.25rem 0.125rem;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  display: inline-block;
+}
+
+.auth-legal-link:hover {
+  color: var(--text-h);
+}
+
+.auth-legal-link:focus-visible {
+  outline: none;
+  background: oklch(0.52 0.14 250 / 0.1);
+  color: var(--text-h);
+  box-shadow: 0 0 0 2px var(--primary);
+}
