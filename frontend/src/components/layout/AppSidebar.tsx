@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import iconoCamion from "../../assets/images/icono.png";
+import { motion, AnimatePresence } from 'framer-motion';
+import iconoCamion from '../../assets/images/icono.png';
 import { useAuth } from '../../hooks/useAuth';
 import {
   LayoutDashboard,
@@ -18,8 +19,16 @@ import {
   Clock,
   History,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { obtenerNotificacionesAdmin } from '../../services/notificacionesService';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const SIDEBAR_KEY = 'cleango-sidebar-collapsed';
+const SIDEBAR_EXPANDED_W = 240;
+const SIDEBAR_COLLAPSED_W = 60;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,7 +59,7 @@ interface NavGroup {
 const STANDALONE_TOP: NavItem[] = [
   { id: 'nav-dashboard', label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
 ];
- 
+
 const NAV_GROUPS: NavGroup[] = [
   {
     id: 'group-rutas',
@@ -92,52 +101,121 @@ const STANDALONE_TERTIARY: NavItem[] = [
   { id: 'nav-conductores', label: 'Conductores', to: '/conductores', icon: HardHat },
 ];
 
-
-// ─── Helper: is path active ──────────────────────────────────────────────────
+// ─── Helper ───────────────────────────────────────────────────────────────────
 
 function isPathActive(pathname: string, to: string): boolean {
   if (to === '/dashboard') return pathname === '/dashboard';
   return pathname.startsWith(to);
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Tooltip ─────────────────────────────────────────────────────────────────
+
+interface SidebarTooltipProps {
+  label: string;
+  visible: boolean;
+  children: React.ReactNode;
+}
+
+const SidebarTooltip: React.FC<SidebarTooltipProps> = ({ label, visible, children }) => {
+  const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ top: 0 });
+  const ref = useRef<HTMLDivElement>(null);
+
+  if (!visible) return <>{children}</>;
+
+  return (
+    <div
+      ref={ref}
+      style={{ position: 'relative', display: 'contents' }}
+      onMouseEnter={() => {
+        if (ref.current) {
+          const rect = ref.current.getBoundingClientRect();
+          setPos({ top: rect.top + rect.height / 2 });
+        }
+        setShow(true);
+      }}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            initial={{ opacity: 0, x: -4 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -4 }}
+            transition={{ duration: 0.12, ease: 'easeOut' }}
+            style={{
+              position: 'fixed',
+              left: SIDEBAR_COLLAPSED_W + 8,
+              top: pos.top,
+              transform: 'translateY(-50%)',
+              background: 'oklch(0.22 0.04 250)',
+              color: '#fff',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              padding: '0.3rem 0.625rem',
+              borderRadius: '0.4rem',
+              whiteSpace: 'nowrap',
+              border: '1px solid oklch(0.32 0.05 250)',
+              boxShadow: '0 4px 12px oklch(0.1 0.02 250 / 0.5)',
+              zIndex: 9999,
+              pointerEvents: 'none',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {label}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ─── SidebarLink ─────────────────────────────────────────────────────────────
 
 interface SidebarLinkProps {
   item: NavItem;
   pathname: string;
   indented?: boolean;
   badge?: number;
+  collapsed?: boolean;
 }
 
-const SidebarLink: React.FC<SidebarLinkProps> = ({ item, pathname, indented = false, badge = 0 }) => {
+const SidebarLink: React.FC<SidebarLinkProps> = ({
+  item,
+  pathname,
+  indented = false,
+  badge = 0,
+  collapsed = false,
+}) => {
   const active = isPathActive(pathname, item.to);
   const Icon = item.icon;
 
-  return (
+  const link = (
     <Link
       id={item.id}
       to={item.to}
-      title={item.label}
+      title={collapsed ? item.label : undefined}
       data-active={active ? 'true' : undefined}
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '0.625rem',
-        padding: '0.5rem 0.75rem',
-        paddingLeft: indented ? '2.375rem' : '0.75rem',
+        gap: collapsed ? 0 : '0.625rem',
+        padding: '0.5rem',
+        paddingLeft: collapsed ? '0' : indented ? '2.375rem' : '0.75rem',
         borderRadius: '0.625rem',
         textDecoration: 'none',
         fontSize: '0.8125rem',
         fontWeight: active ? 600 : 400,
-        color: active
-          ? 'var(--sidebar-accent-foreground)'
-          : 'oklch(0.78 0.03 240)',
+        color: active ? 'var(--sidebar-accent-foreground)' : 'oklch(0.78 0.03 240)',
         background: active
           ? 'linear-gradient(135deg, oklch(0.52 0.14 250 / 0.8), oklch(0.42 0.08 200 / 0.8))'
           : 'transparent',
         transition: 'background 0.15s ease, color 0.15s ease',
         position: 'relative',
         letterSpacing: '-0.01em',
+        justifyContent: collapsed ? 'center' : undefined,
+        minWidth: 0,
       }}
       className="sidebar-link"
     >
@@ -163,8 +241,20 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ item, pathname, indented = fa
           transition: 'color 0.15s ease',
         }}
       />
-      <span style={{ lineHeight: 1.3, flex: 1 }}>{item.label}</span>
-      {badge > 0 && (
+      <AnimatePresence initial={false}>
+        {!collapsed && (
+          <motion.span
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: 'auto' }}
+            exit={{ opacity: 0, width: 0 }}
+            transition={{ duration: 0.18, ease: 'easeInOut' }}
+            style={{ lineHeight: 1.3, flex: 1, overflow: 'hidden', whiteSpace: 'nowrap' }}
+          >
+            {item.label}
+          </motion.span>
+        )}
+      </AnimatePresence>
+      {!collapsed && badge > 0 && (
         <span
           style={{
             background: 'var(--primary)',
@@ -175,6 +265,25 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ item, pathname, indented = fa
             borderRadius: '12px',
             lineHeight: 1,
             marginLeft: 'auto',
+            flexShrink: 0,
+          }}
+        >
+          {badge}
+        </span>
+      )}
+      {collapsed && badge > 0 && (
+        <span
+          style={{
+            position: 'absolute',
+            top: 4,
+            right: 4,
+            background: 'var(--primary)',
+            color: 'white',
+            fontSize: '0.55rem',
+            fontWeight: 700,
+            padding: '1px 4px',
+            borderRadius: '8px',
+            lineHeight: 1,
           }}
         >
           {badge}
@@ -182,22 +291,50 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ item, pathname, indented = fa
       )}
     </Link>
   );
+
+  return (
+    <SidebarTooltip label={item.label} visible={collapsed}>
+      {link}
+    </SidebarTooltip>
+  );
 };
+
+// ─── CollapsibleGroup ─────────────────────────────────────────────────────────
 
 interface CollapsibleGroupProps {
   group: NavGroup;
   pathname: string;
+  sidebarCollapsed: boolean;
 }
 
-const CollapsibleGroup: React.FC<CollapsibleGroupProps> = ({ group, pathname }) => {
+const CollapsibleGroup: React.FC<CollapsibleGroupProps> = ({
+  group,
+  pathname,
+  sidebarCollapsed,
+}) => {
   const isGroupActive = group.children.some((c) => isPathActive(pathname, c.to));
   const [open, setOpen] = useState(isGroupActive);
   const Icon = group.icon;
 
-  // Auto-open when navigating into this group
   useEffect(() => {
     if (isGroupActive) setOpen(true);
   }, [isGroupActive]);
+
+  // When sidebar collapses, show all group items as flat icon list
+  if (sidebarCollapsed) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+        {group.children.map((child) => (
+          <SidebarLink
+            key={child.id}
+            item={child}
+            pathname={pathname}
+            collapsed={true}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -233,9 +370,7 @@ const CollapsibleGroup: React.FC<CollapsibleGroupProps> = ({ group, pathname }) 
             transition: 'color 0.15s ease',
           }}
         />
-        <span style={{ flex: 1, lineHeight: 1.3 }}>
-          {group.label}
-        </span>
+        <span style={{ flex: 1, lineHeight: 1.3 }}>{group.label}</span>
         <ChevronDown
           size={13}
           style={{
@@ -248,22 +383,28 @@ const CollapsibleGroup: React.FC<CollapsibleGroupProps> = ({ group, pathname }) 
       </button>
 
       {/* Collapsible children */}
-      <div
-        style={{
-          overflow: 'hidden',
-          maxHeight: open ? `${group.children.length * 44}px` : '0px',
-          transition: 'max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingTop: '2px' }}>
-          {group.children.map((child) => (
-            <SidebarLink key={child.id} item={child} pathname={pathname} indented />
-          ))}
-        </div>
-      </div>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingTop: '2px' }}>
+              {group.children.map((child) => (
+                <SidebarLink key={child.id} item={child} pathname={pathname} indented />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
+
+// ─── Divider ─────────────────────────────────────────────────────────────────
 
 const Divider: React.FC = () => (
   <div
@@ -285,11 +426,52 @@ export const AppSidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Persisted collapsed state
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    // Always start collapsed on mobile to match the CSS padding-left: 60px
+    if (typeof window !== 'undefined' && window.innerWidth <= 767) return true;
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Auto-collapse when viewport shrinks to mobile; restore saved state when widening
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        // Going mobile → force collapse (no localStorage write, just visual)
+        setCollapsed(true);
+      } else {
+        // Going desktop → restore saved preference
+        try {
+          setCollapsed(localStorage.getItem(SIDEBAR_KEY) === 'true');
+        } catch {
+          setCollapsed(false);
+        }
+      }
+    };
+    mql.addEventListener('change', handleChange);
+    return () => mql.removeEventListener('change', handleChange);
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      // Only persist on desktop; on mobile it's always collapsed
+      if (window.innerWidth > 767) {
+        try { localStorage.setItem(SIDEBAR_KEY, String(next)); } catch { /* noop */ }
+      }
+      return next;
+    });
+  };
+
   const fetchUnread = async () => {
     try {
-      // Si en el futuro hay un endpoint /count?leida=false, se reemplaza aquí.
       const unreadList = await obtenerNotificacionesAdmin({ leida: false });
-      setUnreadCount(unreadList.length);
+      setUnreadCount(unreadList.summary?.unread ?? unreadList.data?.length ?? 0);
     } catch (error) {
       console.error('Error fetching unread notifications count:', error);
     }
@@ -297,8 +479,6 @@ export const AppSidebar: React.FC = () => {
 
   useEffect(() => {
     fetchUnread();
-    
-    // Escucha el evento disparado desde NotificacionesPage al marcar una como leída
     const handleRead = () => fetchUnread();
     window.addEventListener('notificacion-leida', handleRead);
     return () => window.removeEventListener('notificacion-leida', handleRead);
@@ -309,17 +489,18 @@ export const AppSidebar: React.FC = () => {
     navigate('/login', { replace: true });
   };
 
-  // Build initials from user name (up to 2 chars)
   const initials = user?.nombre
-    ? user.nombre.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    ? user.nombre.trim().split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
     : 'U';
 
+  const sidebarWidth = collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_EXPANDED_W;
+
   return (
-    <aside
+    <motion.aside
       id="app-sidebar"
+      animate={{ width: sidebarWidth, minWidth: sidebarWidth }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       style={{
-        width: '240px',
-        minWidth: '240px',
         height: '100vh',
         display: 'flex',
         flexDirection: 'column',
@@ -332,193 +513,333 @@ export const AppSidebar: React.FC = () => {
         flexShrink: 0,
         zIndex: 50,
       }}
+      aria-label="Navegación principal"
     >
-      {/* ── Brand ─────────────────────────────────────── */}
+      {/* ── Brand + Toggle ──────────────────────────────── */}
       <div
         style={{
-          padding: '1.125rem 1rem 1rem',
+          padding: collapsed ? '0.875rem 0' : '1rem 1rem 1rem',
           display: 'flex',
           alignItems: 'center',
           gap: '0.625rem',
           borderBottom: '1px solid var(--sidebar-border)',
           flexShrink: 0,
+          justifyContent: collapsed ? 'center' : undefined,
+          position: 'relative',
         }}
       >
-        {/* Logo mark (NUEVO: Imagen en lugar de SVG) */}
+        {/* Logo */}
         <div
           style={{
-            width: '58px', // Ligeramente más grande para que luzca bien el círculo
-            height: '58px',
-            borderRadius: '50%', // Lo hace un círculo perfecto
+            width: collapsed ? '36px' : '42px',
+            height: collapsed ? '36px' : '42px',
+            borderRadius: '50%',
             overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            boxShadow: '0 2px 10px oklch(0.52 0.14 250 / 0.40)', // Conservé tu sombra
+            boxShadow: '0 2px 10px oklch(0.52 0.14 250 / 0.40)',
+            transition: 'width 0.2s ease, height 0.2s ease',
           }}
         >
-          <img
-            src={iconoCamion}
-            alt="CleanGo"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+          <img src={iconoCamion} alt="CleanGo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
 
-        {/* Wordmark (SE QUEDA EXACTAMENTE IGUAL) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
-          <span
+        {/* Wordmark – hidden when collapsed */}
+        <AnimatePresence initial={false}>
+          {!collapsed && (
+            <motion.div
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: 'auto' }}
+              exit={{ opacity: 0, width: 0 }}
+              transition={{ duration: 0.18, ease: 'easeInOut' }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 0, overflow: 'hidden', minWidth: 0 }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '1.05rem',
+                  fontWeight: 700,
+                  letterSpacing: '-0.03em',
+                  background: 'linear-gradient(135deg, oklch(0.82 0.08 240) 0%, #90BF49 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  lineHeight: 1.15,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                CleanGo
+              </span>
+              <span
+                style={{
+                  fontSize: '0.6rem',
+                  color: 'oklch(0.52 0.04 250)',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  fontWeight: 500,
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Logística Urbana
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Toggle button – placed after wordmark when expanded, centered when collapsed */}
+        {!collapsed && (
+          <button
+            id="sidebar-toggle-btn"
+            onClick={toggleCollapsed}
+            aria-label="Colapsar menú"
+            title="Colapsar menú"
             style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '1.05rem',
-              fontWeight: 700,
-              letterSpacing: '-0.03em',
-              background: 'linear-gradient(135deg, oklch(0.82 0.08 240) 0%, #90BF49 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              lineHeight: 1.15,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.25rem',
+              borderRadius: '0.375rem',
+              color: 'oklch(0.52 0.04 250)',
+              display: 'flex',
+              alignItems: 'center',
+              transition: 'background 0.15s ease, color 0.15s ease',
+              marginLeft: 'auto',
+              flexShrink: 0,
             }}
+            className="sidebar-toggle-btn"
           >
-            CleanGo
-          </span>
-          <span style={{ fontSize: '0.6rem', color: 'oklch(0.52 0.04 250)', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 500, lineHeight: 1 }}>
-            Logística Urbana
-          </span>
-        </div>
+            <PanelLeftClose size={15} />
+          </button>
+        )}
       </div>
 
-      {/* ── Nav body ──────────────────────────────────── */}
+      {/* Expand toggle when collapsed (full-width icon row) */}
+      {collapsed && (
+        <button
+          id="sidebar-toggle-btn"
+          onClick={toggleCollapsed}
+          aria-label="Expandir menú"
+          title="Expandir menú"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            borderBottom: '1px solid var(--sidebar-border)',
+            cursor: 'pointer',
+            padding: '0.5rem 0',
+            color: 'oklch(0.52 0.04 250)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 0.15s ease, color 0.15s ease',
+            flexShrink: 0,
+            width: '100%',
+          }}
+          className="sidebar-toggle-btn"
+        >
+          <PanelLeftOpen size={15} />
+        </button>
+      )}
+
+      {/* ── Nav body ───────────────────────────────────── */}
       <nav
         style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          padding: '0.75rem 0.625rem',
+          padding: collapsed ? '0.75rem 0.375rem' : '0.75rem 0.625rem',
           gap: '1px',
           overflowY: 'auto',
+          overflowX: 'hidden',
         }}
       >
         {/* Dashboard */}
         {STANDALONE_TOP.map((item) => (
-          <SidebarLink key={item.id} item={item} pathname={pathname} />
+          <SidebarLink key={item.id} item={item} pathname={pathname} collapsed={collapsed} />
         ))}
 
-        {/* ── Groups: Rutas y Checkpoints / Operación en Vivo */}
         <Divider />
+
         {NAV_GROUPS.map((group) => (
-          <CollapsibleGroup key={group.id} group={group} pathname={pathname} />
-        ))}
-
-        {/* ── Calendario / Notificaciones / Reportes */}
-        <Divider />
-        {STANDALONE_SECONDARY.map((item) => (
-          <SidebarLink 
-            key={item.id} 
-            item={item} 
-            pathname={pathname} 
-            badge={item.id === 'nav-notificaciones' ? unreadCount : 0}
+          <CollapsibleGroup
+            key={group.id}
+            group={group}
+            pathname={pathname}
+            sidebarCollapsed={collapsed}
           />
         ))}
 
-        {/* ── Usuarios / Camiones / Conductores */}
         <Divider />
-        {STANDALONE_TERTIARY.map((item) => (
-          <SidebarLink key={item.id} item={item} pathname={pathname} />
+
+        {STANDALONE_SECONDARY.map((item) => (
+          <SidebarLink
+            key={item.id}
+            item={item}
+            pathname={pathname}
+            badge={item.id === 'nav-notificaciones' ? unreadCount : 0}
+            collapsed={collapsed}
+          />
         ))}
 
+        <Divider />
+
+        {STANDALONE_TERTIARY.map((item) => (
+          <SidebarLink key={item.id} item={item} pathname={pathname} collapsed={collapsed} />
+        ))}
       </nav>
 
       {/* ── Footer: User info + logout ─────────────────── */}
       <div
         style={{
-          padding: '0.75rem 1rem',
+          padding: collapsed ? '0.75rem 0' : '0.75rem 1rem',
           borderTop: '1px solid var(--sidebar-border)',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.625rem',
+          gap: collapsed ? 0 : '0.625rem',
           flexShrink: 0,
           background: 'oklch(0.19 0.035 250 / 0.5)',
+          justifyContent: collapsed ? 'center' : undefined,
+          overflow: 'hidden',
         }}
       >
-        {/* Avatar with initials */}
-        <div
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #1763A6, #152C40)',
-            border: '1.5px solid oklch(0.42 0.07 250)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: 'var(--font-display)',
-            fontWeight: 700,
-            fontSize: '0.72rem',
-            color: 'white',
-            flexShrink: 0,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          {initials}
-        </div>
-
-        {/* Name and email */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0, flex: 1 }}>
-          <span
+        {/* Avatar */}
+        <SidebarTooltip label={user?.nombre ?? 'Usuario'} visible={collapsed}>
+          <div
             style={{
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              color: 'var(--sidebar-foreground)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              letterSpacing: '-0.01em',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #1763A6, #152C40)',
+              border: '1.5px solid oklch(0.42 0.07 250)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: '0.72rem',
+              color: 'white',
+              flexShrink: 0,
+              letterSpacing: '-0.02em',
+              cursor: collapsed ? 'default' : undefined,
             }}
           >
-            {user?.nombre ?? 'Usuario'}
-          </span>
-          <span
-            style={{
-              fontSize: '0.68rem',
-              color: 'oklch(0.52 0.04 250)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {user?.correo ?? ''}
-          </span>
-        </div>
+            {initials}
+          </div>
+        </SidebarTooltip>
 
-        {/* Logout button */}
-        <button
-          id="sidebar-logout-btn"
-          onClick={handleLogout}
-          title="Cerrar sesión"
-          style={{
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '0.375rem',
-            borderRadius: '0.375rem',
-            color: 'oklch(0.52 0.04 250)',
-            display: 'flex',
-            alignItems: 'center',
-            transition: 'background 0.15s ease, color 0.15s ease',
-            flexShrink: 0,
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'oklch(0.58 0.22 25 / 0.15)';
-            (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.65 0.22 25)';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-            (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.52 0.04 250)';
-          }}
-        >
-          <LogOut size={15} />
-        </button>
+        {/* Name and email – hidden when collapsed */}
+        <AnimatePresence initial={false}>
+          {!collapsed && (
+            <motion.div
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: 'auto' }}
+              exit={{ opacity: 0, width: 0 }}
+              transition={{ duration: 0.18, ease: 'easeInOut' }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0, flex: 1, overflow: 'hidden' }}
+            >
+              <span
+                style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  color: 'var(--sidebar-foreground)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                {user?.nombre ?? 'Usuario'}
+              </span>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  color: 'oklch(0.52 0.04 250)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {user?.correo ?? ''}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Logout button – with tooltip when collapsed */}
+        <AnimatePresence initial={false}>
+          {!collapsed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+            >
+              <button
+                id="sidebar-logout-btn"
+                onClick={handleLogout}
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '0.375rem',
+                  borderRadius: '0.375rem',
+                  color: 'oklch(0.52 0.04 250)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  transition: 'background 0.15s ease, color 0.15s ease',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'oklch(0.58 0.22 25 / 0.15)';
+                  (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.65 0.22 25)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                  (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.52 0.04 250)';
+                }}
+              >
+                <LogOut size={15} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* When collapsed: logout as centered icon with tooltip */}
+        {collapsed && (
+          <SidebarTooltip label="Cerrar sesión" visible={true}>
+            <button
+              id="sidebar-logout-btn"
+              onClick={handleLogout}
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '0.375rem',
+                borderRadius: '0.375rem',
+                color: 'oklch(0.52 0.04 250)',
+                display: 'flex',
+                alignItems: 'center',
+                transition: 'background 0.15s ease, color 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'oklch(0.58 0.22 25 / 0.15)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.65 0.22 25)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.52 0.04 250)';
+              }}
+            >
+              <LogOut size={15} />
+            </button>
+          </SidebarTooltip>
+        )}
       </div>
-    </aside>
+    </motion.aside>
   );
 };

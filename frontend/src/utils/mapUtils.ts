@@ -77,20 +77,144 @@ export function buildTearDropPinHtml(
  */
 export function buildCheckpointPinHtml(number: number, color = DEFAULT_ROUTE_COLOR): string {
   return `
-    <div style="
-      background: ${color};
-      color: #fff;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 13px;
-      border: 2px solid #fff;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-      cursor: pointer;
-    ">${number}</div>
+    <svg
+      width="32"
+      height="44"
+      viewBox="0 0 36 50"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style="display:block;overflow:visible;cursor:pointer;transform: translateY(-50%);"
+    >
+      <defs>
+        <filter id="pin-drop-shadow-${number}" x="-40%" y="-20%" width="180%" height="180%">
+          <feDropShadow
+            dx="0" dy="3"
+            stdDeviation="2.5"
+            flood-color="rgba(0,0,0,0.3)"
+          />
+        </filter>
+      </defs>
+      <!-- Teardrop body -->
+      <path
+        d="M18 2C10.268 2 4 8.268 4 16
+           C4 26.5 18 48 18 48
+           C18 48 32 26.5 32 16
+           C32 8.268 25.732 2 18 2Z"
+        fill="${color}"
+        stroke="#ffffff"
+        stroke-width="2.5"
+        stroke-linejoin="round"
+        filter="url(#pin-drop-shadow-${number})"
+      />
+      <!-- Checkpoint order number -->
+      <text
+        x="18"
+        y="17"
+        fill="#ffffff"
+        font-size="13"
+        font-weight="700"
+        font-family="system-ui, -apple-system, sans-serif"
+        text-anchor="middle"
+        dominant-baseline="central"
+      >${number}</text>
+    </svg>
   `;
 }
+
+/**
+ * Decodes a Google Maps encoded polyline string into an array of LatLng objects.
+ * This avoids needing the google.maps.geometry library loaded.
+ */
+export function decodePolyline(encoded: string): { lat: number; lng: number }[] {
+  const poly: { lat: number; lng: number }[] = [];
+  let index = 0, len = encoded.length;
+  let lat = 0, lng = 0;
+
+  while (index < len) {
+    let b, shift = 0, result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lng += dlng;
+
+    poly.push({ lat: lat / 1e5, lng: lng / 1e5 });
+  }
+  return poly;
+}
+
+const geometryCache = new Map<string, { lat: number; lng: number }[]>();
+
+/**
+ * Fetches the real street geometry connecting checkpoints using the modern Routes API.
+ * Uses in-memory caching to avoid redundant requests.
+ * Falls back to straight lines (returning checkpoints) if the API fails.
+ */
+export async function fetchRouteGeometry(
+  checkpoints: { lat: number; lng: number }[]
+): Promise<{ lat: number; lng: number }[]> {
+  if (checkpoints.length < 2) return checkpoints;
+
+  // Generate cache key based on coordinates
+  const key = checkpoints.map(c => `${c.lat.toFixed(5)},${c.lng.toFixed(5)}`).join('|');
+  if (geometryCache.has(key)) {
+    return geometryCache.get(key)!;
+  }
+
+  try {
+    const origin = checkpoints[0];
+    const destination = checkpoints[checkpoints.length - 1];
+    const intermediates = checkpoints.slice(1, -1).map(cp => ({
+      location: { latLng: { latitude: cp.lat, longitude: cp.lng } }
+    }));
+
+    const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+        "X-Goog-FieldMask": "routes.polyline.encodedPolyline"
+      },
+      body: JSON.stringify({
+        origin: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } },
+        destination: { location: { latLng: { latitude: destination.lat, longitude: destination.lng } } },
+        intermediates,
+        travelMode: "DRIVE",
+        routingPreference: "TRAFFIC_AWARE"
+      })
+    });
+
+    if (!response.ok) {
+      console.warn('[Routes API] request failed, falling back to straight lines', await response.text());
+      return checkpoints; // fallback
+    }
+
+    const data = await response.json();
+    const encodedPolyline = data.routes?.[0]?.polyline?.encodedPolyline;
+    
+    if (!encodedPolyline) {
+      console.warn('[Routes API] no polyline returned, falling back to straight lines');
+      return checkpoints; // fallback
+    }
+
+    const decoded = decodePolyline(encodedPolyline);
+    geometryCache.set(key, decoded);
+    return decoded;
+  } catch (err) {
+    console.error('[Routes API] Network error, falling back to straight lines:', err);
+    return checkpoints; // fallback
+  }
+}
+

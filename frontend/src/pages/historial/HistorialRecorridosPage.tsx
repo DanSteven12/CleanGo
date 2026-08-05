@@ -1,6 +1,6 @@
 // frontend/src/pages/historial/HistorialRecorridosPage.tsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-
+import { motion, AnimatePresence } from 'framer-motion';
 import type {
   CheckpointDetalle,
   HistorialPaginado,
@@ -438,23 +438,23 @@ export const HistorialRecorridosPage: React.FC = () => {
             )}
           </div>
 
+          <AnimatePresence mode="wait">
           {isLoading ? (
-            <div className="historial-state-box">
+            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="historial-state-box">
               <div className="historial-spinner" />
               <span>Consultando historial…</span>
-            </div>
+            </motion.div>
           ) : recorridos.length === 0 ? (
-            <div className="historial-state-box">
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="historial-state-box">
               <span className="historial-state-icon">📂</span>
               <span>No se encontraron recorridos con los filtros seleccionados.</span>
-            </div>
+            </motion.div>
           ) : (
-            <>
+            <motion.div key="table" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="historial-table-wrapper">
                 <table className="historial-table">
                   <thead>
                     <tr>
-                      <th>#</th>
                       <th>Fecha Programada</th>
                       <th>Ruta</th>
                       <th>Unidad</th>
@@ -467,7 +467,11 @@ export const HistorialRecorridosPage: React.FC = () => {
                       <th></th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <motion.tbody
+                    initial="hidden" animate="show"
+                    variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
+                  >
+                    <AnimatePresence>
                     {recorridos.map(r => {
                       const isSelected = selectedId === r.id;
                       const pct = r.total_checkpoints > 0
@@ -475,18 +479,18 @@ export const HistorialRecorridosPage: React.FC = () => {
                         : 0;
 
                       return (
-                        <tr
+                        <motion.tr
                           key={r.id}
+                          layout
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                           id={`fila-recorrido-${r.id}`}
                           className={isSelected ? 'historial-row--selected' : ''}
                           onClick={() => handleSelectRow(r.id)}
                           title="Clic para ver detalle"
                         >
-                          {/* ID */}
-                          <td style={{ fontWeight: 700, color: 'var(--text-h)', fontSize: '0.78rem' }}>
-                            #{r.id}
-                          </td>
-
                           {/* Fecha programada */}
                           <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-h)', fontWeight: 600 }}>
                             {fmtDate(r.fecha_programada)}
@@ -556,10 +560,11 @@ export const HistorialRecorridosPage: React.FC = () => {
                               {isSelected ? '▲ Cerrar' : '▼ Detalle'}
                             </button>
                           </td>
-                        </tr>
+                        </motion.tr>
                       );
                     })}
-                  </tbody>
+                    </AnimatePresence>
+                  </motion.tbody>
                 </table>
               </div>
 
@@ -590,8 +595,9 @@ export const HistorialRecorridosPage: React.FC = () => {
                   >Siguiente →</button>
                 </div>
               )}
-            </>
+            </motion.div>
           )}
+          </AnimatePresence>
         </div>
       )}
 

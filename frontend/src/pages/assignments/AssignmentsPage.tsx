@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Loader2, Check, X } from 'lucide-react';
+import { Plus, Pencil, Loader2, Check, X, Eye } from 'lucide-react';
+import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import type { AsignacionData, AsignacionRecord } from '../../types/routes';
 
@@ -130,6 +132,10 @@ export const AssignmentsPage: React.FC = () => {
 
   // ── Iniciar edición ────────────────────────────────────────────────────
   const startEdit = (a: AsignacionRecord) => {
+    if (a.estatus_recorrido?.trim().toLowerCase() !== 'pendiente') {
+      toast.error('Esta asignación ya no puede modificarse porque el recorrido ya fue iniciado o finalizado.');
+      return;
+    }
     setEditingId(a.id);
     setEditRutaId(a.ruta_id);
     setEditForm({
@@ -209,18 +215,19 @@ export const AssignmentsPage: React.FC = () => {
           </Link>
         </div>
 
+        <AnimatePresence mode="wait">
         {isLoadingList ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', fontSize: '0.875rem', padding: '1rem 0' }}>
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', fontSize: '0.875rem', padding: '1rem 0' }}>
           <Loader2 size={16} className="spin" style={{ color: 'var(--primary)' }} />
             Cargando asignaciones…
-          </div>
+          </motion.div>
         ) : asignaciones.length === 0 ? (
-          <div className="empty-state">
+          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="empty-state">
             <span className="empty-state-icon">📋</span>
             <p>No hay asignaciones registradas.<br />Crea la primera usando el botón de arriba.</p>
-          </div>
+          </motion.div>
         ) : (
-          <div className="assignments-table-wrapper">
+          <motion.div key="table" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="assignments-table-wrapper">
             <table className="assignments-table">
               <thead>
                 <tr>
@@ -232,57 +239,86 @@ export const AssignmentsPage: React.FC = () => {
                   <th style={{ width: '80px', textAlign: 'center' }}>Acciones</th>
                 </tr>
               </thead>
-              <tbody>
-                {asignaciones.map(a => (
-                  <tr key={a.id} className={editingId === a.id ? 'row-editing' : ''}>
-                    <td>
-                      <span className="ruta-pill">
-                        <span className="ruta-pill-dot" style={{ background: a.ruta_color }} />
-                        {a.ruta_nombre}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-h)' }}>
-                        {a.numero_economico}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>{a.placa}</div>
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-h)' }}>
-                        {a.conductor_nombre}
-                      </div>
-                    </td>
-                    <td style={{ fontSize: '0.8125rem' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-h)' }}>
-                        {formatDate(a.fecha_programada)}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text)', marginTop: '0.15rem' }}>
-                        {formatTime12h(a.horario_inicio)} – {formatTime12h(a.horario_fin)}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={getEstatusBadgeClass(a.estatus_recorrido)}>
-                        {a.estatus_recorrido}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <button
-                          id={`btn-edit-asignacion-${a.id}`}
-                          className="action-btn action-btn--edit"
-                          onClick={() => startEdit(a)}
-                          title="Editar asignación"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+              <motion.tbody
+                initial="hidden" animate="show"
+                variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
+              >
+                <AnimatePresence>
+                {asignaciones.map(a => {
+                  const isEditable = a.estatus_recorrido?.trim().toLowerCase() === 'pendiente';
+                  return (
+                    <motion.tr
+                      key={a.id}
+                      layout
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                      className={editingId === a.id ? 'row-editing' : ''}
+                    >
+                      <td>
+                        <span className="ruta-pill">
+                          <span className="ruta-pill-dot" style={{ background: a.ruta_color }} />
+                          {a.ruta_nombre}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-h)' }}>
+                          {a.numero_economico}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>{a.placa}</div>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-h)' }}>
+                          {a.conductor_nombre}
+                        </div>
+                      </td>
+                      <td style={{ fontSize: '0.8125rem' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-h)' }}>
+                          {formatDate(a.fecha_programada)}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text)', marginTop: '0.15rem' }}>
+                          {formatTime12h(a.horario_inicio)} – {formatTime12h(a.horario_fin)}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={getEstatusBadgeClass(a.estatus_recorrido)}>
+                          {a.estatus_recorrido}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          {isEditable ? (
+                            <button
+                              id={`btn-edit-asignacion-${a.id}`}
+                              className="action-btn action-btn--edit"
+                              onClick={() => startEdit(a)}
+                              title="Editar asignación"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          ) : (
+                            <button
+                              id={`btn-view-asignacion-${a.id}`}
+                              className="action-btn"
+                              onClick={() => toast.info('Esta asignación ya no puede modificarse porque el recorrido ya fue iniciado o finalizado.')}
+                              title="Esta asignación ya no puede modificarse porque el recorrido ya fue iniciado o finalizado."
+                              style={{ opacity: 0.5, cursor: 'not-allowed', color: 'var(--text-muted)' }}
+                            >
+                              <Eye size={15} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+                </AnimatePresence>
+              </motion.tbody>
             </table>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
 
 

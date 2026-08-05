@@ -28,7 +28,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
       {/* ── Main content area ────────────────────────── */}
       <div
-        className="bg-grid"
+        className="bg-grid main-content"
         style={{
           flex: 1,
           display: 'flex',

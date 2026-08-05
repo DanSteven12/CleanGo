@@ -213,7 +213,7 @@ export const CalendarioPage: React.FC = () => {
         </div>
 
         {/* Calendar Container */}
-        <div style={{ flex: 1, background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '0.75rem', padding: '1.5rem', overflow: 'hidden' }}>
+        <div style={{ flex: 1, background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '0.75rem', padding: '1rem', overflow: 'hidden' }}>
           {isLoading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '0.5rem', color: 'var(--text)' }}>
               <Loader2 size={24} className="spin" style={{ color: 'var(--accent)' }} />
@@ -233,12 +233,21 @@ export const CalendarioPage: React.FC = () => {
                 .fc .fc-daygrid-day-number { color: var(--text); }
                 .fc .fc-list-event-title a { color: var(--text-h); }
                 .fc .fc-list-day-cushion { background: var(--panel-border); }
+
+                /* ── Mobile Responsive Overrides ── */
+                @media (max-width: 768px) {
+                  .fc .fc-toolbar { flex-direction: column; gap: 1rem; }
+                  .fc .fc-toolbar-chunk { display: flex; justify-content: center; width: 100%; flex-wrap: wrap; gap: 0.5rem; }
+                  .fc .fc-toolbar-title { font-size: 1.1rem; text-align: center; }
+                  .calendar-scroll-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 0.5rem; }
+                  .fc-view-harness { min-width: 700px; } /* Forces the calendar to be wide enough, making the wrapper scroll */
+                }
               `}
             </style>
           )}
 
           {!isLoading && (
-            <div style={{ height: 'calc(100vh - 16rem)', minHeight: '600px' }}>
+            <div className="calendar-scroll-wrapper" style={{ height: 'calc(100vh - 16rem)', minHeight: '600px' }}>
               <FullCalendar
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                 initialView="dayGridMonth"

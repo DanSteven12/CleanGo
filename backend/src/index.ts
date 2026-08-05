@@ -97,10 +97,12 @@ app.use('/api/notificaciones', authMiddleware, notificacionesRouter);
 
 import { initSocketServer } from './socket/socketServer';
 import { resumeActiveSimulations } from './services/simulationService';
+import { ensureHistoricalSnapshotSchema } from './utils/historyMigration';
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);
   console.log(`🔐 Auth routes: /api/auth/{login,register,forgot-password,reset-password,me}`);
+  void ensureHistoricalSnapshotSchema();
 });
 
 // Initialize Socket.IO and resume any active simulations

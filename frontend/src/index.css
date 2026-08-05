@@ -281,6 +281,15 @@
   color: var(--sidebar-accent-foreground) !important;
 }
 
+.sidebar-toggle-btn:hover {
+  background: oklch(0.30 0.06 250 / 0.50) !important;
+  color: var(--sidebar-foreground) !important;
+}
+
+.sidebar-toggle-btn:active {
+  transform: scale(0.95);
+}
+
 /* Sidebar scrollbar */
 #app-sidebar::-webkit-scrollbar       { width: 4px; }
 #app-sidebar::-webkit-scrollbar-track { background: transparent; }
@@ -480,3 +489,525 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE SYSTEM — CleanGo Admin Panel
+   Breakpoints: 320 / 375 / 390 / 414 / 768 / 820 / 1024 / 1280 / 1440 / 1920
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 1.25rem;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid var(--border, #E5E7EB);
+  width: 100%;
+  box-sizing: border-box;
+  gap: 0.75rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.app-header__subtitle {
+  font-size: 0.75rem;
+  color: #6B7280;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.app-header__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-family: var(--font-display, inherit);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header__icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border, #E5E7EB);
+  background-color: #FFFFFF;
+  cursor: pointer;
+  color: #4B5563;
+  transition: background-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.app-header__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1763A6, #152C40);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(23, 99, 166, 0.25);
+}
+
+.app-header__user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header__user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.app-header__user-role {
+  font-size: 0.72rem;
+  color: #6B7280;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-top: 0.1rem;
+  white-space: nowrap;
+}
+
+/* Hide user info text on small screens */
+@media (max-width: 480px) {
+  .app-header__user-info { display: none; }
+  .app-header__subtitle { display: none; }
+  .app-header { padding: 0.75rem 1rem; }
+  .app-header__title { font-size: 1rem; }
+}
+
+@media (min-width: 1280px) {
+  .app-header {
+    padding: 1.125rem 2rem;
+  }
+  .app-header__title { font-size: 1.25rem; }
+  .app-header__icon-btn, .app-header__avatar { width: 40px; height: 40px; }
+}
+
+/* ── Page padding — fluid on small screens ───────────────────────────────── */
+
+/* Admin pages with class "assignments-page" or inline padding: 1.75rem */
+@media (max-width: 640px) {
+  .assignments-page {
+    padding: 1rem !important;
+    gap: 1.25rem !important;
+  }
+
+  #dashboard-page {
+    padding: 1rem !important;
+    gap: 1.25rem !important;
+  }
+
+  .usuarios-page {
+    padding: 1rem !important;
+    gap: 1.25rem !important;
+  }
+
+  .section-card {
+    padding: 1rem !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .assignments-page {
+    padding: 0.75rem !important;
+    gap: 1rem !important;
+  }
+
+  #dashboard-page {
+    padding: 0.75rem !important;
+    gap: 1rem !important;
+  }
+
+  .section-card {
+    padding: 0.875rem !important;
+  }
+}
+
+/* ── Sidebar mobile overlay ──────────────────────────────────────────────── */
+
+/*
+  On mobile (≤767px) the sidebar becomes position:fixed, removing it
+  from the flex flow. The main content must gain padding-left equal to
+  the sidebar width so content is NOT hidden behind it.
+
+  Collapsed sidebar = 60px  →  padding-left: 60px
+  Framer Motion animates the aside width, but on mobile we always keep
+  it collapsed (60px) via the localStorage default or auto-collapse below.
+*/
+
+@media (max-width: 767px) {
+  #app-sidebar {
+    position: fixed !important;
+    z-index: 200 !important;
+    height: 100dvh !important;
+    top: 0;
+    left: 0;
+  }
+
+  /* Compensate: push content right so it is NOT covered by the fixed sidebar */
+  .main-content {
+    padding-left: 60px;
+  }
+}
+
+/* ── Dashboard ─────────────────────────────────────────────────────────────── */
+
+/* Timestamp + refresh bar */
+@media (max-width: 520px) {
+  #dashboard-page > div:first-child {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.5rem;
+  }
+}
+
+/* Stats grid — ensure proper columns at all breakpoints */
+#dashboard-stats [style*="auto-fill"] {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+@media (max-width: 480px) {
+  #dashboard-stats [style*="auto-fill"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 340px) {
+  #dashboard-stats [style*="auto-fill"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Alertas grid */
+@media (max-width: 600px) {
+  #dashboard-alertas [style*="auto-fill"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Quick-access grid */
+@media (max-width: 600px) {
+  #dashboard-accesos-rapidos [style*="auto-fill"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Live Map ─────────────────────────────────────────────────────────────── */
+
+/* Stat cards grid in live map */
+@media (max-width: 640px) {
+  .routes-section [style*="repeat(auto-fit, minmax(210px"] {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .routes-section [style*="repeat(auto-fit, minmax(210px"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Map height responsive */
+@media (max-width: 640px) {
+  /* Target the map container div with fixed 600px height */
+  .routes-section > section > div[style*="600px"] {
+    height: 400px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .routes-section > section > div[style*="600px"] {
+    height: 320px !important;
+  }
+}
+
+/* ── Tables — universal responsive ──────────────────────────────────────── */
+
+/* All table wrappers should always scroll horizontally */
+.assignments-table-wrapper,
+.routes-table-wrapper,
+.usuarios-table-wrapper,
+.historial-table-wrapper,
+.reportes-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Minimum cell widths to prevent text from being too narrow */
+.assignments-table th,
+.assignments-table td,
+.routes-table th,
+.routes-table td,
+.usuarios-table th,
+.usuarios-table td {
+  min-width: 80px;
+  white-space: nowrap;
+}
+
+/* Allow description / name columns to be a bit wider */
+.routes-table td:nth-child(2),
+.usuarios-table td:nth-child(2),
+.assignments-table td:nth-child(2) {
+  min-width: 140px;
+  white-space: normal;
+}
+
+/* ── Modals ──────────────────────────────────────────────────────────────── */
+
+.modal-content {
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+
+@media (max-width: 540px) {
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 1rem 1rem 0 0 !important;
+    max-height: 92dvh !important;
+    padding: 1.25rem !important;
+  }
+}
+
+/* ── Forms — usable on narrow screens ───────────────────────────────────── */
+
+.form-grid {
+  grid-template-columns: 1fr !important; /* always single column on mobile */
+}
+
+@media (min-width: 640px) {
+  .form-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+  }
+}
+
+/* Routes form */
+@media (max-width: 640px) {
+  .form-actions {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+
+  .save-button,
+  .crear-ruta-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ── Filter bars ─────────────────────────────────────────────────────────── */
+
+/* Historial, Reportes — force wrap on mobile */
+@media (max-width: 768px) {
+  .historial-filter-bar,
+  .reportes-filters,
+  .usuarios-filters {
+    flex-wrap: wrap !important;
+    gap: 0.75rem !important;
+  }
+
+  .historial-filter-group,
+  .reportes-filter-group {
+    flex: 1 1 calc(50% - 0.375rem) !important;
+    min-width: 140px !important;
+  }
+
+  .historial-filter-actions,
+  .reportes-filter-actions {
+    flex: 1 1 100% !important;
+    padding-top: 0 !important;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .historial-filter-group,
+  .reportes-filter-group {
+    flex: 1 1 100% !important;
+  }
+
+  .historial-btn-buscar,
+  .historial-btn-limpiar,
+  .reportes-btn-clear {
+    flex: 1;
+  }
+}
+
+/* Reportes search bar takes full width on small screens */
+@media (max-width: 768px) {
+  .reportes-search-wrapper {
+    flex: 1 1 100% !important;
+  }
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .reportes-pagination {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .reportes-pagination-info {
+    flex: 1 1 100%;
+    text-align: center;
+  }
+
+  .historial-pagination {
+    gap: 0.5rem;
+  }
+}
+
+/* ── Camiones grid — already handles mobile via @media in camiones-cards.css */
+/* But ensure page shell has correct padding */
+
+@media (max-width: 640px) {
+  /* The inline-styled camiones/conductores pages use 1.75rem padding */
+  /* Override via child selector on the outer div */
+  .trucks-grid {
+    gap: 0.875rem;
+  }
+}
+
+/* ── Calendar and Horarios ───────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* Calendar grid cells should not overflow */
+  .calendario-grid,
+  [class*="calendar"] {
+    overflow-x: auto;
+  }
+}
+
+/* ── Notificaciones ─────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* Notification list items with flex layout */
+  .notificacion-item {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+}
+
+/* ── Routes page edit card ───────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .map-and-assignment-wrapper {
+    flex-direction: column !important;
+  }
+
+  .map-container {
+    height: 280px !important;
+  }
+
+  .map-container-relative {
+    width: 100% !important;
+    flex: unset !important;
+  }
+}
+
+/* ── PageSectionHeader ───────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .page-title {
+    font-size: 1.15rem;
+  }
+}
+
+/* ── Assignment edit card ────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .assignment-edit-card {
+    padding: 1rem !important;
+  }
+}
+
+/* ── Form Actions ───────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .form-actions {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+  .form-actions > button,
+  .form-actions > .save-button,
+  .form-actions > .crear-ruta-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ── Typography scale on small screens ──────────────────────────────────── */
+
+@media (max-width: 375px) {
+  .stat-value {
+    font-size: 1.25rem !important;
+  }
+
+  .page-title {
+    font-size: 1rem !important;
+  }
+}
+
+/* ── Touch target minimum (44x44px accessible) ───────────────────────────── */
+
+@media (hover: none) and (pointer: coarse) {
+  .action-btn,
+  .sidebar-link,
+  .sidebar-group-btn,
+  .sidebar-toggle-btn,
+  .historial-btn-ver,
+  .historial-pag-btn,
+  .reportes-action-btn,
+  .reportes-pagination-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Make table action buttons bigger on touch */
+  .action-btn {
+    padding: 0.5rem 0.625rem !important;
+  }
+}
+
+/* ── Ultra-wide (1920+) — cap content width ──────────────────────────────── */
+
+@media (min-width: 1920px) {
+  #dashboard-page {
+    max-width: 1600px;
+  }
+}

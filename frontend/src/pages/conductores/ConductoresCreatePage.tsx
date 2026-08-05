@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import '../../assets/styles/usuarios.css';
 import { Header } from '../../components/layout/Header';
@@ -65,7 +66,10 @@ export const ConductoresCreatePage: React.FC = () => {
         </button>
       </div>
 
-      <div className="form-container">
+      <motion.div 
+        className="form-container"
+        initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+      >
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="form-field">
@@ -85,13 +89,20 @@ export const ConductoresCreatePage: React.FC = () => {
             </div>
           </div>
 
+          <AnimatePresence>
           {error && (
-            <div className="validation-error-banner" style={{ marginTop: '1.5rem' }}>
-              <span>{error}</span>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0, y: -5 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div className="validation-error-banner" style={{ marginTop: '1.5rem' }}>
+                <span>{error}</span>
+              </div>
+            </motion.div>
           )}
+          </AnimatePresence>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
+          <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
             <button type="button" className="btn-secondary" onClick={() => navigate('/conductores')} disabled={isSaving}>
               Cancelar
             </button>
@@ -101,7 +112,7 @@ export const ConductoresCreatePage: React.FC = () => {
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
     </>
   );

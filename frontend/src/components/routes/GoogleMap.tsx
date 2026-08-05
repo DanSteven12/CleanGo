@@ -22,7 +22,7 @@ import {
   useMapsLibrary,
 } from '@vis.gl/react-google-maps';
 import type { Checkpoint } from '../../services/mapService';
-import { buildCheckpointPinHtml } from '../../utils/mapUtils';
+import { buildCheckpointPinHtml, fetchRouteGeometry } from '../../utils/mapUtils';
 
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
 const MAP_ID = 'eef27e6e8ddc7ed979e80107';
@@ -101,12 +101,12 @@ const GoogleMapInner: React.FC<GoogleMapProps> = ({
   onAddCheckpoint,
 }) => {
   const [openInfoWindowId, setOpenInfoWindowId] = useState<string | null>(null);
+  const [routePath, setRoutePath] = useState<google.maps.LatLngLiteral[]>([]);
 
-  // Coordenadas para la polyline
-  const routePath: google.maps.LatLngLiteral[] = checkpoints.map((cp) => ({
-    lat: cp.lat,
-    lng: cp.lng,
-  }));
+  React.useEffect(() => {
+    const coords = checkpoints.map((cp) => ({ lat: cp.lat, lng: cp.lng }));
+    fetchRouteGeometry(coords).then(setRoutePath);
+  }, [checkpoints]);
 
   // Calcular distancia total (Haversine simplificado)
   const totalDistance = (() => {
@@ -123,7 +123,7 @@ const GoogleMapInner: React.FC<GoogleMapProps> = ({
 
   const handleMapClick = (lat: number, lng: number) => {
     const defaultName = `Checkpoint ${checkpoints.length + 1}`;
-    const name = window.prompt('Nombre del checkpoint:', defaultName) ?? defaultName;
+    const name = defaultName;
     onAddCheckpoint({
       name,
       address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,

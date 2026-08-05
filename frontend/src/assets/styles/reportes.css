@@ -194,7 +194,7 @@
   font-size: 0.825rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
   font-family: inherit;
   white-space: nowrap;
 }
@@ -203,6 +203,11 @@
   background: var(--muted);
   color: var(--text-h);
   border-color: oklch(0.75 0.02 240);
+  transform: translateY(-1px);
+}
+
+.reportes-btn-clear:active {
+  transform: scale(0.97);
 }
 
 /* ─── Sección de tabla ─── */
@@ -392,7 +397,7 @@
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
   font-family: inherit;
   white-space: nowrap;
 }
@@ -401,6 +406,11 @@
   background: oklch(0.52 0.14 250 / 0.08);
   border-color: oklch(0.52 0.14 250 / 0.40);
   color: #1763A6;
+  transform: translateY(-1px);
+}
+
+.reportes-action-btn:active {
+  transform: scale(0.95);
 }
 
 /* ─── Paginación ─── */
@@ -434,7 +444,7 @@
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
   font-family: inherit;
 }
 
@@ -446,6 +456,11 @@
 .reportes-pagination-btn:not(:disabled):hover {
   background: var(--muted);
   border-color: oklch(0.75 0.02 240);
+  transform: translateY(-1px);
+}
+
+.reportes-pagination-btn:not(:disabled):active {
+  transform: scale(0.97);
 }
 
 /* ─── Empty state ─── */

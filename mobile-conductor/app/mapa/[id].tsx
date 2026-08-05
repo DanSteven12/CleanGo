@@ -11,6 +11,7 @@ import { NavigationHeader } from '../../components/navegacion/NavigationHeader';
 import { NavigationBottomBar } from '../../components/navegacion/NavigationBottomBar';
 import { CheckpointCompletedCard } from '../../components/navegacion/CheckpointCompletedCard';
 import { NavigationControls } from '../../components/navegacion/NavigationControls';
+import { fetchRouteGeometry } from '../../utils/routeGeometryCache';
 
 // Función auxiliar para calcular distancia con fórmula Haversine (en km)
 const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -46,6 +47,7 @@ const MapaRecorridoScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isFinishing, setIsFinishing] = useState(false);
   const [recorridoData, setRecorridoData] = useState<any | null>(null);
+  const [streetGeometry, setStreetGeometry] = useState<{latitude: number; longitude: number}[]>([]);
 
   const [heading, setHeading] = useState(0);
   const prevPosRef = useRef<{ latitude: number; longitude: number } | null>(null);
@@ -90,6 +92,19 @@ const MapaRecorridoScreen = () => {
     horaInicio: recorridoData?.hora_inicio || null,
     rutaId: recorridoData?.ruta_id,
   });
+
+  useEffect(() => {
+    const coords = checkpoints
+      .map((c) => ({
+        latitude: Number(c.latitud),
+        longitude: Number(c.longitud),
+      }))
+      .filter((c) => !isNaN(c.latitude) && !isNaN(c.longitude));
+    
+    if (coords.length >= 2) {
+      fetchRouteGeometry(coords).then(setStreetGeometry);
+    }
+  }, [checkpoints]);
 
   // Calcular heading y manejar cámara automática (Cambios 2 y 3)
   useEffect(() => {
@@ -292,7 +307,7 @@ const MapaRecorridoScreen = () => {
       >
         {polylineCoords.length > 1 && (
           <Polyline
-            coordinates={polylineCoords}
+            coordinates={streetGeometry.length > 0 ? streetGeometry : polylineCoords}
             strokeColor="#10b981"
             strokeWidth={6}
           />

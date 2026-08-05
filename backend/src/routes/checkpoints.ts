@@ -1,7 +1,7 @@
-// backend/src/routes/checkpoints.ts
 import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { checkRouteEditable } from '../utils/routeValidation';
 
 const router = Router();
 
@@ -51,6 +51,11 @@ router.post('/', async (req: Request, res: Response) => {
   const nombre = name?.trim() || `Checkpoint ${route_order}`;
 
   try {
+    const status = await checkRouteEditable(route_id);
+    if (!status.editable) {
+      return res.status(422).json({ success: false, message: status.notEditableReason });
+    }
+
     const [result] = await pool.execute<ResultSetHeader>(
       'INSERT INTO puntos_control (ruta_id, nombre, latitud, longitud, orden) VALUES (?, ?, ?, ?, ?)',
       [route_id, nombre, latitude, longitude, route_order]
@@ -72,6 +77,17 @@ router.post('/', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
+    const [pts] = await pool.query<RowDataPacket[]>('SELECT ruta_id FROM puntos_control WHERE id = ?', [id]);
+    if (pts.length === 0) {
+      return res.status(404).json({ message: 'Checkpoint no encontrado.' });
+    }
+    const rutaId = pts[0].ruta_id;
+
+    const status = await checkRouteEditable(rutaId);
+    if (!status.editable) {
+      return res.status(422).json({ success: false, message: status.notEditableReason });
+    }
+
     const [result] = await pool.execute<ResultSetHeader>(
       'DELETE FROM puntos_control WHERE id = ?',
       [id]
@@ -94,10 +110,15 @@ export const routeCheckpointsRouter = Router();
 
 routeCheckpointsRouter.get('/:id/checkpoints', async (req: Request, res: Response) => {
   const { id } = req.params;
+  const rutaId = Number(id);
+  if (!Number.isFinite(rutaId) || rutaId <= 0) {
+    return res.status(400).json({ success: false, message: 'ID de ruta inválido.' });
+  }
+
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
       'SELECT * FROM puntos_control WHERE ruta_id = ? ORDER BY orden ASC',
-      [id]
+      [rutaId]
     );
     res.json(rows.map(mapRow));
   } catch (err) {

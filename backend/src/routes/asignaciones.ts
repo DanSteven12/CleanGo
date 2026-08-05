@@ -210,6 +210,13 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
     const existing = (current as RowDataPacket[])[0];
 
+    // Validar que únicamente las asignaciones en estado Pendiente puedan ser modificadas
+    if (existing.estatus_recorrido?.trim().toLowerCase() !== 'pendiente') {
+      return res.status(400).json({
+        message: 'Esta asignación ya no puede modificarse porque el recorrido ya fue iniciado o finalizado.',
+      });
+    }
+
     await pool.execute(
       `UPDATE asignaciones_rutas
          SET ruta_id           = ?,

@@ -29,16 +29,59 @@ interface CrearRutaBody {
 router.post('/', async (req: Request, res: Response) => {
   const { ruta, checkpoints } = req.body as CrearRutaBody;
 
-  // ── Validaciones básicas ───────────────────────────────────────────────
+  // ── Validaciones ────────────────────────────────────────────────────────
   const sanitizedNombre = sanitizeText(ruta?.nombre);
   const sanitizedDescripcion = sanitizeText(ruta?.descripcion);
   const sanitizedColor = sanitizeText(ruta?.color);
 
   if (!sanitizedNombre || typeof sanitizedNombre !== 'string' || sanitizedNombre.trim() === '') {
-    return res.status(400).json({ message: 'El campo "nombre" de la ruta es obligatorio.' });
+    return res.status(400).json({ success: false, message: 'El campo "nombre" de la ruta es obligatorio.' });
   }
 
-  const resolvedColor         = sanitizedColor          ?? '#3498db';
+  if (sanitizedNombre.trim().length > 50) {
+    return res.status(400).json({ success: false, message: 'El nombre de la ruta no puede exceder los 50 caracteres.' });
+  }
+
+  if (sanitizedDescripcion && sanitizedDescripcion.trim().length > 200) {
+    return res.status(400).json({ success: false, message: 'La descripción no puede exceder los 200 caracteres.' });
+  }
+
+  if (!Array.isArray(checkpoints) || checkpoints.length < 2) {
+    return res.status(400).json({
+      success: false,
+      message: 'Debes agregar al menos dos puntos de control para crear una ruta.',
+    });
+  }
+
+  // Validar nombres de checkpoints
+  const cpNames: string[] = [];
+  for (const cp of checkpoints) {
+    if (cp.name !== undefined) {
+      const trimmedName = cp.name.trim();
+      if (trimmedName.length === 0) {
+        return res.status(400).json({ success: false, message: 'El nombre de un punto de control no puede estar vacío.' });
+      }
+      if (trimmedName.length > 50) {
+        return res.status(400).json({ success: false, message: 'El nombre de un punto de control no puede exceder los 50 caracteres.' });
+      }
+      const lowerName = trimmedName.toLowerCase();
+      if (cpNames.includes(lowerName)) {
+        return res.status(400).json({ success: false, message: `Ya existe un punto de control con el nombre "${trimmedName}" en esta ruta.` });
+      }
+      cpNames.push(lowerName);
+    }
+  }
+
+  // Validar nombre duplicado de ruta
+  const [existingNames] = await pool.query<RowDataPacket[]>(
+    'SELECT id FROM rutas WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?))',
+    [sanitizedNombre.trim()]
+  );
+  if (existingNames.length > 0) {
+    return res.status(400).json({ success: false, message: 'Ya existe una ruta registrada con este nombre.' });
+  }
+
+  const resolvedColor = sanitizedColor ?? '#3498db';
 
   // ── Transacción ────────────────────────────────────────────────────────
   const conn = await pool.getConnection();

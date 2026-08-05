@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
+import { ConfirmProvider } from './hooks/useConfirm';
 import { ProtectedRoute } from './components/routes/ProtectedRoute';
 import { MainLayout } from './layouts/MainLayout';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -103,30 +104,32 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          {/* ── Public routes (no auth required) ── */}
-          <Route path="/" element={<WelcomePage />} />
-          <Route path="/welcome" element={<WelcomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-          <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
+        <ConfirmProvider>
+          <Routes>
+            {/* ── Public routes (no auth required) ── */}
+            <Route path="/" element={<WelcomePage />} />
+            <Route path="/welcome" element={<WelcomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
 
-          {/* ── Protected routes (requires valid JWT) ── */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/*" element={<AppContent />} />
-          </Route>
-        </Routes>
+            {/* ── Protected routes (requires valid JWT) ── */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/*" element={<AppContent />} />
+            </Route>
+          </Routes>
 
-        <Toaster
-          position="top-right"
-          richColors
-          closeButton
-          duration={3000}
-          toastOptions={{ style: { fontFamily: 'inherit' } }}
-        />
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            duration={3000}
+            toastOptions={{ style: { fontFamily: 'inherit' } }}
+          />
+        </ConfirmProvider>
       </AuthProvider>
     </BrowserRouter>
   );

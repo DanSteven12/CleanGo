@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Check, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { UsuarioData, UsuarioRecord } from '../../../types/usuarios';
 
 interface UserFormProps {
@@ -44,7 +45,10 @@ export const UserForm: React.FC<UserFormProps> = ({
   };
 
   return (
-    <div className="routes-section" id="usuario-form" style={{ marginTop: '1rem' }}>
+    <motion.div 
+      className="routes-section" id="usuario-form" style={{ marginTop: '1rem' }}
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+    >
       <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <div className="form-field">
           <label className="form-label">Nombre Completo *</label>
@@ -119,19 +123,27 @@ export const UserForm: React.FC<UserFormProps> = ({
             </select>
           </div>
         )}
+
       </div>
 
+      <AnimatePresence>
       {formError && (
-        <div className="validation-error-banner" style={{ marginTop: '1rem' }}>
-          <span>{formError}</span>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0, y: -5 }}
+          style={{ overflow: 'hidden' }}
+        >
+          <div className="validation-error-banner" style={{ marginTop: '1rem' }}>
+            <span>{formError}</span>
+          </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '2rem' }}>
+      <div className="form-actions" style={{ display: 'flex', justifySelf: 'flex-end', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem', width: '100%' }}>
         <button
           type="button"
           className="save-button"
-          style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none', width: '180px', height: '40px' }}
+          style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none' }}
           onClick={() => navigate('/usuarios')}
           disabled={isSaving}
         >
@@ -142,7 +154,6 @@ export const UserForm: React.FC<UserFormProps> = ({
           className="save-button crear-ruta-btn"
           onClick={handleSubmit}
           disabled={isSaving}
-          style={{ width: '180px', height: '40px' }}
         >
           {isSaving ? (
             <>
@@ -157,6 +168,6 @@ export const UserForm: React.FC<UserFormProps> = ({
           )}
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 };

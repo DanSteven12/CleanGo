@@ -2,6 +2,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { checkRouteEditable } from '../utils/routeValidation';
 const router = Router();
 
 // POST /api/puntos-control
@@ -26,6 +27,11 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   try {
+    const status = await checkRouteEditable(ruta_id);
+    if (!status.editable) {
+      return res.status(422).json({ success: false, message: status.notEditableReason });
+    }
+
     // Use execute to get ResultSetHeader with insertId
     const [result] = await pool.execute<ResultSetHeader>(
       'INSERT INTO puntos_control (ruta_id, nombre, latitud, longitud, orden) VALUES (?, ?, ?, ?, ?)',

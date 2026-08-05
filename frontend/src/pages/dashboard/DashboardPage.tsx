@@ -26,6 +26,10 @@ import {
   Bell,
   ChevronRight,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTiltGlow } from '../../lib/useTiltGlow';
+import BorderBeam from '../../components/ui/BorderBeam';
+import MagneticButton from '../../components/ui/MagneticButton';
 import { DashboardLiveMapEmbed } from './DashboardLiveMapEmbed';
 import { Header } from '../../components/layout/Header';
 import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
@@ -121,48 +125,72 @@ interface StatCardProps {
   id: string;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ icon, label, value, accentColor, bgColor, id }) => (
-  <div
-    id={id}
-    className="stat-card"
-    style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '0.875rem',
-      position: 'relative',
-      overflow: 'hidden',
-      cursor: 'default',
-    }}
-  >
-    {/* Decorative corner glow */}
-    <div style={{
-      position: 'absolute', top: -20, right: -20,
-      width: 70, height: 70, borderRadius: '50%',
-      background: `${accentColor}18`,
-      pointerEvents: 'none',
-    }} />
+const StatCard: React.FC<StatCardProps> = ({ icon, label, value, accentColor, bgColor, id }) => {
+  const { ref, rotateX, rotateY, glowX, glowY, onMouseMove, onMouseLeave } = useTiltGlow(4);
 
-    {/* Icon */}
-    <div style={{
-      width: 40, height: 40, borderRadius: '0.625rem',
-      background: bgColor,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0,
-    }}>
-      {icon}
-    </div>
+  return (
+    <motion.div
+      id={id}
+      ref={ref}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+      className="stat-card"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.875rem',
+        position: 'relative',
+        overflow: 'hidden',
+        cursor: 'default',
+        rotateX,
+        rotateY,
+        transformStyle: 'preserve-3d',
+      }}
+      variants={{
+        hidden: { opacity: 0, y: 15 },
+        show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 20 } },
+      }}
+    >
+      {/* Decorative corner glow */}
+      <div style={{
+        position: 'absolute', top: -20, right: -20,
+        width: 70, height: 70, borderRadius: '50%',
+        background: `${accentColor}18`,
+        pointerEvents: 'none',
+      }} />
 
-    {/* Value + Label */}
-    <div>
-      <div className="stat-value" style={{ fontSize: '1.875rem' }}>
-        {typeof value === 'number' ? value.toLocaleString('es-MX') : value}
+      {/* Tilt Glow Element */}
+      <motion.div
+        className="pointer-events-none absolute inset-0 z-0 opacity-0 transition-opacity duration-300"
+        style={{
+          background: `radial-gradient(circle 80px at ${glowX} ${glowY}, ${accentColor}15, transparent 100%)`,
+        }}
+        whileHover={{ opacity: 1 }}
+      />
+
+      {/* Icon */}
+      <div style={{
+        width: 40, height: 40, borderRadius: '0.625rem',
+        background: bgColor,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+        transform: 'translateZ(10px)',
+      }}>
+        {icon}
       </div>
-      <div className="stat-label" style={{ marginBottom: 0, marginTop: '0.25rem' }}>
-        {label}
+
+      {/* Value + Label */}
+      <div style={{ transform: 'translateZ(5px)' }}>
+        <div className="stat-value" style={{ fontSize: '1.875rem' }}>
+          {typeof value === 'number' ? value.toLocaleString('es-MX') : value}
+        </div>
+        <div className="stat-label" style={{ marginBottom: 0, marginTop: '0.25rem' }}>
+          {label}
+        </div>
       </div>
-    </div>
-  </div>
-);
+    </motion.div>
+  );
+};
 
 // ─── QuickAccessButton sub-component ───────────────────────────────────────────
 
@@ -176,55 +204,61 @@ interface QuickBtnProps {
 }
 
 const QuickBtn: React.FC<QuickBtnProps> = ({ id, icon, label, description, onClick, gradient }) => (
-  <button
-    id={id}
-    onClick={onClick}
-    style={{
-      display: 'flex', alignItems: 'center', gap: '0.875rem',
-      padding: '1rem 1.25rem',
-      background: 'var(--panel-bg)',
-      border: '1px solid var(--panel-border)',
-      borderRadius: '0.875rem',
-      cursor: 'pointer',
-      textAlign: 'left',
-      boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)',
-      transition: 'box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease',
-      width: '100%',
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.boxShadow = '0 4px 20px -4px oklch(0.2 0.04 240 / 0.15)';
-      e.currentTarget.style.borderColor = 'oklch(0.52 0.14 250 / 0.3)';
-      e.currentTarget.style.transform = 'translateY(-1px)';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.boxShadow = '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)';
-      e.currentTarget.style.borderColor = 'var(--panel-border)';
-      e.currentTarget.style.transform = 'translateY(0)';
-    }}
-  >
-    {/* Icon */}
-    <div style={{
-      width: 44, height: 44, borderRadius: '0.75rem',
-      background: gradient,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0,
-      boxShadow: '0 2px 8px oklch(0.2 0.04 240 / 0.15)',
-    }}>
-      {icon}
-    </div>
-
-    {/* Text */}
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-h)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>
-        {label}
+  <MagneticButton strength={0.15}>
+    <motion.button
+      id={id}
+      onClick={onClick}
+      variants={{
+        hidden: { opacity: 0, y: 15 },
+        show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 20 } },
+      }}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '0.875rem',
+        padding: '1rem 1.25rem',
+        background: 'var(--panel-bg)',
+        border: '1px solid var(--panel-border)',
+        borderRadius: '0.875rem',
+        cursor: 'pointer',
+        textAlign: 'left',
+        boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)',
+        transition: 'box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease',
+        width: '100%',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = '0 4px 20px -4px oklch(0.2 0.04 240 / 0.15)';
+        e.currentTarget.style.borderColor = 'oklch(0.52 0.14 250 / 0.3)';
+        e.currentTarget.style.transform = 'translateY(-1px)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)';
+        e.currentTarget.style.borderColor = 'var(--panel-border)';
+        e.currentTarget.style.transform = 'translateY(0)';
+      }}
+    >
+      {/* Icon */}
+      <div style={{
+        width: 44, height: 44, borderRadius: '0.75rem',
+        background: gradient,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+        boxShadow: '0 2px 8px oklch(0.2 0.04 240 / 0.15)',
+      }}>
+        {icon}
       </div>
-      <div style={{ fontSize: '0.75rem', color: 'var(--text)', marginTop: '0.15rem' }}>
-        {description}
-      </div>
-    </div>
 
-    <ChevronRight size={16} style={{ color: 'var(--text)', flexShrink: 0 }} />
-  </button>
+      {/* Text */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-h)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>
+          {label}
+        </div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text)', marginTop: '0.15rem' }}>
+          {description}
+        </div>
+      </div>
+
+      <ChevronRight size={16} style={{ color: 'var(--text)', flexShrink: 0 }} />
+    </motion.button>
+  </MagneticButton>
 );
 
 // ─── SectionHeader sub-component ───────────────────────────────────────────────
@@ -430,17 +464,31 @@ export const DashboardPage: React.FC = () => {
           subtitle="Resumen del estado actual del sistema"
         />
 
+        <AnimatePresence mode="wait">
         {isLoadingStats ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '2rem', color: 'var(--text)' }}>
+          <motion.div
+            key="loading-stats"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '2rem', color: 'var(--text)' }}
+          >
             <Loader2 size={20} style={{ animation: 'spin-loop 0.9s linear infinite' }} />
             <span style={{ fontSize: '0.875rem' }}>Cargando indicadores...</span>
-          </div>
+          </motion.div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-            gap: '1rem',
-          }}>
+          <motion.div
+            key="stats-grid"
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: { opacity: 0 },
+              show: { opacity: 1, transition: { staggerChildren: 0.05 } }
+            }}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+              gap: '1rem',
+            }}
+          >
             <StatCard
               id="stat-camiones"
               icon={<Truck size={20} color="#1763A6" />}
@@ -505,16 +553,18 @@ export const DashboardPage: React.FC = () => {
               accentColor="#388C35"
               bgColor="#388C3518"
             />
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </section>
 
       {/* ════════ § 2. MAPA EN VIVO ═════════════════════════════════════════ */}
       <section
         id="dashboard-mapa-vivo"
-        className="section-card"
+        className="section-card relative overflow-hidden"
         style={{ padding: '1.5rem' }}
       >
+        <BorderBeam color="#1763A6" borderWidth={2} duration={12} />
         <DashboardLiveMapEmbed maxCards={3} />
       </section>
 
@@ -547,13 +597,14 @@ export const DashboardPage: React.FC = () => {
           }
         />
 
+        <AnimatePresence mode="wait">
         {isLoadingActividad ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.5rem 0', color: 'var(--text)' }}>
+          <motion.div key="loading-alerts" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.5rem 0', color: 'var(--text)' }}>
             <Loader2 size={18} style={{ animation: 'spin-loop 0.9s linear infinite' }} />
             <span style={{ fontSize: '0.875rem' }}>Cargando alertas...</span>
-          </div>
+          </motion.div>
         ) : alertas.length === 0 ? (
-          <div style={{
+          <motion.div key="empty-alerts" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             padding: '2.5rem',
             background: 'var(--muted)',
@@ -569,9 +620,14 @@ export const DashboardPage: React.FC = () => {
                 El sistema opera sin incidencias en este momento
               </p>
             </div>
-          </div>
+          </motion.div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
+          <motion.div
+            key="alerts-grid"
+            initial="hidden" animate="show"
+            variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}
+          >
             {alertas.map((alerta) => (
               <div
                 key={alerta.id}
@@ -619,8 +675,9 @@ export const DashboardPage: React.FC = () => {
                 </div>
               </div>
             ))}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </section>
 
       {/* ════════ § 4. ACCESOS RÁPIDOS ══════════════════════════════════════ */}
@@ -631,56 +688,72 @@ export const DashboardPage: React.FC = () => {
           subtitle="Navega directamente a los módulos principales"
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.75rem' }}>
-          <QuickBtn
-            id="quickbtn-nueva-asignacion"
-            icon={<Plus size={22} color="white" />}
-            label="Nueva asignación"
-            description="Programar ruta con camión y conductor"
-            onClick={() => navigate('/asignaciones/nueva')}
-            gradient="linear-gradient(135deg, #4f46e5, #7c3aed)"
-          />
-          <QuickBtn
-            id="quickbtn-mapa-vivo"
-            icon={<Satellite size={22} color="white" />}
-            label="Mapa en Vivo"
-            description="Monitorear recorridos en tiempo real"
-            onClick={() => navigate('/mapa-vivo')}
-            gradient="linear-gradient(135deg, #1763A6, #152C40)"
-          />
-          <QuickBtn
-            id="quickbtn-reportes"
-            icon={<FileWarning size={22} color="white" />}
-            label="Reportes ciudadanos"
-            description="Gestionar reportes recibidos"
-            onClick={() => navigate('/reportes')}
-            gradient="linear-gradient(135deg, oklch(0.58 0.22 25), oklch(0.48 0.18 30))"
-          />
-          <QuickBtn
-            id="quickbtn-historial"
-            icon={<History size={22} color="white" />}
-            label="Historial de recorridos"
-            description="Consultar recorridos completados"
-            onClick={() => navigate('/historial')}
-            gradient="linear-gradient(135deg, #388C35, #90BF49)"
-          />
-          <QuickBtn
-            id="quickbtn-camiones"
-            icon={<Truck size={22} color="white" />}
-            label="Administrar camiones"
-            description="Ver y editar flota vehicular"
-            onClick={() => navigate('/camiones')}
-            gradient="linear-gradient(135deg, #0ea5e9, #0369a1)"
-          />
-          <QuickBtn
-            id="quickbtn-rutas"
-            icon={<Map size={22} color="white" />}
-            label="Administrar rutas"
-            description="Ver y editar rutas de servicio"
-            onClick={() => navigate('/rutas')}
-            gradient="linear-gradient(135deg, #f59e0b, #d97706)"
-          />
-        </div>
+        <motion.div
+          initial="hidden" animate="show" viewport={{ once: true }}
+          variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.75rem' }}
+        >
+          <div className="w-full flex">
+            <QuickBtn
+              id="quickbtn-nueva-asignacion"
+              icon={<Plus size={22} color="white" />}
+              label="Nueva asignación"
+              description="Programar ruta con camión y conductor"
+              onClick={() => navigate('/asignaciones/nueva')}
+              gradient="linear-gradient(135deg, #4f46e5, #7c3aed)"
+            />
+          </div>
+          <div className="w-full flex">
+            <QuickBtn
+              id="quickbtn-mapa-vivo"
+              icon={<Satellite size={22} color="white" />}
+              label="Mapa en Vivo"
+              description="Monitorear recorridos en tiempo real"
+              onClick={() => navigate('/mapa-vivo')}
+              gradient="linear-gradient(135deg, #1763A6, #152C40)"
+            />
+          </div>
+          <div className="w-full flex">
+            <QuickBtn
+              id="quickbtn-reportes"
+              icon={<FileWarning size={22} color="white" />}
+              label="Reportes ciudadanos"
+              description="Gestionar reportes recibidos"
+              onClick={() => navigate('/reportes')}
+              gradient="linear-gradient(135deg, oklch(0.58 0.22 25), oklch(0.48 0.18 30))"
+            />
+          </div>
+          <div className="w-full flex">
+            <QuickBtn
+              id="quickbtn-historial"
+              icon={<History size={22} color="white" />}
+              label="Historial de recorridos"
+              description="Consultar recorridos completados"
+              onClick={() => navigate('/historial')}
+              gradient="linear-gradient(135deg, #388C35, #90BF49)"
+            />
+          </div>
+          <div className="w-full flex">
+            <QuickBtn
+              id="quickbtn-camiones"
+              icon={<Truck size={22} color="white" />}
+              label="Administrar camiones"
+              description="Ver y editar flota vehicular"
+              onClick={() => navigate('/camiones')}
+              gradient="linear-gradient(135deg, #0ea5e9, #0369a1)"
+            />
+          </div>
+          <div className="w-full flex">
+            <QuickBtn
+              id="quickbtn-rutas"
+              icon={<Map size={22} color="white" />}
+              label="Administrar rutas"
+              description="Ver y editar rutas de servicio"
+              onClick={() => navigate('/rutas')}
+              gradient="linear-gradient(135deg, #f59e0b, #d97706)"
+            />
+          </div>
+        </motion.div>
       </section>
 
       {/* ════════ § 5. ACTIVIDAD RECIENTE ═══════════════════════════════════ */}
@@ -691,10 +764,17 @@ export const DashboardPage: React.FC = () => {
           subtitle="Últimos registros del sistema"
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+        <motion.div
+          initial="hidden" animate="show" viewport={{ once: true }}
+          variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}
+        >
 
           {/* — Últimas asignaciones — */}
-          <div className="section-card" style={{ padding: '1.25rem' }}>
+          <motion.div
+            variants={{ hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 20 } } }}
+            className="section-card" style={{ padding: '1.25rem' }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <CalendarDays size={16} style={{ color: '#4f46e5' }} />
@@ -769,10 +849,13 @@ export const DashboardPage: React.FC = () => {
                 ))}
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* — Últimos recorridos completados — */}
-          <div className="section-card" style={{ padding: '1.25rem' }}>
+          <motion.div
+            variants={{ hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 20 } } }}
+            className="section-card" style={{ padding: '1.25rem' }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <CheckCircle2 size={16} style={{ color: '#388C35' }} />
@@ -839,10 +922,13 @@ export const DashboardPage: React.FC = () => {
                 ))}
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* — Últimos reportes ciudadanos — */}
-          <div className="section-card" style={{ padding: '1.25rem' }}>
+          <motion.div
+            variants={{ hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 20 } } }}
+            className="section-card" style={{ padding: '1.25rem' }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <FileWarning size={16} style={{ color: 'oklch(0.58 0.22 25)' }} />
@@ -916,8 +1002,8 @@ export const DashboardPage: React.FC = () => {
                 })}
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* Footer info */}

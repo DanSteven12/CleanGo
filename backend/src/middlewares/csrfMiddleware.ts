@@ -7,15 +7,15 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     return next();
   }
 
-  // Rutas públicas que no requieren validación CSRF (ej. login)
   const excludedPaths = [
     '/api/auth/login',
     '/api/auth/register',
     '/api/auth/forgot-password',
     '/api/auth/reset-password',
+    '/api/recorridos',
   ];
 
-  if (excludedPaths.includes(req.path)) {
+  if (excludedPaths.some(excludedPath => req.path.startsWith(excludedPath))) {
     return next();
   }
 

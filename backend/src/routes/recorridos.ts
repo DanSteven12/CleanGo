@@ -43,13 +43,13 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
       ['En Progreso', asignacion_id]
     );
 
-    // 2. Consultar la tabla puntos_control filtrando por ruta_id y ordenando por orden ASC
+    // 2. Consultar los puntos_control de la ruta para crear la copia histórica (snapshot)
     const [puntosControl] = await connection.execute<any[]>(
-      'SELECT id, orden FROM puntos_control WHERE ruta_id = ? ORDER BY orden ASC',
+      'SELECT id, nombre, latitud, longitud, orden FROM puntos_control WHERE ruta_id = ? ORDER BY orden ASC',
       [ruta_id]
     );
 
-    // 3. Crear un registro en recorrido_checkpoints por cada checkpoint encontrado
+    // 3. Crear un registro independiente en recorrido_checkpoints por cada checkpoint (Snapshot Inmutable)
     for (const punto of puntosControl) {
       const minutosASumar = (punto.orden - 1) * 5;
 
@@ -61,8 +61,8 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
       const horaLlegada = punto.orden === 1 ? horaInicio : null;
 
       await connection.execute(
-        'INSERT INTO recorrido_checkpoints (recorrido_id, checkpoint_id, hora_estimada, estado, hora_llegada) VALUES (?, ?, ?, ?, ?)',
-        [recorrido_id, punto.id, horaEstimada, estado, horaLlegada]
+        'INSERT INTO recorrido_checkpoints (recorrido_id, checkpoint_id, nombre, latitud, longitud, orden, hora_estimada, estado, hora_llegada) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [recorrido_id, punto.id, punto.nombre, punto.latitud, punto.longitud, punto.orden, horaEstimada, estado, horaLlegada]
       );
     }
 
@@ -181,11 +181,10 @@ router.put('/:recorridoId/checkpoint', async (req: Request, res: Response): Prom
     const asignacionId = recorridos[0].asignacion_id;
     const horaInicio = new Date(recorridos[0].hora_inicio);
 
-    // 2. Obtener el orden del checkpoint para calcular la hora_llegada acumulativa.
-    //    Se usa el mismo intervalo de 5 minutos por tramo que emplea /iniciar.
+    // 2. Obtener el orden directamente del snapshot del recorrido
     const [puntoRows] = await connection.execute<any[]>(
-      'SELECT orden FROM puntos_control WHERE id = ?',
-      [checkpoint_id]
+      'SELECT orden FROM recorrido_checkpoints WHERE recorrido_id = ? AND (checkpoint_id = ? OR id = ?)',
+      [recorridoId, checkpoint_id, checkpoint_id]
     );
 
     if (puntoRows.length === 0) {
@@ -205,8 +204,8 @@ router.put('/:recorridoId/checkpoint', async (req: Request, res: Response): Prom
 
     // 4. Marcar el checkpoint como completado usando la hora_llegada calculada
     await connection.execute(
-      'UPDATE recorrido_checkpoints SET estado = ?, hora_llegada = ? WHERE recorrido_id = ? AND checkpoint_id = ?',
-      ['Completado', horaLlegada, recorridoId, checkpoint_id]
+      'UPDATE recorrido_checkpoints SET estado = ?, hora_llegada = ? WHERE recorrido_id = ? AND (checkpoint_id = ? OR id = ?)',
+      ['Completado', horaLlegada, recorridoId, checkpoint_id, checkpoint_id]
     );
 
     // 5. Verificar si aún existen checkpoints pendientes
@@ -451,23 +450,23 @@ router.get('/historial/:id', async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // ── Checkpoints del recorrido ─────────────────────────────────────────
+    // ── Checkpoints del recorrido (Copia snapshot inmutable) ──────────────
     const [checkpoints] = await pool.query<any[]>(
       `SELECT
         rc.id,
         rc.checkpoint_id,
-        pc.nombre,
-        pc.latitud,
-        pc.longitud,
-        pc.orden,
+        COALESCE(rc.nombre, pc.nombre)      AS nombre,
+        COALESCE(rc.latitud, pc.latitud)    AS latitud,
+        COALESCE(rc.longitud, pc.longitud)  AS longitud,
+        COALESCE(rc.orden, pc.orden)        AS orden,
         rc.hora_estimada,
         rc.hora_llegada,
         rc.estado,
         TIMESTAMPDIFF(MINUTE, rc.hora_estimada, rc.hora_llegada) AS desviacion_minutos
       FROM recorrido_checkpoints rc
-      INNER JOIN puntos_control pc ON pc.id = rc.checkpoint_id
+      LEFT JOIN puntos_control pc ON pc.id = rc.checkpoint_id
       WHERE rc.recorrido_id = ?
-      ORDER BY pc.orden ASC`,
+      ORDER BY COALESCE(rc.orden, pc.orden) ASC`,
       [recorridoId]
     );
 
@@ -518,12 +517,19 @@ router.get('/activo/:asignacion_id', async (req: Request, res: Response): Promis
     const ruta_id = rec.ruta_id;
 
     const [checkpointsCompletos] = await pool.execute<any[]>(
-      `SELECT pc.id, pc.nombre, pc.latitud, pc.longitud, pc.orden, rc.estado, rc.hora_llegada 
-       FROM puntos_control pc 
-       LEFT JOIN recorrido_checkpoints rc ON rc.checkpoint_id = pc.id AND rc.recorrido_id = ? 
-       WHERE pc.ruta_id = ? 
-       ORDER BY pc.orden ASC`,
-      [rec.recorrido_id, ruta_id]
+      `SELECT 
+         rc.id, 
+         COALESCE(rc.nombre, pc.nombre) AS nombre, 
+         COALESCE(rc.latitud, pc.latitud) AS latitud, 
+         COALESCE(rc.longitud, pc.longitud) AS longitud, 
+         COALESCE(rc.orden, pc.orden) AS orden, 
+         rc.estado, 
+         rc.hora_llegada 
+       FROM recorrido_checkpoints rc 
+       LEFT JOIN puntos_control pc ON pc.id = rc.checkpoint_id
+       WHERE rc.recorrido_id = ? 
+       ORDER BY COALESCE(rc.orden, pc.orden) ASC`,
+      [rec.recorrido_id]
     );
 
     res.json({

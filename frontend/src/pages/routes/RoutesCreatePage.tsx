@@ -170,11 +170,11 @@ export const RoutesCreatePage: React.FC = () => {
 
       {/* ─── SECCIÓN: Error global + Botón único "Crear Ruta" ─── */}
       <section className="routes-section" style={{ paddingTop: '0.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+        <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
           <button
             type="button"
             className="save-button"
-            style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none', width: '180px', height: '40px' }}
+            style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none' }}
             onClick={() => navigate('/rutas')}
             disabled={isCreating}
           >
@@ -186,7 +186,6 @@ export const RoutesCreatePage: React.FC = () => {
             className="save-button crear-ruta-btn"
             onClick={handleCrearRuta}
             disabled={isCreating}
-            style={{ width: '180px', height: '40px' }}
           >
             {isCreating ? (
               <>

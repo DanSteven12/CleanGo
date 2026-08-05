@@ -12,6 +12,7 @@ import {
   CalendarDays,
   Smartphone,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import type { CamionRecord } from '../../types/camiones';
@@ -30,17 +31,32 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
-  if (!isOpen) return null;
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h3 className="modal-title">{title}</h3>
-          <button className="close-btn" onClick={onClose}><X size={20} /></button>
-        </div>
-        <div className="modal-body">{children}</div>
-      </div>
-    </div>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <motion.div
+            className="modal-content"
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          >
+            <div className="modal-header">
+              <h3 className="modal-title">{title}</h3>
+              <button className="close-btn" onClick={onClose}><X size={20} /></button>
+            </div>
+            <div className="modal-body">{children}</div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -55,18 +71,18 @@ interface TruckCardProps {
   formatDate: (d: string) => string;
 }
 
-const TruckCard: React.FC<TruckCardProps> = ({
-  camion,
-  onEdit,
-  onPassword,
-  onHistorial,
-  onAsignar,
-  formatDate,
-}) => (
-  <article className="truck-card">
+const TruckCard: React.FC<TruckCardProps> = ({ camion, onEdit, onPassword, onHistorial, onAsignar, formatDate }) => (
+  <motion.article
+    className="truck-card"
+    layout
+    initial={{ opacity: 0, y: 15 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, scale: 0.95 }}
+    transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+  >
     {/* ── Header ── */}
     <div className="truck-card__header">
-      <div className="truck-card__icon-wrap">
+      <div className="truck-card__icon-box">
         <Truck size={22} strokeWidth={1.8} />
       </div>
 
@@ -127,7 +143,7 @@ const TruckCard: React.FC<TruckCardProps> = ({
         Asignar ruta
       </button>
     </div>
-  </article>
+  </motion.article>
 );
 
 /* ─── Page ─────────────────────────────────────────────────────────────────── */
@@ -223,22 +239,29 @@ export const CamionesPage: React.FC = () => {
       </div>
 
       {/* Loading state */}
+      <AnimatePresence mode="wait">
       {isLoading ? (
-        <div className="trucks-loading">
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="trucks-loading">
           <Loader2 size={18} className="spin" style={{ color: 'var(--primary)' }} />
           <span>Cargando unidades…</span>
-        </div>
+        </motion.div>
       ) : camiones.length === 0 ? (
-        <div className="trucks-empty">
+        <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="trucks-empty">
           <Truck size={40} strokeWidth={1.4} />
           <p>No hay camiones registrados todavía.</p>
           <button className="save-button" onClick={handleOpenCreate}>
             <Plus size={14} /> Registrar primer camión
           </button>
-        </div>
+        </motion.div>
       ) : (
         /* Card grid */
-        <div className="trucks-grid">
+        <motion.div
+          key="grid"
+          initial="hidden" animate="show"
+          variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
+          className="trucks-grid"
+        >
+          <AnimatePresence>
           {camiones.map(c => (
             <TruckCard
               key={c.id}
@@ -250,8 +273,10 @@ export const CamionesPage: React.FC = () => {
               formatDate={formatDate}
             />
           ))}
-        </div>
+          </AnimatePresence>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* Password Modal — logic unchanged */}
       <Modal

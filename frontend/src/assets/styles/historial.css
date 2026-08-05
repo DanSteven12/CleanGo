@@ -125,7 +125,7 @@
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
   white-space: nowrap;
 }
 
@@ -133,6 +133,11 @@
   background: var(--muted, oklch(0.96 0.005 240));
   border-color: rgb(23 99 166 / 0.35);
   color: var(--text-h);
+  transform: translateY(-1px);
+}
+
+.historial-btn-limpiar:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .historial-btn-limpiar:disabled {
@@ -298,7 +303,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, transform 0.1s ease;
   white-space: nowrap;
   font-family: inherit;
 }
@@ -307,6 +312,11 @@
   background: var(--muted, oklch(0.96 0.005 240));
   border-color: rgb(23 99 166 / 0.4);
   color: #1763A6;
+  transform: translateY(-1px);
+}
+
+.historial-btn-ver:active {
+  transform: scale(0.97);
 }
 
 .historial-btn-ver--active {
@@ -339,13 +349,18 @@
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, transform 0.1s ease;
 }
 
 .historial-pag-btn:hover:not(:disabled) {
   background: var(--muted, oklch(0.96 0.005 240));
   border-color: rgb(23 99 166 / 0.35);
   color: #1763A6;
+  transform: translateY(-1px);
+}
+
+.historial-pag-btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .historial-pag-btn:disabled {

@@ -1,6 +1,6 @@
 // frontend/src/services/notificacionesService.ts
 import { ApiError } from './authService';
-import type { AvisoManualPayload, FiltrosNotificaciones, Notificacion, NotificacionesResponse } from '../types/notificaciones';
+import type { AvisoManualPayload, FiltrosNotificaciones, NotificacionesResponse } from '../types/notificaciones';
 
 const BASE = '/api/notificaciones';
 

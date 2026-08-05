@@ -1,0 +1,420 @@
+﻿// â”€â”€â”€ Contenido interno del mapa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+interface MapInnerProps {
+  placementPos: google.maps.LatLngLiteral;
+  onPlacementDragEnd: (lat: number, lng: number) => void;
+  onMapClick: (lat: number, lng: number) => void;
+  sortedCheckpoints: TempCheckpoint[];
+  routeCoordinates: google.maps.LatLngLiteral[];
+  routeColor: string;
+  openInfoId: number | null;
+  onOpenInfo: (id: number | null) => void;
+}
+
+const MapInner: React.FC<MapInnerProps> = ({
+  placementPos,
+  onPlacementDragEnd,
+  onMapClick,
+  sortedCheckpoints,
+  routeCoordinates,
+  routeColor,
+  openInfoId,
+  onOpenInfo,
+}) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+    const listener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
+      if (e.latLng) {
+        onMapClick(e.latLng.lat(), e.latLng.lng());
+      }
+    });
+    return () => google.maps.event.removeListener(listener);
+  }, [map, onMapClick]);
+
+  return (
+    <>
+      <RoutePolyline path={routeCoordinates} color={routeColor} />
+
+      {/* Marcador de ubicaciÃ³n arrastrable */}
+      <AdvancedMarker
+        position={placementPos}
+        draggable
+        onDragEnd={(e) => {
+          if (e.latLng) {
+            onPlacementDragEnd(e.latLng.lat(), e.latLng.lng());
+          }
+        }}
+      >
+        <div
+          dangerouslySetInnerHTML={{ __html: buildTearDropPinHtml('#7a1dff', 36) }}
+          title="Arrastra para seleccionar ubicaciÃ³n"
+          style={{ cursor: 'grab', marginBottom: '-2px' }}
+        />
+      </AdvancedMarker>
+
+      {/* Marcadores de checkpoints temporales */}
+      {sortedCheckpoints.map((cp) => (
+        <React.Fragment key={cp._tempId}>
+          <AdvancedMarker
+            position={{ lat: cp.latitude, lng: cp.longitude }}
+            onClick={() => onOpenInfo(openInfoId === cp._tempId ? null : cp._tempId)}
+          >
+            <div
+              dangerouslySetInnerHTML={{
+                __html: buildCheckpointPinHtml(cp.route_order, routeColor),
+              }}
+            />
+          </AdvancedMarker>
+
+          {openInfoId === cp._tempId && (
+            <InfoWindow
+              position={{ lat: cp.latitude, lng: cp.longitude }}
+              onCloseClick={() => onOpenInfo(null)}
+            >
+              <div style={{ padding: '2px', lineHeight: '1.6', fontSize: '13px' }}>
+                <strong>Checkpoint {cp.route_order}</strong>
+                {cp.name && <div>{cp.name}</div>}
+                <div>Lat: {cp.latitude.toFixed(5)}</div>
+                <div>Lng: {cp.longitude.toFixed(5)}</div>
+              </div>
+            </InfoWindow>
+          )}
+        </React.Fragment>
+      ))}
+    </>
+  );
+};
+
+// â”€â”€â”€ Componente principal (inner) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+const MapSelectorInner: React.FC<MapSelectorProps> = ({
+  routeColor,
+  onCheckpointsChange,
+}) => {
+  // â”€â”€ Estado del formulario de punto de control â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [nombre, setNombre] = useState('');
+  const [orden, setOrden] = useState(1);
+
+  // â”€â”€ Checkpoints temporales (en memoria, aÃºn no en BD) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [tempCheckpoints, setTempCheckpoints] = useState<TempCheckpoint[]>([]);
+  const tempIdCounter = useRef(0);
+
+  // â”€â”€ PosiciÃ³n del marcador de colocaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const CENTER = { lat: 16.9036, lng: -92.1033 };
+  const [placementPos, setPlacementPos] = useState<google.maps.LatLngLiteral>(CENTER);
+  const [latitud, setLatitud] = useState(CENTER.lat);
+  const [longitud, setLongitud] = useState(CENTER.lng);
+
+  // â”€â”€ ValidaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [resolvedAddress, setResolvedAddress] = useState<string>('');
+  const lastValidPosRef = useRef<google.maps.LatLngLiteral>(CENTER);
+
+  // â”€â”€ InfoWindow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [openInfoId, setOpenInfoId] = useState<number | null>(null);
+
+  // â”€â”€ Referencia al contenedor del mapa y estado fullscreen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [fullscreenEl, setFullscreenEl] = useState<Element | null>(null);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      setFullscreenEl(document.fullscreenElement ?? null);
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  // â”€â”€ Geocoder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const geocodingLib = useMapsLibrary('geocoding');
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+
+  useEffect(() => {
+    if (geocodingLib && !geocoderRef.current) {
+      geocoderRef.current = new geocodingLib.Geocoder();
+    }
+  }, [geocodingLib]);
+
+  // â”€â”€ Derived â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const sortedCheckpoints = useMemo(
+    () => [...tempCheckpoints].sort((a, b) => a.route_order - b.route_order),
+    [tempCheckpoints]
+  );
+
+  const routeCoordinates = useMemo(
+    () => sortedCheckpoints.map((cp) => ({ lat: cp.latitude, lng: cp.longitude })),
+    [sortedCheckpoints]
+  );
+
+  // â”€â”€ Notificar al padre cuando cambian los checkpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    onCheckpointsChange(
+      sortedCheckpoints.map(({ latitude, longitude, route_order, name }) => ({
+        latitude,
+        longitude,
+        route_order,
+        name,
+      }))
+    );
+  }, [sortedCheckpoints, onCheckpointsChange]);
+
+  // â”€â”€ ValidaciÃ³n con Google Geocoding API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const validateAndApply = useCallback(async (lat: number, lng: number) => {
+    if (!geocoderRef.current) return;
+
+    setIsValidating(true);
+    setValidationError(null);
+
+    const result = await googleGeocodingService.validateUrbanStreet(
+      geocoderRef.current,
+      lat,
+      lng
+    );
+
+    setIsValidating(false);
+
+    if (result.isValid) {
+      lastValidPosRef.current = { lat, lng };
+      setPlacementPos({ lat, lng });
+      setLatitud(parseFloat(lat.toFixed(8)));
+      setLongitud(parseFloat(lng.toFixed(8)));
+      setResolvedAddress(result.displayName);
+      setValidationError(null);
+    } else {
+      setPlacementPos({ ...lastValidPosRef.current });
+      setValidationError(result.errorMessage!);
+      setResolvedAddress('');
+    }
+  }, []);
+
+  // â”€â”€ Mostrar toasts cuando cambia el estado de validaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    if (validationError && !isValidating) {
+      toast.error(validationError, { id: 'validation-error' });
+    }
+  }, [validationError, isValidating]);
+
+  useEffect(() => {
+    if (resolvedAddress && !validationError && !isValidating) {
+      toast.success(`ðŸ“ ${resolvedAddress}`, { id: 'resolved-address', duration: 2500 });
+    }
+  }, [resolvedAddress, validationError, isValidating]);
+
+  const handleMapClick = useCallback(
+    (lat: number, lng: number) => { void validateAndApply(lat, lng); },
+    [validateAndApply]
+  );
+
+  const handlePlacementDragEnd = useCallback(
+    (lat: number, lng: number) => { void validateAndApply(lat, lng); },
+    [validateAndApply]
+  );
+
+  // â”€â”€ Agregar checkpoint a la lista temporal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleAddCheckpoint = () => {
+    if (!latitud || !longitud || validationError || isValidating) return;
+
+    const newCp: TempCheckpoint = {
+      _tempId: ++tempIdCounter.current,
+      latitude: latitud,
+      longitude: longitud,
+      route_order: orden,
+      name: nombre.trim() || undefined,
+    };
+
+    setTempCheckpoints((prev) => [...prev, newCp]);
+    setNombre('');
+    setOrden((prev) => prev + 1);
+  };
+
+  const handleRemoveCheckpoint = (tempId: number) => {
+    setTempCheckpoints((prev) => {
+      const filtered = prev.filter((cp) => cp._tempId !== tempId);
+      // Re-numerar Ã³rdenes
+      return filtered.map((cp, i) => ({ ...cp, route_order: i + 1 }));
+    });
+    setOrden((prev) => Math.max(1, prev - 1));
+  };
+
+  // â”€â”€ Botones flotantes (normal + fullscreen) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const floatingBtnStyle: React.CSSProperties = {
+    position: 'absolute',
+    bottom: '1rem',
+    right: '4rem',   // separado de los controles nativos de Maps (zoom)
+    zIndex: 10,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    padding: '0.5rem 1rem',
+    height: '2.5rem',
+    borderRadius: '0.625rem',
+    border: 'none',
+    background: 'linear-gradient(135deg, #1763A6, #152C40)',
+    color: '#fff',
+    fontSize: '0.875rem',
+    fontWeight: 700,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    boxShadow: '0 4px 18px oklch(0.52 0.14 250 / 0.40)',
+    transition: 'filter 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease',
+    opacity: (isValidating || Boolean(validationError)) ? 0.5 : 1,
+    whiteSpace: 'nowrap',
+  };
+
+  const FloatingBtn = (
+    <button
+      id="btn-map-agregar-punto"
+      type="button"
+      onClick={handleAddCheckpoint}
+      disabled={isValidating || Boolean(validationError)}
+      title="Agregar punto al recorrido"
+      style={floatingBtnStyle}
+      onMouseEnter={e => {
+        if (!isValidating && !validationError) {
+          (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.12)';
+          (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+        }
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLButtonElement).style.filter = '';
+        (e.currentTarget as HTMLButtonElement).style.transform = '';
+      }}
+    >
+      ðŸ“ Agregar punto
+    </button>
+  );
+
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  return (
+    <div className="map-selector-container">
+      <h2 className="map-selector-title">Puntos de Control</h2>
+      <p className="map-selector-hint">
+        Haz clic en el mapa o arrastra el marcador para elegir la ubicaciÃ³n.
+        Cada punto es validado automÃ¡ticamente sobre calles urbanas.
+        Los puntos se guardarÃ¡n junto con la ruta al presionar <strong>Crear Ruta</strong>.
+      </p>
+
+      <div className="form-grid">
+        {/* Nombre del punto */}
+        <div className="form-field">
+          <label className="form-label" htmlFor="checkpoint-nombre">Nombre del punto</label>
+          <input
+            id="checkpoint-nombre"
+            className="form-input"
+            type="text"
+            value={nombre}
+            placeholder="Ej: Parque Central"
+            onChange={(e) => setNombre(e.target.value)}
+          />
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.25rem', marginBottom: 0 }}>
+            Ingresa un nombre fÃ¡cil de identificar para este punto de control.
+          </p>
+        </div>
+
+        {/* Orden */}
+        <div className="form-field">
+          <label className="form-label" htmlFor="checkpoint-orden">Orden</label>
+          <input
+            id="checkpoint-orden"
+            className="form-input"
+            type="number"
+            min={1}
+            value={orden}
+            placeholder="Ej: 1"
+            onChange={(e) => setOrden(Number(e.target.value))}
+          />
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.25rem', marginBottom: 0 }}>
+            Indica el orden en que el camiÃ³n deberÃ¡ visitar este punto.
+          </p>
+        </div>
+
+        {/* Mapa a ancho completo */}
+        <div className="form-field map-field">
+          <div className="map-container-relative" ref={mapContainerRef}>
+            <Map
+              style={{ height: '380px', width: '100%', borderRadius: '0.5rem' }}
+              defaultCenter={CENTER}
+              defaultZoom={13}
+              gestureHandling="greedy"
+              mapId={MAP_ID}
+            >
+              <MapInner
+                placementPos={placementPos}
+                onPlacementDragEnd={handlePlacementDragEnd}
+                onMapClick={handleMapClick}
+                sortedCheckpoints={sortedCheckpoints}
+                routeCoordinates={routeCoordinates}
+                routeColor={routeColor}
+                openInfoId={openInfoId}
+                onOpenInfo={setOpenInfoId}
+              />
+            </Map>
+
+            {isValidating && (
+              <div className="map-validation-overlay">
+                <div className="map-validation-spinner" />
+                <span>Validando ubicaciÃ³nâ€¦</span>
+              </div>
+            )}
+
+            {/* BotÃ³n flotante â€” vista normal */}
+            {!fullscreenEl && FloatingBtn}
+          </div>
+        </div>
+
+        {/* BotÃ³n flotante y Toasts â€” vista fullscreen (portal al contenedor de Google Maps) */}
+        {fullscreenEl && createPortal(
+          <>
+            <div style={{ position: 'fixed', bottom: '1.25rem', right: '4.5rem', zIndex: 9999 }}>
+              {FloatingBtn}
+            </div>
+            {/* Se incluye un Toaster en el portal para que los toasts sean visibles en fullscreen */}
+            <Toaster
+              position="top-right"
+              richColors
+              closeButton
+              duration={3000}
+              toastOptions={{ style: { fontFamily: 'inherit', zIndex: 9999 } }}
+            />
+          </>,
+          fullscreenEl
+        )}
+
+        {/* Lista de checkpoints temporales */}
+        {sortedCheckpoints.length > 0 && (
+          <div className="checkpoint-list">
+            <span className="form-label">
+              Puntos aÃ±adidos ({sortedCheckpoints.length}) â€” se guardarÃ¡n al crear la ruta
+            </span>
+            <ul>
+              {sortedCheckpoints.map((cp) => (
+                <li key={cp._tempId} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span className="checkpoint-order-dot" style={{ background: routeColor }}>
+                    {cp.route_order}
+                  </span>
+                  <span style={{ flex: 1 }}>
+                    {cp.latitude.toFixed(6)}, {cp.longitude.toFixed(6)}
+                    {cp.name ? ` (${cp.name})` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    className="action-btn action-btn--delete"
+                    title="Quitar punto"
+                    onClick={() => handleRemoveCheckpoint(cp._tempId)}
+                    style={{ fontSize: '0.75rem', padding: '0.15rem 0.4rem' }}
+                  >
+                    âœ•
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+

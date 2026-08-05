@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { NotificacionCategoria, Notificacion, NotificacionDestinatario, NotificacionTipo } from '../../types/notificaciones';
 import { formatRelativeDate } from '../../utils/formatRelativeDate';
 import { Header } from '../../components/layout/Header';
@@ -155,27 +156,43 @@ const BandejaTab: React.FC = () => {
           <p>{error}</p>
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
-          {loading ? (
-            <>
-              <NotificacionSkeleton />
-              <NotificacionSkeleton />
-              <NotificacionSkeleton />
-            </>
-          ) : notificaciones.length === 0 ? (
+        <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-3">
+            <NotificacionSkeleton />
+            <NotificacionSkeleton />
+            <NotificacionSkeleton />
+          </motion.div>
+        ) : notificaciones.length === 0 ? (
+          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <EmptyState />
-          ) : (
-            notificaciones.map((notif) => (
-              <Card
+          </motion.div>
+        ) : (
+          <motion.div
+            key="list"
+            initial="hidden" animate="show"
+            variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
+            className="flex flex-col gap-3"
+          >
+            <AnimatePresence>
+            {notificaciones.map((notif) => (
+              <motion.div
                 key={notif.id}
-                onClick={() => handleOpen(notif)}
-                className={`
-                  flex flex-row p-4 gap-4 transition-all duration-200 
-                  ${!notif.leida 
-                    ? 'cursor-pointer bg-[#F0F7FF] dark:bg-[oklch(0.22_0.03_250)] border border-blue-200/80 dark:border-blue-900/50 shadow-sm border-l-4 border-l-[#1763A6] hover:bg-[#E5F1FF] dark:hover:bg-[oklch(0.24_0.03_250)]' 
-                    : 'bg-white dark:bg-[var(--card)] border-transparent shadow-none hover:bg-slate-50/80 dark:hover:bg-[oklch(0.22_0.02_250)]'}
-                `}
+                layout
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
               >
+                <Card
+                  onClick={() => handleOpen(notif)}
+                  className={`
+                    flex flex-row p-4 gap-4 transition-all duration-200 
+                    ${!notif.leida 
+                      ? 'cursor-pointer bg-[#F0F7FF] dark:bg-[oklch(0.22_0.03_250)] border border-blue-200/80 dark:border-blue-900/50 shadow-sm border-l-4 border-l-[#1763A6] hover:bg-[#E5F1FF] dark:hover:bg-[oklch(0.24_0.03_250)]' 
+                      : 'bg-white dark:bg-[var(--card)] border-transparent shadow-none hover:bg-slate-50/80 dark:hover:bg-[oklch(0.22_0.02_250)]'}
+                  `}
+                >
                 {/* Left icon wrapper */}
                 <div 
                   className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -218,10 +235,15 @@ const BandejaTab: React.FC = () => {
                   )}
                 </div>
               </Card>
-            ))
-          )}
+            </motion.div>
+          ))}
+          </AnimatePresence>
+        </motion.div>
+      )}
+      </AnimatePresence>
+      )}
 
-          {/* ── Pagination ── */}
+      {/* ── Pagination ── */}
           {!loading && totalRegistros > 0 && (
             <div className="flex items-center justify-between mt-4 border-t border-[var(--border)] pt-4">
               <span className="text-sm text-[var(--muted-foreground)]">
@@ -245,8 +267,6 @@ const BandejaTab: React.FC = () => {
               </div>
             </div>
           )}
-        </div>
-      )}
     </div>
   );
 };

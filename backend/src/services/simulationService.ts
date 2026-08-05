@@ -245,12 +245,12 @@ async function updateCheckpointReached(recorridoId: number, cpEnd: any, latitud:
       [latitud, longitud, recorridoId]
     );
 
-    // Asegurar que este checkpoint y todos los anteriores estén completados
+    // Asegurar que este checkpoint y todos los anteriores estén completados (usando snapshot de recorrido_checkpoints)
     await connection.execute(
       `UPDATE recorrido_checkpoints rc
-       JOIN puntos_control pc ON pc.id = rc.checkpoint_id
+       LEFT JOIN puntos_control pc ON pc.id = rc.checkpoint_id
        SET rc.estado = 'Completado', rc.hora_llegada = COALESCE(rc.hora_llegada, ?)
-       WHERE rc.recorrido_id = ? AND pc.orden <= ? AND rc.estado = 'Pendiente'`,
+       WHERE rc.recorrido_id = ? AND COALESCE(rc.orden, pc.orden) <= ? AND rc.estado = 'Pendiente'`,
       [horaLlegada, recorridoId, orden]
     );
 

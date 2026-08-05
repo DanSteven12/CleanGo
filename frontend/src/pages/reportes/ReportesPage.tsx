@@ -4,6 +4,7 @@ import {
   ClipboardList, Clock, CheckCircle2, ChevronLeft, ChevronRight,
   AlertCircle,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import type { ReporteRecord, ReporteIndicadores, EstadoReporte, TipoReporte } from '../../types/reportes';
@@ -158,11 +159,15 @@ const ReporteDetailModal: React.FC<ReporteDetailModalProps> = ({
     : null;
 
   return (
-    <div
+    <motion.div
       className="reporte-modal-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
     >
-      <div className="reporte-modal" role="dialog" aria-modal="true" aria-label="Detalle del reporte">
+      <motion.div
+        className="reporte-modal" role="dialog" aria-modal="true" aria-label="Detalle del reporte"
+        initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+      >
         {/* ── Header ── */}
         <div className="reporte-modal-header">
           <h2 className="reporte-modal-title">
@@ -293,8 +298,8 @@ const ReporteDetailModal: React.FC<ReporteDetailModalProps> = ({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
@@ -576,13 +581,14 @@ export const ReportesPage: React.FC = () => {
         </div>
 
         {/* ─── Estados: cargando / vacío / lista ─── */}
+        <AnimatePresence mode="wait">
         {isLoading ? (
-          <div className="reportes-loading">
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="reportes-loading">
             <Loader2 size={18} className="spin" style={{ color: 'var(--primary)' }} />
             Cargando reportes…
-          </div>
+          </motion.div>
         ) : reportes.length === 0 ? (
-          <div className="reportes-empty">
+          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="reportes-empty">
             <FileWarning size={48} className="reportes-empty-icon" />
             <p>No se encontraron reportes con los filtros aplicados.</p>
             {hasActiveFilters && (
@@ -590,14 +596,24 @@ export const ReportesPage: React.FC = () => {
                 <X size={13} /> Limpiar filtros
               </button>
             )}
-          </div>
+          </motion.div>
         ) : (
-          <>
+          <motion.div
+            key="list"
+            initial="hidden" animate="show"
+            variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
+          >
             {/* ─── Lista de tarjetas ─── */}
             <div className="reportes-ticket-list">
+              <AnimatePresence>
               {currentReportes.map((r) => (
-                <article
+                <motion.article
                   key={r.id}
+                  layout
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                   className={`reporte-ticket-card reporte-ticket--${getEstadoClass(r.estado)}`}
                   onClick={() => setSelectedReporte(r)}
                   tabIndex={0}
@@ -663,8 +679,9 @@ export const ReportesPage: React.FC = () => {
                       <span>Ver detalle</span>
                     </button>
                   </div>
-                </article>
+                </motion.article>
               ))}
+              </AnimatePresence>
             </div>
 
             {/* ─── Paginación (sin cambios) ─── */}
@@ -691,11 +708,13 @@ export const ReportesPage: React.FC = () => {
                 </button>
               </div>
             )}
-          </>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
 
       {/* ── Modal de detalle ─────────────────────────────────── */}
+      <AnimatePresence>
       {selectedReporte && (
         <ReporteDetailModal
           reporte={selectedReporte}
@@ -703,6 +722,7 @@ export const ReportesPage: React.FC = () => {
           onEstadoUpdated={handleEstadoUpdated}
         />
       )}
+      </AnimatePresence>
     </div>
     </>
   );

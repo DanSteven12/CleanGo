@@ -287,3 +287,20 @@
   box-shadow: 0 4px 16px oklch(0.52 0.14 250 / 0.38);
   filter: brightness(1.08);
 }
+
+/* ─── Responsive Adjustments ─────────────────────────────────────────────── */
+
+@media (max-width: 420px) {
+  .truck-card {
+    padding: 1rem;
+  }
+  
+  .truck-card__footer {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .truck-card__action {
+    padding: 0.625rem 0.75rem;
+  }
+}

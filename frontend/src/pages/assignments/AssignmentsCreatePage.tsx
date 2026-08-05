@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Check, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { AsignacionData } from '../../types/routes';
 import '../../assets/styles/routes.css';
 import '../../assets/styles/assignments.css';
@@ -118,9 +119,16 @@ export const AssignmentsCreatePage: React.FC = () => {
         subtitle="Completa los datos para registrar una nueva asignación"
         title="Nueva Asignación"
       />
-    <div className="assignments-page" style={{ padding: '1.5rem' }}>
-      {/* ─── SECCIÓN: Formulario nueva asignación ─── */}
-      <section className="routes-section" id="asignacion-form">
+    <div className="routes-page assignments-create">
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } }}
+      >
+      <motion.section 
+        className="routes-section" id="asignacion-form"
+        variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
+      >
 
         {isLoadingCatalogs ? (
           <p style={{ color: 'var(--text)', fontSize: '0.875rem' }}>Cargando opciones…</p>
@@ -229,20 +237,28 @@ export const AssignmentsCreatePage: React.FC = () => {
           </div>
         )}
 
+        <AnimatePresence>
         {createError && (
-          <div className="validation-error-banner" role="alert" style={{ marginTop: '0.75rem' }}>
-            <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" aria-hidden="true">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-            <span>{createError}</span>
-          </div>
+          <motion.div 
+            role="alert" 
+            initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0, y: -5 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div className="validation-error-banner" style={{ marginTop: '0.75rem' }}>
+              <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" aria-hidden="true">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <span>{createError}</span>
+            </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
+        <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
           <button
             type="button"
             className="save-button"
-            style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none', width: '180px', height: '40px' }}
+            style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none' }}
             onClick={() => navigate('/asignaciones')}
             disabled={isCreating}
           >
@@ -254,7 +270,6 @@ export const AssignmentsCreatePage: React.FC = () => {
             className="save-button crear-ruta-btn"
             onClick={handleCrear}
             disabled={isCreating || isLoadingCatalogs}
-            style={{ width: '180px', height: '40px' }}
           >
             {isCreating ? (
               <>
@@ -269,7 +284,8 @@ export const AssignmentsCreatePage: React.FC = () => {
             )}
           </button>
         </div>
-      </section>
+      </motion.section>
+      </motion.div>
     </div>
     </>
   );

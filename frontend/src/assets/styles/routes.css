@@ -138,6 +138,7 @@
   background: linear-gradient(135deg, #1763A6, #152C40);
   color: #fff;
   padding: 0 1.25rem;
+  width: 180px;
   height: 40px;
   border: none;
   border-radius: 0.625rem;
@@ -471,14 +472,19 @@
   cursor: pointer;
   padding: 0.3rem 0.4rem;
   border-radius: 0.4rem;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
   font-size: 0.9rem;
   line-height: 1;
 }
 
-.action-btn:hover {
+.action-btn:hover:not(:disabled) {
   background: var(--muted, oklch(0.96 0.005 240));
   border-color: var(--panel-border);
+  transform: translateY(-1px);
+}
+
+.action-btn:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 .action-btn:disabled {
