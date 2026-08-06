@@ -48,6 +48,7 @@ app.use(helmet({
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
+  'https://cleangomunicipal.com.mx'
 ];
 
 app.use(cors({
@@ -61,7 +62,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-XSRF-TOKEN'],
 }));
 
 app.use(express.json({ limit: '1mb' }));
