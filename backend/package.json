@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "ts-node-dev --transpile-only --exit-child --debounce 500 src/index.ts",
     "start": "node dist/index.js",
-    "build": "npm install && npx tsc"
+    "build": "npm install && npx tsc && cp package.json dist/ && npm install --prefix dist/ --omit=dev"
   },
   "dependencies": {
     "@types/cookie-parser": "^1.4.10",
