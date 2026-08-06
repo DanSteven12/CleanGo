@@ -11,6 +11,8 @@
     "dev:frontend": "yarn workspace cleango-web-app run dev",
     "dev:backend": "yarn workspace cleango-backend run dev",
     "build": "yarn workspace cleango-web-app run build",
+    "build:backend": "yarn workspace cleango-backend run build",
+    "start": "node backend/dist/index.js",
     "check": "node dev-check.js"
   },
   "devDependencies": {
