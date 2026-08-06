@@ -15,6 +15,10 @@ import { isPublicRoute } from './utils/routeUtils'
   let isRefreshing = false;
   let failedQueue: Array<{ resolve: (value?: any) => void; reject: (reason?: any) => void }> = [];
 
+  // En producción, redirige /api/* al backend real (VITE_API_URL).
+  // En desarrollo, Vite proxy ya lo maneja, así que se deja relativa.
+  const API_BASE: string = import.meta.env.VITE_API_URL || '';
+
   const processQueue = (error: any, token: string | null = null) => {
     failedQueue.forEach(prom => {
       if (error) {
@@ -35,18 +39,25 @@ import { isPublicRoute } from './utils/routeUtils'
     input: RequestInfo | URL,
     init?: RequestInit
   ): Promise<Response> {
-    const url =
+    let url =
       typeof input === 'string'
         ? input
         : input instanceof URL
           ? input.href
           : (input as Request).url;
 
+    // Reescribe /api/* → API_BASE/api/* cuando API_BASE está configurado (producción)
+    if (API_BASE && url.startsWith('/api')) {
+      url = API_BASE + url;
+      input = url;
+    }
+
     const method = init?.method || (input instanceof Request ? input.method : 'GET');
     init = init || {};
 
-    // Only inject credentials and CSRF for same-origin API calls
-    if (url.startsWith('/api')) {
+    // Inyecta credentials y CSRF para peticiones al backend (relativas o absolutas)
+    const isApiCall = url.startsWith('/api') || (API_BASE && url.startsWith(API_BASE + '/api'));
+    if (isApiCall) {
       init.credentials = 'include';
       
       // Inject CSRF token for mutating requests
