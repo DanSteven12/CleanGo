@@ -10,6 +10,7 @@
     "dev": "concurrently --kill-others-on-fail false --names \"frontend,backend\" --prefix-colors \"cyan,magenta\" \"yarn workspace cleango-web-app run dev\" \"yarn workspace cleango-backend run dev\"",
     "dev:frontend": "yarn workspace cleango-web-app run dev",
     "dev:backend": "yarn workspace cleango-backend run dev",
+    "build": "yarn workspace cleango-web-app run build",
     "check": "node dev-check.js"
   },
   "devDependencies": {
