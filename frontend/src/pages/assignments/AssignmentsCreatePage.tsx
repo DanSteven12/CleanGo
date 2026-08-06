@@ -137,7 +137,7 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Ruta */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-ruta">Ruta *</label>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Selecciona la ruta que realizará el camión durante este recorrido.</p>
+              <p className="form-help-text">Selecciona la ruta que realizará el camión durante este recorrido.</p>
               <select
                 id="new-ruta"
                 className="form-select"
@@ -154,7 +154,7 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Camión */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-camion">Camión *</label>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Elige el camión que será asignado para realizar la recolección.</p>
+              <p className="form-help-text">Elige el camión que será asignado para realizar la recolección.</p>
               <select
                 id="new-camion"
                 className="form-select"
@@ -173,7 +173,7 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Conductor */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-conductor">Conductor *</label>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Selecciona el conductor responsable de operar la unidad.</p>
+              <p className="form-help-text">Selecciona el conductor responsable de operar la unidad.</p>
               <select
                 id="new-conductor"
                 className="form-select"
@@ -192,7 +192,7 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Fecha programada */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-fecha">Fecha programada *</label>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Indica la fecha en la que se llevará a cabo el recorrido.</p>
+              <p className="form-help-text">Indica la fecha en la que se llevará a cabo el recorrido.</p>
               <input
                 id="new-fecha"
                 type="date"
@@ -207,7 +207,7 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Horario inicio */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-horario-inicio">Horario inicio *</label>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Especifica la hora en que el recorrido comenzará.</p>
+              <p className="form-help-text">Especifica la hora en que el recorrido comenzará.</p>
               <input
                 id="new-horario-inicio"
                 type="time"
@@ -222,7 +222,7 @@ export const AssignmentsCreatePage: React.FC = () => {
             {/* Horario fin */}
             <div className="form-field">
               <label className="form-label" htmlFor="new-horario-fin">Horario fin *</label>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text)', opacity: 0.8, marginTop: '-0.3rem', marginBottom: '0.5rem' }}>Indica la hora estimada en la que finalizará el recorrido.</p>
+              <p className="form-help-text">Indica la hora estimada en la que finalizará el recorrido.</p>
               <input
                 id="new-horario-fin"
                 type="time"
@@ -254,11 +254,10 @@ export const AssignmentsCreatePage: React.FC = () => {
         )}
         </AnimatePresence>
 
-        <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
+        <div className="assignments-create-actions">
           <button
             type="button"
-            className="save-button"
-            style={{ background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--panel-border)', boxShadow: 'none' }}
+            className="save-button btn-cancel"
             onClick={() => navigate('/asignaciones')}
             disabled={isCreating}
           >
@@ -267,7 +266,7 @@ export const AssignmentsCreatePage: React.FC = () => {
           </button>
           <button
             id="btn-crear-asignacion"
-            className="save-button crear-ruta-btn"
+            className="save-button btn-submit"
             onClick={handleCrear}
             disabled={isCreating || isLoadingCatalogs}
           >

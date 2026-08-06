@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import { ResultSetHeader } from 'mysql2';
 import { getIO } from '../socket/socketServer';
-import { stopSimulation, startSimulation, setSimulationSpeed } from '../services/simulationService';
+import { stopSimulation, startSimulation, setSimulationSpeed, getRouteGeometry } from '../services/simulationService';
 import { NotificationService } from '../modules/notifications';
 import * as NotificationMessages from '../constants/notificationMessages';
 
@@ -85,15 +85,23 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
     try {
       const io = getIO();
       io.emit('nuevo_recorrido_iniciado', { asignacion_id, recorrido_id });
-      startSimulation(recorrido_id, checkpointsCompletos, io);
+      await startSimulation(recorrido_id, checkpointsCompletos, io);
     } catch (err) {
       console.error('Error al emitir nuevo_recorrido_iniciado o iniciar simulación:', err);
+    }
+
+    const routeGeom = getRouteGeometry(recorrido_id);
+    console.log(`[DEBUG /iniciar] geometria length: ${routeGeom?.length}`);
+    if (routeGeom && routeGeom.length > 0) {
+      console.log(`[DEBUG /iniciar] primeros 5:`, routeGeom.slice(0, 5));
+      console.log(`[DEBUG /iniciar] ultimos 5:`, routeGeom.slice(-5));
     }
 
     res.json({
       recorrido_id,
       color,
-      checkpoints: checkpointsCompletos
+      checkpoints: checkpointsCompletos,
+      geometria: routeGeom
     });
 
     // ── Notificaciones automáticas: recorrido iniciado ────────────────────
@@ -532,6 +540,13 @@ router.get('/activo/:asignacion_id', async (req: Request, res: Response): Promis
       [rec.recorrido_id]
     );
 
+    const routeGeom = getRouteGeometry(rec.recorrido_id);
+    console.log(`[DEBUG /activo/:id] geometria length: ${routeGeom?.length}`);
+    if (routeGeom && routeGeom.length > 0) {
+      console.log(`[DEBUG /activo/:id] primeros 5:`, routeGeom.slice(0, 5));
+      console.log(`[DEBUG /activo/:id] ultimos 5:`, routeGeom.slice(-5));
+    }
+
     res.json({
       recorrido_id: rec.recorrido_id,
       hora_inicio: rec.hora_inicio,
@@ -541,7 +556,8 @@ router.get('/activo/:asignacion_id', async (req: Request, res: Response): Promis
       colonias: rec.colonias || 'Todas las colonias asignadas a la ruta',
       numero_economico: rec.numero_economico,
       conductor_nombre: rec.conductor_nombre,
-      checkpoints: checkpointsCompletos
+      checkpoints: checkpointsCompletos,
+      geometria: routeGeom
     });
   } catch (error) {
     console.error(`[recorridos] GET /activo/${asignacionId}:`, error);
@@ -600,7 +616,20 @@ router.post('/:recorridoId/finalizar', async (req: Request, res: Response): Prom
     }
 
     const asignacionId = recorridos[0].asignacion_id;
-    const horaFin = new Date();
+
+    // Usar la hora_llegada del último checkpoint completado como hora_fin simulada.
+    // Si usáramos new Date() aquí, el TIMESTAMPDIFF reflejaría el tiempo real del servidor
+    // (ej. 1 min si la simulación corrió acelerada) en vez del tiempo simulado (ej. 10 min).
+    const [lastCpRows] = await connection.execute<any[]>(
+      `SELECT hora_llegada FROM recorrido_checkpoints
+       WHERE recorrido_id = ? AND estado = 'Completado'
+       ORDER BY COALESCE(orden, checkpoint_id) DESC
+       LIMIT 1`,
+      [recorridoId]
+    );
+    const horaFin: Date = lastCpRows.length > 0 && lastCpRows[0].hora_llegada
+      ? new Date(lastCpRows[0].hora_llegada)
+      : new Date(); // fallback: si no hay checkpoints completados, usar hora actual
 
     await connection.execute(
       'UPDATE recorridos SET hora_fin = ?, estado = ? WHERE id = ?',

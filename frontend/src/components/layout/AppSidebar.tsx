@@ -478,11 +478,12 @@ export const AppSidebar: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!user) return;
     fetchUnread();
     const handleRead = () => fetchUnread();
     window.addEventListener('notificacion-leida', handleRead);
     return () => window.removeEventListener('notificacion-leida', handleRead);
-  }, []);
+  }, [user]);
 
   const handleLogout = () => {
     logout();

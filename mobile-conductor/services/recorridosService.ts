@@ -4,6 +4,7 @@ export interface RecorridoStartResponse {
   recorrido_id: number;
   color: string;
   checkpoints: any[];
+  geometria?: { lat: number; lng: number }[];
 }
 
 export const recorridosService = {

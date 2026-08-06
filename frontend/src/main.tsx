@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
+import { isPublicRoute } from './utils/routeUtils'
+
 // ── Monkey-patch global fetch to always send cookies for API requests ──────────
 // This ensures credentials:'include' is set on every /api/* request made by any
 // page or component, without needing to touch each call site individually.
@@ -68,7 +70,32 @@ import App from './App.tsx'
     }
 
     return _originalFetch(firstInput, init).then(async (res) => {
-      if (res.status === 401 && !url.includes('/login') && !url.includes('/refresh')) {
+      // 401 Unauthorized handling
+      if (res.status === 401) {
+        // Auth check / auth form calls returning 401 are expected when unauthenticated.
+        // Return 401 directly without attempting refresh or dispatching unauthorized toast events.
+        const isAuthFormOrMe =
+          url.includes('/api/auth/me') ||
+          url.includes('/api/auth/login') ||
+          url.includes('/api/auth/register') ||
+          url.includes('/api/auth/forgot-password') ||
+          url.includes('/api/auth/reset-password');
+
+        if (isAuthFormOrMe) {
+          return res;
+        }
+
+        // If the refresh call itself returned 401
+        if (url.includes('/api/auth/refresh')) {
+          if (!isPublicRoute()) {
+            window.dispatchEvent(
+              new CustomEvent('auth:unauthorized', { detail: { message: 'Sesión invalidada' } })
+            );
+          }
+          return res;
+        }
+
+        // Handle protected endpoint 401: attempt Silent Refresh
         if (isRefreshing) {
           try {
             await new Promise((resolve, reject) => {
@@ -102,15 +129,23 @@ import App from './App.tsx'
         } catch (err) {
           isRefreshing = false;
           processQueue(err);
-          window.dispatchEvent(
-            new CustomEvent('auth:unauthorized', { detail: { message: 'Sesión invalidada' } })
-          );
+          // Only dispatch unauthorized event if the user is in an authenticated route
+          if (!isPublicRoute()) {
+            window.dispatchEvent(
+              new CustomEvent('auth:unauthorized', { detail: { message: 'Sesión invalidada' } })
+            );
+          }
           return res;
         }
       }
+
+      // 403 Forbidden handling — only notify if in an authenticated route
       if (res.status === 403) {
-        window.dispatchEvent(new CustomEvent('auth:forbidden'));
+        if (!isPublicRoute()) {
+          window.dispatchEvent(new CustomEvent('auth:forbidden'));
+        }
       }
+
       return res;
     });
   };

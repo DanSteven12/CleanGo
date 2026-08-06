@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import type { ResultSetHeader } from 'mysql2';
 import { sanitizeText } from '../utils/sanitize';
+import { RowDataPacket } from "mysql2/promise";
 
 const router = Router();
 

@@ -17,6 +17,212 @@ const activeSimulations = new Map<number, NodeJS.Timeout>();
 // Velocidad actual de cada simulación (1 = 1x, 2 = 2x, etc.)
 const simulationSpeeds = new Map<number, number>();
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Routes API — Geometry fetching & decoding
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface LatLng { lat: number; lng: number; }
+
+/** Caché en memoria: clave = recorridoId, valor = array de puntos de la ruta real */
+const routeGeometryCache = new Map<number, LatLng[]>();
+
+export function getRouteGeometry(recorridoId: number): LatLng[] | null {
+  return routeGeometryCache.get(recorridoId) || null;
+}
+
+/**
+ * Decodifica un Google Encoded Polyline en un array de {lat, lng}.
+ * Implementación pura, sin dependencias externas.
+ */
+function decodePolyline(encoded: string): LatLng[] {
+  const poly: LatLng[] = [];
+  let index = 0;
+  const len = encoded.length;
+  let lat = 0, lng = 0;
+
+  while (index < len) {
+    let b: number, shift = 0, result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+    poly.push({ lat: lat / 1e5, lng: lng / 1e5 });
+  }
+  return poly;
+}
+
+/**
+ * Llama a la Routes API de Google para obtener la geometría real de calles
+ * que une los checkpoints dados. Usa caché por recorridoId para evitar
+ * llamadas repetidas. Si la API falla o no hay API Key, retorna null
+ * (el llamador hace fallback a interpolación lineal).
+ */
+async function fetchRouteGeometry(
+  recorridoId: number,
+  checkpoints: any[]
+): Promise<LatLng[] | null> {
+  // Reutilizar caché si ya fue obtenida para este recorrido
+  if (routeGeometryCache.has(recorridoId)) {
+    return routeGeometryCache.get(recorridoId)!;
+  }
+
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    console.warn('[Simulation] GOOGLE_MAPS_API_KEY no configurada — usando interpolación lineal como fallback');
+    return null;
+  }
+
+  try {
+    const validCps = checkpoints.filter(cp => {
+      const lat = Number(cp.latitud);
+      const lng = Number(cp.longitud);
+      return !isNaN(lat) && !isNaN(lng);
+    });
+
+    if (validCps.length < 2) return null;
+
+    const origin = validCps[0];
+    const destination = validCps[validCps.length - 1];
+    const intermediates = validCps.slice(1, -1).map((cp: any) => ({
+      location: { latLng: { latitude: Number(cp.latitud), longitude: Number(cp.longitud) } }
+    }));
+
+    const body: any = {
+      origin: { location: { latLng: { latitude: Number(origin.latitud), longitude: Number(origin.longitud) } } },
+      destination: { location: { latLng: { latitude: Number(destination.latitud), longitude: Number(destination.longitud) } } },
+      travelMode: 'DRIVE',
+      routingPreference: 'TRAFFIC_AWARE',
+    };
+
+    if (intermediates.length > 0) {
+      body.intermediates = intermediates;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 segundos de timeout
+
+    const referer = process.env.FRONTEND_URL || 'http://localhost:5173/';
+
+    const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': 'routes.polyline.encodedPolyline',
+        'Referer': referer,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.warn(`[Simulation] Routes API respondió ${response.status} — fallback a interpolación lineal:`, errText);
+      return generateFallbackGeometry(recorridoId, checkpoints);
+    }
+
+    const data = await response.json();
+    const encodedPolyline = data.routes?.[0]?.polyline?.encodedPolyline;
+
+    if (!encodedPolyline) {
+      console.warn('[Simulation] Routes API no devolvió polyline — fallback a interpolación lineal');
+      return generateFallbackGeometry(recorridoId, checkpoints);
+    }
+
+    const decoded = decodePolyline(encodedPolyline);
+    console.log(`[Simulation] Geometría de Routes API cargada para recorridoId ${recorridoId}: ${decoded.length} puntos`);
+    routeGeometryCache.set(recorridoId, decoded);
+    return decoded;
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') {
+      console.warn('[Simulation] Timeout en Routes API — fallback a interpolación lineal.');
+    } else {
+      console.warn('[Simulation] Error de red al obtener geometría de Routes API — fallback a interpolación lineal:', err);
+    }
+    return generateFallbackGeometry(recorridoId, checkpoints);
+  }
+}
+
+/**
+ * Genera una geometría de respaldo basada exclusivamente en los checkpoints.
+ */
+function generateFallbackGeometry(recorridoId: number, checkpoints: any[]): LatLng[] {
+  const fallback = checkpoints.map(cp => ({
+    lat: Number(cp.latitud),
+    lng: Number(cp.longitud)
+  }));
+  routeGeometryCache.set(recorridoId, fallback);
+  return fallback;
+}
+
+/**
+ * Calcula la distancia acumulada (en grados²) entre todos los puntos
+ * del array de geometría. Se usa para distribuir el progreso de la
+ * simulación uniformemente a lo largo de la ruta real.
+ */
+function buildCumulativeDistances(path: LatLng[]): number[] {
+  const cumulative: number[] = [0];
+  for (let i = 1; i < path.length; i++) {
+    const dx = path[i].lat - path[i - 1].lat;
+    const dy = path[i].lng - path[i - 1].lng;
+    cumulative.push(cumulative[i - 1] + Math.sqrt(dx * dx + dy * dy));
+  }
+  return cumulative;
+}
+
+/**
+ * Dado un progreso global [0..1] sobre la geometría completa,
+ * devuelve la coordenada interpolada exacta sobre la polilínea.
+ */
+function interpolateOnPath(
+  path: LatLng[],
+  cumulative: number[],
+  progress: number
+): LatLng {
+  if (path.length === 0) return { lat: 0, lng: 0 };
+  if (path.length === 1) return path[0];
+
+  const totalDist = cumulative[cumulative.length - 1];
+  if (totalDist === 0) return path[0];
+
+  const targetDist = Math.min(progress, 1) * totalDist;
+
+  // Búsqueda binaria del segmento donde cae targetDist
+  let lo = 0;
+  let hi = cumulative.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (cumulative[mid] <= targetDist) lo = mid;
+    else hi = mid;
+  }
+
+  const segLen = cumulative[hi] - cumulative[lo];
+  if (segLen === 0) return path[lo];
+
+  const t = (targetDist - cumulative[lo]) / segLen;
+  return {
+    lat: path[lo].lat + (path[hi].lat - path[lo].lat) * t,
+    lng: path[lo].lng + (path[hi].lng - path[lo].lng) * t,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Simulation control — sin cambios en la interfaz pública
+// ─────────────────────────────────────────────────────────────────────────────
+
 /** Establece la velocidad de simulación para un recorrido y notifica a todos los clientes */
 export function setSimulationSpeed(recorridoId: number, speed: number) {
   if (!activeSimulations.has(recorridoId)) return; // No existe simulación activa
@@ -39,6 +245,8 @@ export function stopSimulation(recorridoId: number) {
     clearInterval(activeSimulations.get(recorridoId)!);
     activeSimulations.delete(recorridoId);
     simulationSpeeds.delete(recorridoId);
+    // Limpiar también la geometría cacheada al detener la simulación
+    routeGeometryCache.delete(recorridoId);
     console.log(`[Simulation] Simulación detenida para recorridoId: ${recorridoId}`);
   }
 }
@@ -59,6 +267,12 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
   const simulationStartWallTime = Date.now();
   const arrivalWallTime = simulationStartWallTime + (checkpoints.length - 1) * ETA_MINUTES_PER_SEGMENT * 60 * 1000;
 
+  // ── NUEVO: cargar geometría real de la Routes API ──────────────────────────
+  // Si la API falla, routeGeom quedará null y haremos fallback a línea recta.
+  const routeGeom = await fetchRouteGeometry(recorridoId, checkpoints);
+  const cumDistances = routeGeom ? buildCumulativeDistances(routeGeom) : null;
+  // ──────────────────────────────────────────────────────────────────────────
+
   let startIndex = 0;
   let segmentStartTime = Date.now();
 
@@ -71,40 +285,55 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
     const nextIndex = startIndex + 1;
     const isLastSegment = nextIndex >= checkpoints.length;
 
-    // Si ya no quedan segmentos que recorrer, la simulaci\u00f3n termina
+    // Si ya no quedan segmentos que recorrer, la simulación termina
     if (isLastSegment) {
-      // Solo detenemos el ticker sin tocar la BD ni emitir aqu\u00ed.
-      // updateCheckpointReached del \u00faltimo tick ya lo habr\u00e1 hecho.
+      // Solo detenemos el ticker sin tocar la BD ni emitir aquí.
+      // updateCheckpointReached del último tick ya lo habrá hecho.
       stopSimulation(recorridoId);
       return;
     }
 
     const cpStart = checkpoints[startIndex];
-    const cpEnd = checkpoints[nextIndex];
+    const cpEnd   = checkpoints[nextIndex];
 
     const latStart = Number(cpStart.latitud);
     const lngStart = Number(cpStart.longitud);
-    const latEnd = Number(cpEnd.latitud);
-    const lngEnd = Number(cpEnd.longitud);
+    const latEnd   = Number(cpEnd.latitud);
+    const lngEnd   = Number(cpEnd.longitud);
 
     const now = Date.now();
     const currentSpeed = simulationSpeeds.get(recorridoId) ?? 1;
     const effectiveDuration = SEGMENT_DURATION_MS / currentSpeed;
-    const progress = Math.min((now - segmentStartTime) / effectiveDuration, 1);
+    const segmentProgress = Math.min((now - segmentStartTime) / effectiveDuration, 1);
 
-    const currentLat = latStart + (latEnd - latStart) * progress;
-    const currentLng = lngStart + (lngEnd - lngStart) * progress;
+    // ── NUEVO: calcular posición sobre geometría real ─────────────────────
+    let currentLat: number;
+    let currentLng: number;
+
+    if (routeGeom && cumDistances && routeGeom.length >= 2) {
+      // Progreso global = fracción del recorrido total completado
+      // startIndex segmentos ya completados + fracción del segmento actual
+      const globalProgress = (startIndex + segmentProgress) / (checkpoints.length - 1);
+      const pos = interpolateOnPath(routeGeom, cumDistances, globalProgress);
+      currentLat = pos.lat;
+      currentLng = pos.lng;
+    } else {
+      // Fallback: interpolación lineal original entre checkpoints
+      currentLat = latStart + (latEnd - latStart) * segmentProgress;
+      currentLng = lngStart + (lngEnd - lngStart) * segmentProgress;
+    }
+    // ─────────────────────────────────────────────────────────────────────
 
     const totalElapsedMs = now - simulationStartWallTime;
     const expectedCheckpoints = Math.floor(totalElapsedMs / effectiveDuration);
     const isDelayed = (startIndex + 1) < expectedCheckpoints;
 
     const pendientes = checkpoints.length - 1 - startIndex;
-    const segmentosRestantes = pendientes - progress;
+    const segmentosRestantes = pendientes - segmentProgress;
     const etaTotalMs = Math.max(0, segmentosRestantes) * ETA_MINUTES_PER_SEGMENT * 60 * 1000 / currentSpeed;
     const etaSecs = Math.max(0, Math.floor(etaTotalMs / 1000));
 
-    const rawPercentage = ((startIndex + progress) / checkpoints.length) * 100;
+    const rawPercentage = ((startIndex + segmentProgress) / checkpoints.length) * 100;
 
     const stats = {
       recorridoId,
@@ -181,23 +410,23 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
     });
 
     // Al llegar al siguiente checkpoint
-    if (progress >= 1) {
+    if (segmentProgress >= 1) {
       segmentStartTime = now;
       startIndex++;
 
       const isLastCheckpoint = startIndex >= checkpoints.length - 1;
 
       if (isLastCheckpoint) {
-        // \u00daltimo checkpoint: esperamos la actualizaci\u00f3n en BD antes de emitir fin
+        // Último checkpoint: esperamos la actualización en BD antes de emitir fin
         try {
           await updateCheckpointReached(recorridoId, cpEnd, currentLat, currentLng);
           io.to(roomName).emit('checkpoint_alcanzado', { recorridoId, checkpointId: cpEnd.id });
         } catch (err) {
           console.error('Error DB update last checkpoint:', err);
         }
-        // El stopSimulation ocurrir\u00e1 en el pr\u00f3ximo tick (isLastSegment = true)
+        // El stopSimulation ocurrirá en el próximo tick (isLastSegment = true)
       } else {
-        // Checkpoints intermedios: as\u00edncrono para no bloquear el tick
+        // Checkpoints intermedios: asíncrono para no bloquear el tick
         updateCheckpointReached(recorridoId, cpEnd, currentLat, currentLng)
           .then(() => {
             io.to(roomName).emit('checkpoint_alcanzado', {

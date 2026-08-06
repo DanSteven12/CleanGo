@@ -2,6 +2,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import type { AuthUser } from '../services/authService';
 import { getMe, logoutUser } from '../services/authService';
+import { isPublicRoute } from '../utils/routeUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,19 +72,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const handleUnauthorized = () => {
       logout();
-      import('sonner').then(({ toast }) => {
-        toast.error('Sesión invalidada', {
-          description: 'Tu sesión expiró o iniciaste sesión desde otro dispositivo.',
+      if (!isPublicRoute()) {
+        import('sonner').then(({ toast }) => {
+          toast.error('Sesión invalidada', {
+            description: 'Tu sesión expiró o iniciaste sesión desde otro dispositivo.',
+          });
         });
-      });
+      }
     };
 
     const handleForbidden = () => {
-      import('sonner').then(({ toast }) => {
-        toast.error('Acceso denegado', {
-          description: 'No tienes permisos suficientes para realizar esta acción.',
+      if (!isPublicRoute()) {
+        import('sonner').then(({ toast }) => {
+          toast.error('Acceso denegado', {
+            description: 'No tienes permisos suficientes para realizar esta acción.',
+          });
         });
-      });
+      }
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized as EventListener);

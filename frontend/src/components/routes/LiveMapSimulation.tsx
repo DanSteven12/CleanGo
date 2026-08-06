@@ -178,17 +178,23 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
 
       const currentPos = { lat: Number(data.latitud), lng: Number(data.longitud) };
 
-      if (camionMarkerRef.current) {
-        camionMarkerRef.current.position = currentPos;
-      }
-
       if (progressPolylineRef.current && fullPathRef.current.length > 0) {
+        // Encontrar el punto más cercano SOBRE la geometría real de calles
         const geom = fullPathRef.current;
         const closestIdx = findClosestPointIndex(geom, currentPos, lastIdxRef.current, 150);
         lastIdxRef.current = closestIdx;
-        
+
+        // Posicionar el camión en el punto exacto de la geometría (no en las coords brutas del socket)
+        // Esto garantiza que el camión siempre esté sobre la línea verde
+        if (camionMarkerRef.current) {
+          camionMarkerRef.current.position = geom[closestIdx];
+        }
+
         progressPolylineRef.current.traveled.setPath(geom.slice(0, closestIdx + 1));
         progressPolylineRef.current.remaining.setPath(geom.slice(closestIdx));
+      } else if (camionMarkerRef.current) {
+        // Fallback: usar coordenadas brutas mientras la geometría de calles carga
+        camionMarkerRef.current.position = currentPos;
       }
 
       onStatsUpdateRef.current(recorridoId, data);
