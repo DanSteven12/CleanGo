@@ -21,6 +21,7 @@ import conductoresRouter from './routes/conductores';
 import reportesRouter from './routes/reportes';
 import dashboardRouter from './routes/dashboard';
 import { notificacionesRouter } from './modules/notifications';
+import { pool } from './db';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -74,6 +75,28 @@ app.use(cookieParser());
 app.use(csrfMiddleware);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+
+// ── Health check: verifica conexión a la base de datos (público, sin auth)
+app.get('/api/health', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({
+      status: 'ok',
+      db: 'connected',
+      host: process.env.DB_HOST || 'localhost',
+      database: process.env.DB_NAME || 'cleango',
+      node_env: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      status: 'error',
+      db: 'disconnected',
+      message: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
 
 // ── Public: auth endpoints (login, register, forgot-password, reset-password, me)
 app.use('/api/auth', authRouter);
