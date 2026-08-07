@@ -31,4 +31,16 @@ router.get('/conductor/:id', NotificationController.getByConductor);
 // Marca una notificación individual como leída.
 router.patch('/:id/leida', NotificationController.markAsRead);
 
+// ── GET /api/notificaciones/test-dump ───────────────────────────────────────
+// Test DB access directly from the running backend.
+router.get('/test-dump', async (req, res) => {
+  try {
+    const { pool } = require('../../../db');
+    const [rows] = await pool.query('SELECT * FROM notificaciones');
+    res.json({ success: true, count: rows.length, data: rows });
+  } catch (err: any) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 export default router;

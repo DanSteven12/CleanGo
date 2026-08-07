@@ -100,6 +100,17 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
+// ── TEST ROUTE ──
+app.get('/test-db-dump', async (req, res) => {
+  try {
+    const { pool } = require('./db');
+    const [rows] = await pool.query('SELECT * FROM notificaciones');
+    res.json({ success: true, count: rows.length, data: rows });
+  } catch (err: any) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 // ── Public: auth endpoints (login, register, forgot-password, reset-password, me)
 app.use('/api/auth', authRouter);
 
