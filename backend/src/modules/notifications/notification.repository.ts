@@ -26,10 +26,17 @@ export async function insertarNotificacion(
 ): Promise<Notificacion> {
   const db = connection || pool;
   
+  let destinatario = 'AMBOS';
+  if (dto.usuario_id && !dto.conductor_id) {
+    destinatario = 'CIUDADANOS';
+  } else if (!dto.usuario_id && dto.conductor_id) {
+    destinatario = 'CONDUCTORES';
+  }
+
   const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO notificaciones
-       (usuario_id, conductor_id, recorrido_id, titulo, mensaje, tipo, categoria)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (usuario_id, conductor_id, recorrido_id, titulo, mensaje, tipo, categoria, destinatario)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       dto.usuario_id ?? null,
       dto.conductor_id ?? null,
@@ -38,6 +45,7 @@ export async function insertarNotificacion(
       dto.mensaje,
       dto.tipo,
       dto.categoria,
+      destinatario,
     ]
   );
 
