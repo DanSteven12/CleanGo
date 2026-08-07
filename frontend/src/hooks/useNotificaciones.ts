@@ -23,9 +23,16 @@ export function useNotificaciones(filtrosIniciales?: FiltrosNotificaciones) {
       setLoading(true);
       setError(null);
       const res = await obtenerNotificacionesAdmin(filtros);
-      setNotificaciones(res.data);
-      setTotalRegistros(res.pagination.total);
-      setSummary(res.summary);
+      // Defensive check in case the backend returns an array or pagination is undefined
+      if (Array.isArray(res)) {
+        setNotificaciones(res);
+        setTotalRegistros(res.length);
+        setSummary({ unread: res.filter((n: Notificacion) => !n.leida).length, thisWeek: res.length });
+      } else {
+        setNotificaciones(res.data || []);
+        setTotalRegistros(res.pagination?.total || 0);
+        setSummary(res.summary || { unread: 0, thisWeek: 0 });
+      }
     } catch (err: any) {
       setError(err.message || 'Error al cargar las notificaciones.');
       toast.error('Error al cargar notificaciones', {
