@@ -34,7 +34,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export async function obtenerNotificacionesAdmin(
   filtros?: FiltrosNotificaciones
 ): Promise<NotificacionesResponse> {
-  const url = new URL(BASE, window.location.origin);
+  const url = new URL(BASE, 'http://dummy.com');
 
   if (filtros) {
     if (filtros.tipo && filtros.tipo !== 'ALL') url.searchParams.append('tipo', filtros.tipo);
@@ -46,7 +46,9 @@ export async function obtenerNotificacionesAdmin(
     if (filtros.limit) url.searchParams.append('limit', String(filtros.limit));
   }
 
-  const res = await fetch(url.toString(), {
+  const relativeUrl = `${url.pathname}${url.search}`;
+
+  const res = await fetch(relativeUrl, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -69,8 +71,7 @@ export async function marcarComoLeida(id: number): Promise<{ message: string }> 
  * Crea un aviso manual (dirigido a ciudadanos, conductores o ambos).
  */
 export async function crearAvisoManual(payload: AvisoManualPayload): Promise<{ message: string }> {
-  const url = new URL(BASE, window.location.origin);
-  const res = await fetch(url.toString(), {
+  const res = await fetch(BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
