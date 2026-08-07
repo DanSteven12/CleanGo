@@ -27,22 +27,16 @@ export default function HeroTitle({ lines, className }: HeroTitleProps) {
             return (
               <motion.span
                 key={wi}
-                initial={{ opacity: 0, y: 14, filter: 'blur(6px)' }}
+                initial={{ opacity: 0, y: 15, scale: 0.95 }}
                 animate={{
                   opacity: 1,
                   y: 0,
-                  filter: 'blur(0px)',
-                  textShadow: [
-                    '0 0 0px rgba(144,191,73,0)',
-                    '0 0 18px rgba(144,191,73,0.55)',
-                    '0 0 0px rgba(144,191,73,0)',
-                  ],
+                  scale: 1,
                 }}
                 transition={{
-                  opacity: { duration: 0.5, delay: 0.15 + i * 0.06, ease: [0.22, 1, 0.36, 1] },
-                  y: { duration: 0.5, delay: 0.15 + i * 0.06, ease: [0.22, 1, 0.36, 1] },
-                  filter: { duration: 0.5, delay: 0.15 + i * 0.06, ease: [0.22, 1, 0.36, 1] },
-                  textShadow: { duration: 1.6, delay: 0.15 + i * 0.06 + 0.4, ease: 'easeOut' },
+                  duration: 0.4,
+                  delay: 0.1 + i * 0.08,
+                  ease: [0.22, 1, 0.36, 1],
                 }}
                 className={cn('inline-block', line.accent && 'text-brand-soft')}
               >

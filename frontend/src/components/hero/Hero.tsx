@@ -12,6 +12,7 @@ import StatusCard from '../cards/StatusCard';
 import TrackingCard from '../cards/TrackingCard';
 import Spotlight from '../ui/Spotlight';
 import BoomerangVideoBg from './BoomerangVideoBg';
+import CollectionSchedule from './CollectionSchedule';
 
 /** Live clock — updates every second using local browser time */
 function LiveClock() {
@@ -41,9 +42,9 @@ function LiveClock() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 1.4, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.4, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
       className="mt-6 flex flex-col items-center gap-0.5"
     >
       <p className="text-xs font-medium tracking-wide text-ink-muted capitalize">
@@ -196,9 +197,9 @@ export default function Hero() {
       <Spotlight className="relative z-10 mx-auto flex max-w-6xl flex-col items-center px-4 pb-16 pt-32 sm:px-6 sm:pt-40 md:pt-44">
         {/* Eyebrow */}
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          initial={{ opacity: 0, y: 15, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           className="mb-6 flex items-center gap-2 rounded-full border border-white/[.08] bg-white/[.03] px-3.5 py-1.5 backdrop-blur-xl"
         >
           <MapPin className="h-3.5 w-3.5 text-brand-soft" strokeWidth={2} />
@@ -210,21 +211,16 @@ export default function Hero() {
         <HeroTitle
           className="text-center"
           lines={[
-            { text: 'CleanGo' },
-            { text: 'Plataforma Inteligente para el', accent: false },
-            { text: 'Monitoreo de Rutas de Recolección.', accent: true },
+            { text: 'Monitoreo de Rutas de', accent: false },
+            { text: 'Recolección.', accent: true },
           ]}
         />
 
-        <p className="mt-6 max-w-3xl text-center text-sm leading-relaxed text-ink-muted sm:text-base">
-          CleanGo fortalece la gestión municipal mediante el monitoreo inteligente de rutas, seguimiento GPS en tiempo real y herramientas que optimizan la operación diaria para brindar un mejor servicio a la ciudadanía.
-        </p>
-
         {/* Badges */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.75, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0, y: 15, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.4, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
           className="mt-5 flex flex-wrap items-center justify-center gap-3"
         >
           {[
@@ -352,6 +348,9 @@ export default function Hero() {
             />
           </div>
         </div>
+
+        {/* ── Collection Schedule Section ── */}
+        <CollectionSchedule />
 
         {/* ── CleanGo video showcase — cinematic Axon-style ── */}
         <CinematicVideoShowcase />

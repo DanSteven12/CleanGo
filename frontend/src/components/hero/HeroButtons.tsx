@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { LogIn, Play, LayoutDashboard } from 'lucide-react';
+import { LogIn, LayoutDashboard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MagneticButton from '../ui/MagneticButton';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,9 +10,9 @@ export default function HeroButtons() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.9, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: 15, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.4, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
       className="mt-9 flex flex-wrap items-center justify-center gap-4"
     >
       {/* Primary: glow button with animated conic border-beam + magnetic pull toward cursor */}
@@ -44,15 +44,7 @@ export default function HeroButtons() {
         </button>
       </MagneticButton>
 
-      {/* Secondary: glass ghost button */}
-      <MagneticButton strength={0.2}>
-        <button className="group inline-flex items-center gap-2 rounded-full border border-white/[.1] bg-white/[.03] px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-xl transition-colors hover:border-brand-soft/40 hover:bg-white/[.06]">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/[.08] transition-colors group-hover:bg-brand-soft/20">
-            <Play className="ml-0.5 h-3 w-3 fill-white text-white" strokeWidth={0} />
-          </span>
-          PROBAR DEMO
-        </button>
-      </MagneticButton>
+
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
