@@ -169,8 +169,8 @@ export async function obtenerTodasLasNotificaciones(
       params
     ),
     pool.query<RowDataPacket[]>(
-      `SELECT * FROM notificaciones ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      `SELECT * FROM notificaciones ${where} ORDER BY created_at DESC LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
+      params
     ),
     pool.query<RowDataPacket[]>(
       `SELECT COUNT(*) as unread FROM notificaciones WHERE leida = 0`
