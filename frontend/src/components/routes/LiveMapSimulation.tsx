@@ -60,18 +60,12 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
   const fullPathRef = useRef<{lat: number; lng: number}[]>([]);
   const lastIdxRef = useRef<number>(0);
 
-  // Referencias para la animación y rotación fluida (LERP)
   const truckIconRef = useRef<HTMLImageElement | null>(null);
-  const animationFrameId = useRef<number | null>(null);
+  const animationIntervalId = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentPosRef = useRef<{lat: number; lng: number} | null>(null);
   const targetPosRef = useRef<{lat: number; lng: number} | null>(null);
-  const startPosRef = useRef<{lat: number; lng: number} | null>(null);
   const currentBearingRef = useRef<number>(0);
   const targetBearingRef = useRef<number>(0);
-  const startBearingRef = useRef<number>(0);
-  const animationStartRef = useRef<number>(0);
-  const durationRef = useRef<number>(2000); // 2 segundos por defecto
-  const lastUpdateTimeRef = useRef<number>(0);
 
   const onStatsUpdateRef = useRef(onStatsUpdate);
   useEffect(() => {
@@ -188,8 +182,8 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
 
     return () => {
       isActive = false;
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
+      if (animationIntervalId.current) {
+        clearInterval(animationIntervalId.current);
       }
       if (progressPolylineRef.current) {
         progressPolylineRef.current.traveled.setMap(null);
@@ -214,82 +208,53 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
     // Conectar a la sala específica del recorrido
     socket.emit('unirse_a_recorrido', recorridoId);
 
-    // Loop continuo de animación (una sola instancia)
-    const animateMarker = (timestamp: number) => {
-      // Solicitar inmediatamente el siguiente frame para que NUNCA se detenga el loop
-      animationFrameId.current = requestAnimationFrame(animateMarker);
-
-      if (!startPosRef.current || !targetPosRef.current || !camionMarkerRef.current || animationStartRef.current === 0) return;
+    // Animación continua mediante persecución suave (chase algorithm)
+    const startAnimationLoop = () => {
+      if (animationIntervalId.current) return;
       
-      const elapsed = timestamp - animationStartRef.current;
-      let t = elapsed / durationRef.current;
-      
-      // Permitimos que t exceda 1.0 (extrapolación) si hay retraso en la red.
-      // Así el camión sigue moviéndose fluidamente. Lo limitamos a 2.0 para que 
-      // no salga volando si se pierde la conexión por completo.
-      if (t > 2.0) t = 2.0;
+      animationIntervalId.current = setInterval(() => {
+        if (!currentPosRef.current || !targetPosRef.current || !camionMarkerRef.current) return;
+        
+        // Factor de suavizado (0.05 = 5% de la distancia restante por cada frame de 50ms)
+        // Esto crea un movimiento continuo y fluido que nunca se detiene bruscamente.
+        const LERP_FACTOR = 0.05;
 
-      const lat = lerp(startPosRef.current.lat, targetPosRef.current.lat, t);
-      const lng = lerp(startPosRef.current.lng, targetPosRef.current.lng, t);
-      
-      currentPosRef.current = { lat, lng };
-      camionMarkerRef.current.position = currentPosRef.current;
+        const lat = lerp(currentPosRef.current.lat, targetPosRef.current.lat, LERP_FACTOR);
+        const lng = lerp(currentPosRef.current.lng, targetPosRef.current.lng, LERP_FACTOR);
+        
+        currentPosRef.current = { lat, lng };
+        camionMarkerRef.current.position = currentPosRef.current;
 
-      if (truckIconRef.current) {
-        const bearing = lerpBearing(startBearingRef.current, targetBearingRef.current, t);
-        currentBearingRef.current = bearing;
-        truckIconRef.current.style.transform = `rotate(${bearing}deg)`;
-      }
+        if (truckIconRef.current) {
+          const bearing = lerpBearing(currentBearingRef.current, targetBearingRef.current, LERP_FACTOR);
+          currentBearingRef.current = bearing;
+          truckIconRef.current.style.transform = `rotate(${bearing}deg)`;
+        }
+      }, 50); // 20 FPS (suficiente para un mapa sin saturar el hilo principal)
     };
 
     const updateMarkerPosition = (newPos: {lat: number; lng: number}) => {
       if (!currentPosRef.current) {
+        // Primera ubicación
         currentPosRef.current = newPos;
+        targetPosRef.current = newPos;
         if (camionMarkerRef.current) camionMarkerRef.current.position = newPos;
-        lastUpdateTimeRef.current = performance.now();
-        
-        // Iniciar el loop continuo la primera vez que tenemos una posición
-        if (!animationFrameId.current) {
-          animationFrameId.current = requestAnimationFrame(animateMarker);
-        }
+        startAnimationLoop();
         return;
       }
 
-      const now = performance.now();
-      if (lastUpdateTimeRef.current !== 0) {
-        const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
-        // Ajustamos la duración basándonos en la frecuencia de la red.
-        // Multiplicamos por 1.1 para que la animación siempre tenga un ligero "buffer" 
-        // de retraso y nunca alcance el destino antes de que llegue la siguiente coordenada.
-        // Esto asegura un movimiento CONSTANTE que no se detiene.
-        if (timeSinceLastUpdate > 500 && timeSinceLastUpdate < 10000) {
-          const targetDuration = timeSinceLastUpdate * 1.1; 
-          durationRef.current = (durationRef.current + targetDuration) / 2; // Suavizar cambios bruscos
-        }
-      }
-      lastUpdateTimeRef.current = now;
-
-      // El nuevo punto de partida es la posición visual EXACTA actual
-      startPosRef.current = { ...currentPosRef.current };
-      targetPosRef.current = newPos;
+      // Calculamos hacia dónde debe mirar el camión basado en su posición actual y el nuevo destino
+      const newBearing = getBearing(currentPosRef.current, newPos);
+      const distLat = Math.abs(currentPosRef.current.lat - newPos.lat);
+      const distLng = Math.abs(currentPosRef.current.lng - newPos.lng);
       
-      const newBearing = getBearing(startPosRef.current, targetPosRef.current);
-      const distLat = Math.abs(startPosRef.current.lat - newPos.lat);
-      const distLng = Math.abs(startPosRef.current.lng - newPos.lng);
-      // Evitar rotaciones locas si el movimiento es imperceptible
       const isSignificantMove = distLat > 0.000005 || distLng > 0.000005;
-                                
       if (isSignificantMove) {
-          startBearingRef.current = currentBearingRef.current;
           targetBearingRef.current = newBearing;
-      } else {
-          startBearingRef.current = currentBearingRef.current;
-          targetBearingRef.current = currentBearingRef.current;
       }
 
-      // Reiniciamos el contador de tiempo de este segmento, 
-      // pero NUNCA hacemos cancelAnimationFrame. El ciclo de vida de la animación no se interrumpe.
-      animationStartRef.current = performance.now();
+      // Simplemente actualizamos el target. El setInterval se encargará de perseguirlo suavemente.
+      targetPosRef.current = newPos;
     };
 
     const handleUbicacion = (data: any) => {
