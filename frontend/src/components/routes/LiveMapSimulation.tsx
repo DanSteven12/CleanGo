@@ -214,12 +214,20 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
     // Conectar a la sala específica del recorrido
     socket.emit('unirse_a_recorrido', recorridoId);
 
+    // Loop continuo de animación (una sola instancia)
     const animateMarker = (timestamp: number) => {
-      if (!startPosRef.current || !targetPosRef.current || !camionMarkerRef.current) return;
+      // Solicitar inmediatamente el siguiente frame para que NUNCA se detenga el loop
+      animationFrameId.current = requestAnimationFrame(animateMarker);
+
+      if (!startPosRef.current || !targetPosRef.current || !camionMarkerRef.current || animationStartRef.current === 0) return;
       
       const elapsed = timestamp - animationStartRef.current;
       let t = elapsed / durationRef.current;
-      if (t > 1) t = 1;
+      
+      // Permitimos que t exceda 1.0 (extrapolación) si hay retraso en la red.
+      // Así el camión sigue moviéndose fluidamente. Lo limitamos a 2.0 para que 
+      // no salga volando si se pierde la conexión por completo.
+      if (t > 2.0) t = 2.0;
 
       const lat = lerp(startPosRef.current.lat, targetPosRef.current.lat, t);
       const lng = lerp(startPosRef.current.lng, targetPosRef.current.lng, t);
@@ -232,10 +240,6 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
         currentBearingRef.current = bearing;
         truckIconRef.current.style.transform = `rotate(${bearing}deg)`;
       }
-
-      if (t < 1) {
-        animationFrameId.current = requestAnimationFrame(animateMarker);
-      }
     };
 
     const updateMarkerPosition = (newPos: {lat: number; lng: number}) => {
@@ -243,19 +247,29 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
         currentPosRef.current = newPos;
         if (camionMarkerRef.current) camionMarkerRef.current.position = newPos;
         lastUpdateTimeRef.current = performance.now();
+        
+        // Iniciar el loop continuo la primera vez que tenemos una posición
+        if (!animationFrameId.current) {
+          animationFrameId.current = requestAnimationFrame(animateMarker);
+        }
         return;
       }
 
       const now = performance.now();
       if (lastUpdateTimeRef.current !== 0) {
         const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
-        // Ajustar dinámicamente la duración de la animación según la frecuencia de actualización (entre 1s y 5s)
-        if (timeSinceLastUpdate > 500 && timeSinceLastUpdate < 5000) {
-          durationRef.current = timeSinceLastUpdate;
+        // Ajustamos la duración basándonos en la frecuencia de la red.
+        // Multiplicamos por 1.1 para que la animación siempre tenga un ligero "buffer" 
+        // de retraso y nunca alcance el destino antes de que llegue la siguiente coordenada.
+        // Esto asegura un movimiento CONSTANTE que no se detiene.
+        if (timeSinceLastUpdate > 500 && timeSinceLastUpdate < 10000) {
+          const targetDuration = timeSinceLastUpdate * 1.1; 
+          durationRef.current = (durationRef.current + targetDuration) / 2; // Suavizar cambios bruscos
         }
       }
       lastUpdateTimeRef.current = now;
 
+      // El nuevo punto de partida es la posición visual EXACTA actual
       startPosRef.current = { ...currentPosRef.current };
       targetPosRef.current = newPos;
       
@@ -273,12 +287,9 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
           targetBearingRef.current = currentBearingRef.current;
       }
 
-      animationStartRef.current = now;
-
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
-      animationFrameId.current = requestAnimationFrame(animateMarker);
+      // Reiniciamos el contador de tiempo de este segmento, 
+      // pero NUNCA hacemos cancelAnimationFrame. El ciclo de vida de la animación no se interrumpe.
+      animationStartRef.current = performance.now();
     };
 
     const handleUbicacion = (data: any) => {
