@@ -294,12 +294,12 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
     }
 
     const cpStart = checkpoints[startIndex];
-    const cpEnd   = checkpoints[nextIndex];
+    const cpEnd = checkpoints[nextIndex];
 
     const latStart = Number(cpStart.latitud);
     const lngStart = Number(cpStart.longitud);
-    const latEnd   = Number(cpEnd.latitud);
-    const lngEnd   = Number(cpEnd.longitud);
+    const latEnd = Number(cpEnd.latitud);
+    const lngEnd = Number(cpEnd.longitud);
 
     const now = Date.now();
     const currentSpeed = simulationSpeeds.get(recorridoId) ?? 1;
@@ -359,7 +359,7 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
     // crearSiNoExiste() verifica en BD antes de insertar: deduplicación persistente.
     // Esto garantiza una sola notificación por recorrido aunque haya miles de ticks.
     if (isDelayed) {
-      ;(async () => {
+      ; (async () => {
         try {
           // Obtener conductor del recorrido para las notificaciones dinámicas
           const [condRows] = await pool.execute<any[]>(

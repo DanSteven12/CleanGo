@@ -55,9 +55,9 @@ router.get('/', async (_req: Request, res: Response) => {
         c.placa,
         d.nombre_completo AS conductor_nombre
       FROM asignaciones_rutas ar
-      INNER JOIN rutas r       ON r.id = ar.ruta_id
-      INNER JOIN camiones c    ON c.id = ar.camion_id
-      INNER JOIN conductores d ON d.id = ar.conductor_id
+      LEFT JOIN rutas r       ON r.id = ar.ruta_id
+      LEFT JOIN camiones c    ON c.id = ar.camion_id
+      LEFT JOIN conductores d ON d.id = ar.conductor_id
       ORDER BY ar.fecha_programada DESC, ar.id DESC
     `);
     res.json(rows);

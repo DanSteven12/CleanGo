@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.85:5001/api').replace('/api', '');
+const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://backend.cleangomunicipal.com.mx/api').replace('/api', '');
 
 let socket: Socket | null = null;
 

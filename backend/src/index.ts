@@ -40,8 +40,8 @@ app.use(helmet({
       frameAncestors: ["'none'"], // Protege contra Clickjacking si el navegador interpreta JSON como HTML
     },
   },
-  hsts: process.env.NODE_ENV === 'production' 
-    ? { maxAge: 31536000, includeSubDomains: true, preload: true } 
+  hsts: process.env.NODE_ENV === 'production'
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
     : false, // Desactivar HSTS en desarrollo local para no romper HTTP
 }));
 
@@ -103,19 +103,19 @@ app.get('/api/health', async (_req, res) => {
 app.use('/api/auth', authRouter);
 
 // ── Protected: all application routes require a valid JWT ─────────────────────
-app.use('/api/rutas',          authMiddleware, rutasRouter);
+app.use('/api/rutas', authMiddleware, rutasRouter);
 app.use('/api/puntos-control', authMiddleware, puntosControlRouter);
-app.use('/api/checkpoints',    authMiddleware, checkpointsRouter);
-app.use('/api/routes',         authMiddleware, routeCheckpointsRouter);
-app.use('/api/asignaciones',   asignacionesRouter);
-app.use('/api/crear-ruta',     authMiddleware, crearRutaRouter);
-app.use('/api/recorridos',     recorridosRouter);
-app.use('/api/horarios',       authMiddleware, horariosRouter);
-app.use('/api/usuarios',       authMiddleware, usuariosRouter);
-app.use('/api/camiones',       authMiddleware, camionesRouter);
-app.use('/api/conductores',    authMiddleware, conductoresRouter);
-app.use('/api/reportes',       authMiddleware, reportesRouter);
-app.use('/api/dashboard',      authMiddleware, dashboardRouter);
+app.use('/api/checkpoints', authMiddleware, checkpointsRouter);
+app.use('/api/routes', authMiddleware, routeCheckpointsRouter);
+app.use('/api/asignaciones', asignacionesRouter);
+app.use('/api/crear-ruta', authMiddleware, crearRutaRouter);
+app.use('/api/recorridos', recorridosRouter);
+app.use('/api/horarios', authMiddleware, horariosRouter);
+app.use('/api/usuarios', authMiddleware, usuariosRouter);
+app.use('/api/camiones', authMiddleware, camionesRouter);
+app.use('/api/conductores', authMiddleware, conductoresRouter);
+app.use('/api/reportes', authMiddleware, reportesRouter);
+app.use('/api/dashboard', authMiddleware, dashboardRouter);
 app.use('/api/notificaciones', authMiddleware, notificacionesRouter);
 
 // ─── Server ───────────────────────────────────────────────────────────────────

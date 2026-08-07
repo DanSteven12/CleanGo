@@ -16,14 +16,22 @@ export default function HomeScreen() {
   const fetchAsignaciones = useCallback(async () => {
     try {
       const data = await recorridosService.getAsignaciones();
-      // Filtrar asignaciones que el conductor puede ver o operar
-      const filtradas = data.filter((a: any) => 
-        a.estatus_recorrido === 'Pendiente' || a.estatus_recorrido === 'En Progreso'
-      );
-      setAsignaciones(filtradas);
-    } catch (error) {
+      // Validar que data sea un arreglo antes de filtrar
+      if (Array.isArray(data)) {
+        const filtradas = data.filter((a: any) => {
+          if (!a.estatus_recorrido) return true; // Si no tiene estatus explícito, mostrarlo por defecto
+          const estatus = a.estatus_recorrido.toString().toLowerCase().trim();
+          return estatus === 'pendiente' || estatus === 'en progreso' || estatus === 'en_progreso' || estatus === 'en progreso';
+        });
+        setAsignaciones(filtradas);
+      } else {
+        console.warn('[HomeScreen] Respuesta de asignaciones no es un arreglo:', data);
+        setAsignaciones([]);
+      }
+    } catch (error: any) {
       console.error('Error fetching asignaciones:', error);
-      Alert.alert('Error', 'No se pudieron cargar las asignaciones.');
+      const detailMsg = error?.response?.data?.message || error?.message || 'Error de conexión con el servidor.';
+      Alert.alert('Error al cargar asignaciones', detailMsg);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

@@ -4,6 +4,26 @@ import { getSocket } from '../../services/socketService';
 import type { LiveStats } from '../../hooks/useLiveMapData';
 import { fetchRouteGeometry } from '../../utils/mapUtils';
 
+const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
+
+const getBearing = (start: {lat: number; lng: number}, end: {lat: number; lng: number}) => {
+  const startLat = (start.lat * Math.PI) / 180;
+  const startLng = (start.lng * Math.PI) / 180;
+  const endLat = (end.lat * Math.PI) / 180;
+  const endLng = (end.lng * Math.PI) / 180;
+  const y = Math.sin(endLng - startLng) * Math.cos(endLat);
+  const x = Math.cos(startLat) * Math.sin(endLat) - Math.sin(startLat) * Math.cos(endLat) * Math.cos(endLng - startLng);
+  const bearing = (Math.atan2(y, x) * 180) / Math.PI;
+  return (bearing + 360) % 360;
+};
+
+const lerpBearing = (start: number, end: number, t: number) => {
+  let delta = end - start;
+  while (delta > 180) delta -= 360;
+  while (delta < -180) delta += 360;
+  return start + delta * t;
+};
+
 function findClosestPointIndex(path: {lat: number; lng: number}[], pos: {lat: number; lng: number}, startIndex: number, searchWindow = 200): number {
   if (path.length === 0) return 0;
   let minDistance = Infinity;
@@ -39,6 +59,19 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
   const progressPolylineRef = useRef<{ traveled: any; remaining: any } | null>(null);
   const fullPathRef = useRef<{lat: number; lng: number}[]>([]);
   const lastIdxRef = useRef<number>(0);
+
+  // Referencias para la animación y rotación fluida (LERP)
+  const truckIconRef = useRef<HTMLImageElement | null>(null);
+  const animationFrameId = useRef<number | null>(null);
+  const currentPosRef = useRef<{lat: number; lng: number} | null>(null);
+  const targetPosRef = useRef<{lat: number; lng: number} | null>(null);
+  const startPosRef = useRef<{lat: number; lng: number} | null>(null);
+  const currentBearingRef = useRef<number>(0);
+  const targetBearingRef = useRef<number>(0);
+  const startBearingRef = useRef<number>(0);
+  const animationStartRef = useRef<number>(0);
+  const durationRef = useRef<number>(2000); // 2 segundos por defecto
+  const lastUpdateTimeRef = useRef<number>(0);
 
   const onStatsUpdateRef = useRef(onStatsUpdate);
   useEffect(() => {
@@ -120,6 +153,9 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
       iconImg.style.height = '24px';
       iconImg.style.position = 'relative';
       iconImg.style.zIndex = '1';
+      iconImg.style.transition = 'none'; // Evitar conflictos CSS con LERP
+
+      truckIconRef.current = iconImg;
 
       truckDiv.appendChild(pulseDiv);
       truckDiv.appendChild(iconImg);
@@ -129,8 +165,10 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
         content: truckDiv,
         zIndex: 999
       });
+      currentPosRef.current = initialPos;
     } else if (camionMarkerRef.current && !isNaN(initialPos.lat)) {
       camionMarkerRef.current.position = initialPos; // AdvancedMarkerElement usa .position
+      currentPosRef.current = initialPos;
     }
 
     // Obtener y aplicar la geometría real de las calles
@@ -150,6 +188,9 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
 
     return () => {
       isActive = false;
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
       if (progressPolylineRef.current) {
         progressPolylineRef.current.traveled.setMap(null);
         progressPolylineRef.current.remaining.setMap(null);
@@ -173,6 +214,73 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
     // Conectar a la sala específica del recorrido
     socket.emit('unirse_a_recorrido', recorridoId);
 
+    const animateMarker = (timestamp: number) => {
+      if (!startPosRef.current || !targetPosRef.current || !camionMarkerRef.current) return;
+      
+      const elapsed = timestamp - animationStartRef.current;
+      let t = elapsed / durationRef.current;
+      if (t > 1) t = 1;
+
+      const lat = lerp(startPosRef.current.lat, targetPosRef.current.lat, t);
+      const lng = lerp(startPosRef.current.lng, targetPosRef.current.lng, t);
+      
+      currentPosRef.current = { lat, lng };
+      camionMarkerRef.current.position = currentPosRef.current;
+
+      if (truckIconRef.current) {
+        const bearing = lerpBearing(startBearingRef.current, targetBearingRef.current, t);
+        currentBearingRef.current = bearing;
+        truckIconRef.current.style.transform = `rotate(${bearing}deg)`;
+      }
+
+      if (t < 1) {
+        animationFrameId.current = requestAnimationFrame(animateMarker);
+      }
+    };
+
+    const updateMarkerPosition = (newPos: {lat: number; lng: number}) => {
+      if (!currentPosRef.current) {
+        currentPosRef.current = newPos;
+        if (camionMarkerRef.current) camionMarkerRef.current.position = newPos;
+        lastUpdateTimeRef.current = performance.now();
+        return;
+      }
+
+      const now = performance.now();
+      if (lastUpdateTimeRef.current !== 0) {
+        const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
+        // Ajustar dinámicamente la duración de la animación según la frecuencia de actualización (entre 1s y 5s)
+        if (timeSinceLastUpdate > 500 && timeSinceLastUpdate < 5000) {
+          durationRef.current = timeSinceLastUpdate;
+        }
+      }
+      lastUpdateTimeRef.current = now;
+
+      startPosRef.current = { ...currentPosRef.current };
+      targetPosRef.current = newPos;
+      
+      const newBearing = getBearing(startPosRef.current, targetPosRef.current);
+      const distLat = Math.abs(startPosRef.current.lat - newPos.lat);
+      const distLng = Math.abs(startPosRef.current.lng - newPos.lng);
+      // Evitar rotaciones locas si el movimiento es imperceptible
+      const isSignificantMove = distLat > 0.000005 || distLng > 0.000005;
+                                
+      if (isSignificantMove) {
+          startBearingRef.current = currentBearingRef.current;
+          targetBearingRef.current = newBearing;
+      } else {
+          startBearingRef.current = currentBearingRef.current;
+          targetBearingRef.current = currentBearingRef.current;
+      }
+
+      animationStartRef.current = now;
+
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+      animationFrameId.current = requestAnimationFrame(animateMarker);
+    };
+
     const handleUbicacion = (data: any) => {
       if (data.recorridoId !== recorridoId) return;
 
@@ -184,17 +292,14 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
         const closestIdx = findClosestPointIndex(geom, currentPos, lastIdxRef.current, 150);
         lastIdxRef.current = closestIdx;
 
-        // Posicionar el camión en el punto exacto de la geometría (no en las coords brutas del socket)
-        // Esto garantiza que el camión siempre esté sobre la línea verde
-        if (camionMarkerRef.current) {
-          camionMarkerRef.current.position = geom[closestIdx];
-        }
+        // Posicionar el camión de forma animada (LERP + requestAnimationFrame)
+        updateMarkerPosition(geom[closestIdx]);
 
         progressPolylineRef.current.traveled.setPath(geom.slice(0, closestIdx + 1));
         progressPolylineRef.current.remaining.setPath(geom.slice(closestIdx));
       } else if (camionMarkerRef.current) {
         // Fallback: usar coordenadas brutas mientras la geometría de calles carga
-        camionMarkerRef.current.position = currentPos;
+        updateMarkerPosition(currentPos);
       }
 
       onStatsUpdateRef.current(recorridoId, data);
@@ -205,7 +310,7 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(({
       if (fullPathRef.current.length > 0 && camionMarkerRef.current) {
         const geom = fullPathRef.current;
         const lastPos = geom[geom.length - 1];
-        camionMarkerRef.current.position = lastPos;
+        updateMarkerPosition(lastPos);
         if (progressPolylineRef.current) {
           progressPolylineRef.current.traveled.setPath(geom);
           progressPolylineRef.current.remaining.setPath([lastPos]);
