@@ -17,6 +17,9 @@ export const CamionesEditPage: React.FC = () => {
     placa: '',
     usuario_dispositivo: ''
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,16 +49,64 @@ export const CamionesEditPage: React.FC = () => {
     if (id) fetchData();
   }, [id, navigate]);
 
+  const validateField = (name: string, value: string) => {
+    let err = '';
+    if (name === 'numero_economico') {
+      if (!value) err = 'El número económico es requerido.';
+      else if (!/^[A-Za-z0-9-]{3,10}$/.test(value)) err = 'Debe tener entre 3 y 10 caracteres (solo letras, números y guiones).';
+    }
+    if (name === 'placa') {
+      if (!value) err = 'La placa es requerida.';
+      else if (!/^[A-Z0-9-]{5,10}$/.test(value)) err = 'Debe tener entre 5 y 10 caracteres permitidos.';
+      else if (!/[A-Z]/.test(value) || !/[0-9]/.test(value)) err = 'Debe contener al menos una letra y un número.';
+    }
+    if (name === 'usuario_dispositivo') {
+      if (!value) err = 'El usuario es requerido.';
+      else if (!/^[a-z0-9_]{4,15}$/.test(value)) err = 'Entre 4 y 15 caracteres (minúsculas, números, guiones bajos).';
+    }
+    setFieldErrors(prev => ({ ...prev, [name]: err }));
+    return err === '';
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    let normalizedValue = value;
+
+    if (name === 'placa') normalizedValue = value.toUpperCase().trim();
+    if (name === 'numero_economico') normalizedValue = value.trim();
+    if (name === 'usuario_dispositivo') normalizedValue = value.toLowerCase().trim();
+
+    setFormData(prev => ({ ...prev, [name]: normalizedValue }));
+    setTouched(prev => ({ ...prev, [name]: true }));
+    validateField(name, normalizedValue);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    validateField(name, value);
+  };
+
+  const isFormValid = () => {
+    const keys = Object.keys(formData) as Array<keyof typeof formData>;
+    let isValid = true;
+    keys.forEach(key => {
+      const valid = validateField(key, formData[key] as string);
+      if (!valid) isValid = false;
+    });
+    return isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!formData.numero_economico || !formData.placa || !formData.usuario_dispositivo) {
-      return setError('Todos los campos son obligatorios.');
+    // Marcar todos como tocados
+    const allTouched = Object.keys(formData).reduce((acc, key) => ({ ...acc, [key]: true }), {});
+    setTouched(allTouched);
+
+    if (!isFormValid()) {
+      return setError('Por favor corrige los errores en el formulario antes de guardar.');
     }
 
     setIsSaving(true);
@@ -78,6 +129,8 @@ export const CamionesEditPage: React.FC = () => {
     }
   };
 
+  const hasValidationErrors = Object.values(fieldErrors).some(err => err !== '');
+  const isSubmitDisabled = isSaving || hasValidationErrors;
 
   return (
     <>
@@ -105,40 +158,74 @@ export const CamionesEditPage: React.FC = () => {
             <form onSubmit={handleSubmit}>
               <div className="form-grid">
                 <div className="form-field">
-                  <label className="form-label">Número Económico *</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Número Económico *</label>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{formData.numero_economico.length}/10</span>
+                  </div>
                   <input
                     type="text"
-                    className="form-input"
+                    className={`form-input ${touched.numero_economico && fieldErrors.numero_economico ? 'input-error' : ''}`}
                     name="numero_economico"
                     value={formData.numero_economico}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    maxLength={10}
                     required
                   />
+                  <AnimatePresence>
+                    {touched.numero_economico && fieldErrors.numero_economico && (
+                      <motion.span initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                        {fieldErrors.numero_economico}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </div>
                 <div className="form-field">
-                  <label className="form-label">Placa *</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Placa *</label>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{formData.placa.length}/10</span>
+                  </div>
                   <input
                     type="text"
-                    className="form-input"
+                    className={`form-input ${touched.placa && fieldErrors.placa ? 'input-error' : ''}`}
                     name="placa"
                     value={formData.placa}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    maxLength={10}
                     required
                   />
+                  <AnimatePresence>
+                    {touched.placa && fieldErrors.placa && (
+                      <motion.span initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                        {fieldErrors.placa}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </div>
 
-
-
                 <div className="form-field">
-                  <label className="form-label">Usuario del Dispositivo *</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Usuario del Dispositivo *</label>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{formData.usuario_dispositivo.length}/15</span>
+                  </div>
                   <input
                     type="text"
-                    className="form-input"
+                    className={`form-input ${touched.usuario_dispositivo && fieldErrors.usuario_dispositivo ? 'input-error' : ''}`}
                     name="usuario_dispositivo"
                     value={formData.usuario_dispositivo}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    maxLength={15}
                     required
                   />
+                  <AnimatePresence>
+                    {touched.usuario_dispositivo && fieldErrors.usuario_dispositivo && (
+                      <motion.span initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                        {fieldErrors.usuario_dispositivo}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
@@ -148,7 +235,7 @@ export const CamionesEditPage: React.FC = () => {
                   initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0, y: -5 }}
                   style={{ overflow: 'hidden' }}
                 >
-                  <div className="validation-error-banner" style={{ marginTop: '1.5rem' }}>
+                  <div className="validation-error-banner" style={{ marginTop: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '1rem', borderRadius: '0.5rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
                     <span>{error}</span>
                   </div>
                 </motion.div>
@@ -159,7 +246,7 @@ export const CamionesEditPage: React.FC = () => {
                 <button type="button" className="btn-secondary" onClick={() => navigate('/camiones')} disabled={isSaving}>
                   Cancelar
                 </button>
-                <button type="submit" className="save-button" disabled={isSaving}>
+                <button type="submit" className="save-button" disabled={isSubmitDisabled}>
                   {isSaving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
                   {isSaving ? 'Actualizando...' : 'Actualizar Camión'}
                 </button>

@@ -7,6 +7,48 @@ const SALT_ROUNDS = 12;
 const router = Router();
 
 // ==========================================
+// FUNCIÓN DE VALIDACIÓN REUTILIZABLE
+// ==========================================
+const validateCamionInput = (data: any, isEdit = false) => {
+  const { numero_economico, placa, usuario_dispositivo, password_dispositivo } = data;
+  const errors: string[] = [];
+
+  if (!numero_economico) errors.push('El número económico es obligatorio.');
+  else if (!/^[A-Za-z0-9-]{3,10}$/.test(numero_economico)) {
+    errors.push('El número económico debe tener entre 3 y 10 caracteres (solo letras, números y guiones).');
+  }
+
+  if (!placa) errors.push('La placa es obligatoria.');
+  else {
+    const p = placa.toUpperCase().trim();
+    if (!/^[A-Z0-9-]{5,10}$/.test(p)) {
+      errors.push('La placa debe tener entre 5 y 10 caracteres (solo letras, números y guiones).');
+    } else if (!/[A-Z]/.test(p) || !/[0-9]/.test(p)) {
+      errors.push('La placa debe contener al menos una letra y un número válidos.');
+    }
+  }
+
+  if (!usuario_dispositivo) errors.push('El usuario del dispositivo es obligatorio.');
+  else if (!/^[a-z0-9_]{4,15}$/.test(usuario_dispositivo)) {
+    errors.push('El usuario debe tener entre 4 y 15 caracteres (letras minúsculas, números y guiones bajos).');
+  }
+
+  if (!isEdit) {
+    if (!password_dispositivo) errors.push('La contraseña es obligatoria.');
+    else {
+      if (password_dispositivo.length < 8 || password_dispositivo.length > 20) {
+        errors.push('La contraseña debe tener entre 8 y 20 caracteres.');
+      }
+      if (!/[A-Z]/.test(password_dispositivo) || !/[0-9]/.test(password_dispositivo) || !/[^A-Za-z0-9]/.test(password_dispositivo)) {
+        errors.push('La contraseña debe contener al menos una mayúscula, un número y un carácter especial.');
+      }
+    }
+  }
+
+  return errors;
+};
+
+// ==========================================
 // OBTENER TODOS LOS CAMIONES
 // ==========================================
 router.get('/', async (req, res) => {
@@ -45,20 +87,29 @@ router.get('/', async (req, res) => {
 // ==========================================
 router.post('/', async (req, res) => {
   try {
-    const { numero_economico, placa, usuario_dispositivo, password_dispositivo } = req.body;
+    let { numero_economico, placa, usuario_dispositivo, password_dispositivo } = req.body;
 
-    if (!numero_economico || !placa || !usuario_dispositivo || !password_dispositivo) {
-      return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+    const validationErrors = validateCamionInput(req.body, false);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ error: validationErrors[0] });
     }
 
+    // Normalizar datos
+    numero_economico = numero_economico.trim();
+    placa = placa.toUpperCase().trim();
+    usuario_dispositivo = usuario_dispositivo.toLowerCase().trim();
+
     // Check if unique constraints are met
-    const [existing] = await query(
-      'SELECT id FROM camiones WHERE numero_economico = ? OR placa = ? OR usuario_dispositivo = ? LIMIT 1',
+    const [existing]: any = await query(
+      'SELECT numero_economico, placa, usuario_dispositivo FROM camiones WHERE numero_economico = ? OR placa = ? OR usuario_dispositivo = ? LIMIT 1',
       [numero_economico, placa, usuario_dispositivo]
     );
 
     if (existing) {
-      return res.status(400).json({ error: 'El número económico, placa o usuario ya están en uso' });
+      if (existing.numero_economico.toLowerCase() === numero_economico.toLowerCase()) return res.status(409).json({ error: 'El número económico ya está registrado' });
+      if (existing.placa.toUpperCase() === placa) return res.status(409).json({ error: 'La placa ya está registrada' });
+      if (existing.usuario_dispositivo.toLowerCase() === usuario_dispositivo) return res.status(409).json({ error: 'El usuario ya está en uso' });
+      return res.status(409).json({ error: 'El número económico, placa o usuario ya están en uso' });
     }
 
     const hashedPassword = await bcrypt.hash(password_dispositivo, SALT_ROUNDS);
@@ -105,20 +156,29 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const camionId = req.params.id;
-    const { numero_economico, placa, usuario_dispositivo } = req.body;
+    let { numero_economico, placa, usuario_dispositivo } = req.body;
 
-    if (!numero_economico || !placa || !usuario_dispositivo) {
-      return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+    const validationErrors = validateCamionInput(req.body, true);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ error: validationErrors[0] });
     }
 
+    // Normalizar datos
+    numero_economico = numero_economico.trim();
+    placa = placa.toUpperCase().trim();
+    usuario_dispositivo = usuario_dispositivo.toLowerCase().trim();
+
     // Check unique constraints for other records
-    const [existing] = await query(
-      'SELECT id FROM camiones WHERE (numero_economico = ? OR placa = ? OR usuario_dispositivo = ?) AND id != ? LIMIT 1',
+    const [existing]: any = await query(
+      'SELECT numero_economico, placa, usuario_dispositivo FROM camiones WHERE (numero_economico = ? OR placa = ? OR usuario_dispositivo = ?) AND id != ? LIMIT 1',
       [numero_economico, placa, usuario_dispositivo, camionId]
     );
 
     if (existing) {
-      return res.status(400).json({ error: 'El número económico, placa o usuario ya están en uso' });
+      if (existing.numero_economico.toLowerCase() === numero_economico.toLowerCase()) return res.status(409).json({ error: 'El número económico ya está registrado por otro camión' });
+      if (existing.placa.toUpperCase() === placa) return res.status(409).json({ error: 'La placa ya está registrada por otro camión' });
+      if (existing.usuario_dispositivo.toLowerCase() === usuario_dispositivo) return res.status(409).json({ error: 'El usuario ya está en uso por otro camión' });
+      return res.status(409).json({ error: 'El número económico, placa o usuario ya están en uso' });
     }
 
     const sql = `
@@ -145,6 +205,14 @@ router.put('/:id/password', async (req, res) => {
 
     if (!nueva_password) {
       return res.status(400).json({ error: 'La nueva contraseña es obligatoria' });
+    }
+
+    if (nueva_password.length < 8 || nueva_password.length > 20) {
+      return res.status(400).json({ error: 'La contraseña debe tener entre 8 y 20 caracteres' });
+    }
+
+    if (!/[A-Z]/.test(nueva_password) || !/[0-9]/.test(nueva_password) || !/[^A-Za-z0-9]/.test(nueva_password)) {
+      return res.status(400).json({ error: 'La contraseña debe contener al menos una mayúscula, un número y un carácter especial' });
     }
 
     const hashedPassword = await bcrypt.hash(nueva_password, SALT_ROUNDS);

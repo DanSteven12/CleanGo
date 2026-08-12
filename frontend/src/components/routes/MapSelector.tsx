@@ -233,14 +233,14 @@ const EditCheckpointForm: React.FC<{
       </div>
       {error && <div style={{ color: 'var(--danger-color, #ef4444)', fontSize: '12px', marginBottom: '10px', lineHeight: '1.4' }}>{error}</div>}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
-        <button onClick={onDelete} style={{ color: 'var(--danger-color, #ef4444)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', padding: '6px 4px', fontWeight: 500 }}>
+        <button type="button" onClick={onDelete} style={{ color: 'var(--danger-color, #ef4444)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', padding: '6px 4px', fontWeight: 500 }}>
           Eliminar
         </button>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={onCancel} style={{ padding: '6px 12px', fontSize: '13px', background: 'transparent', border: '1px solid var(--panel-border, #d1d5db)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-h, #1f2937)' }}>
+          <button type="button" onClick={onCancel} style={{ padding: '6px 12px', fontSize: '13px', background: 'transparent', border: '1px solid var(--panel-border, #d1d5db)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-h, #1f2937)' }}>
             Cancelar
           </button>
-          <button onClick={handleSave} style={{ padding: '6px 12px', fontSize: '13px', background: 'var(--primary-color, #1763A6)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}>
+          <button type="button" onClick={handleSave} style={{ padding: '6px 12px', fontSize: '13px', background: 'var(--primary-color, #1763A6)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}>
             Guardar
           </button>
         </div>

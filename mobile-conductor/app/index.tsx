@@ -71,7 +71,7 @@ export default function HomeScreen() {
       if (!recorridoActivo || !recorridoActivo.recorrido_id) {
         throw new Error('No se encontró el recorrido activo.');
       }
-      
+
       await recorridosService.finalizarRecorrido(recorridoActivo.recorrido_id);
       Alert.alert('Éxito', 'Recorrido finalizado correctamente.');
       fetchAsignaciones();
@@ -107,8 +107,8 @@ export default function HomeScreen() {
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={['#1763A6']} />
         }
         renderItem={({ item }) => (
-          <AsignacionCard 
-            asignacion={item} 
+          <AsignacionCard
+            asignacion={item}
             isStarting={startingId === item.id}
             isFinishing={finishingId === item.id}
             onIniciar={(conductor) => handleIniciarRecorrido(item, conductor)}

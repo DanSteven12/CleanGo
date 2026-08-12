@@ -33,7 +33,7 @@ export const ConfirmProvider: React.FC<ConfirmProviderProps> = ({ children }) =>
       setDialogState({
         open: true,
         options,
-        resolver: () => resolve,
+        resolver: resolve,
       });
     });
   }, []);

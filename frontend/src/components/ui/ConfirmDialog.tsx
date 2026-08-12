@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TriangleAlert,
@@ -35,6 +36,17 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onCancel,
 }) => {
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
+  const [fullscreenEl, setFullscreenEl] = useState<Element | null>(
+    typeof document !== 'undefined' ? document.fullscreenElement : null
+  );
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setFullscreenEl(document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
 
   // Auto-focus en el botón Cancelar al abrir
   useEffect(() => {
@@ -113,7 +125,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   const IconComponent = styleConfig.Icon;
   const finalConfirmText = confirmText || styleConfig.defaultConfirmText;
 
-  return (
+  const dialogJSX = (
     <AnimatePresence>
       {open && (
         <div
@@ -123,7 +135,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 99999,
+            zIndex: 999999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -328,4 +340,10 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       )}
     </AnimatePresence>
   );
+
+  if (fullscreenEl) {
+    return createPortal(dialogJSX, fullscreenEl);
+  }
+
+  return dialogJSX;
 };

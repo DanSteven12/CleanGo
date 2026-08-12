@@ -219,10 +219,21 @@ export const UsuariosPage: React.FC = () => {
     setIsPasswordOpen(true);
   };
 
+  const userPwd = passwordData.password;
+  const userPwdLengthValid = userPwd.length >= 8 && userPwd.length <= 20;
+  const userPwdUpperValid = /[A-Z]/.test(userPwd);
+  const userPwdNumberValid = /[0-9]/.test(userPwd);
+  const userPwdSpecialValid = /[^A-Za-z0-9]/.test(userPwd);
+  const userPwdMatchValid = passwordData.confirmPassword !== '' && userPwd === passwordData.confirmPassword;
+  const isUserPasswordValid = userPwdLengthValid && userPwdUpperValid && userPwdNumberValid && userPwdSpecialValid && userPwdMatchValid;
+
   const handleSavePassword = async () => {
     setFormError(null);
-    if (!passwordData.password || passwordData.password.length < 8) {
-      return setFormError('La contraseña debe tener al menos 8 caracteres.');
+    if (!userPwdLengthValid) {
+      return setFormError('La contraseña debe tener entre 8 y 20 caracteres.');
+    }
+    if (!userPwdUpperValid || !userPwdNumberValid || !userPwdSpecialValid) {
+      return setFormError('La contraseña debe contener mayúscula, número y carácter especial.');
     }
     if (passwordData.password !== passwordData.confirmPassword) {
       return setFormError('Las contraseñas no coinciden.');
@@ -449,26 +460,66 @@ export const UsuariosPage: React.FC = () => {
 
       {/* Modal Cambiar Contraseña */}
       <Modal isOpen={isPasswordOpen} onClose={() => setIsPasswordOpen(false)} title="Cambiar Contraseña">
+        <p style={{ color: 'var(--text)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+          Usuario: <strong>{selectedUser?.nombre}</strong> ({selectedUser?.correo})
+        </p>
         <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
           <div className="form-field">
-            <label className="form-label">Nueva Contraseña *</label>
-            <input type="password" className="form-input" value={passwordData.password} onChange={e => setPasswordData({ ...passwordData, password: e.target.value })} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label className="form-label" style={{ marginBottom: 0 }}>Nueva Contraseña *</label>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{passwordData.password.length}/20</span>
+            </div>
+            <input 
+              type="password" 
+              className="form-input" 
+              value={passwordData.password} 
+              onChange={e => setPasswordData({ ...passwordData, password: e.target.value })} 
+              maxLength={20}
+            />
+            <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
+              <span style={{ color: userPwdLengthValid ? '#22c55e' : (userPwd.length > 0 ? '#ef4444' : 'var(--text)') }}>
+                {userPwdLengthValid ? '✓' : '○'} Entre 8 y 20 caracteres
+              </span>
+              <span style={{ color: userPwdUpperValid ? '#22c55e' : (userPwd.length > 0 ? '#ef4444' : 'var(--text)') }}>
+                {userPwdUpperValid ? '✓' : '○'} Al menos 1 letra mayúscula
+              </span>
+              <span style={{ color: userPwdNumberValid ? '#22c55e' : (userPwd.length > 0 ? '#ef4444' : 'var(--text)') }}>
+                {userPwdNumberValid ? '✓' : '○'} Al menos 1 número
+              </span>
+              <span style={{ color: userPwdSpecialValid ? '#22c55e' : (userPwd.length > 0 ? '#ef4444' : 'var(--text)') }}>
+                {userPwdSpecialValid ? '✓' : '○'} Al menos 1 carácter especial
+              </span>
+            </div>
           </div>
           <div className="form-field">
-            <label className="form-label">Confirmar Contraseña *</label>
-            <input type="password" className="form-input" value={passwordData.confirmPassword} onChange={e => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label className="form-label" style={{ marginBottom: 0 }}>Confirmar Contraseña *</label>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{passwordData.confirmPassword.length}/20</span>
+            </div>
+            <input 
+              type="password" 
+              className="form-input" 
+              value={passwordData.confirmPassword} 
+              onChange={e => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} 
+              maxLength={20}
+            />
+            {passwordData.confirmPassword.length > 0 && !userPwdMatchValid && (
+              <span style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                Las contraseñas no coinciden.
+              </span>
+            )}
           </div>
         </div>
         
         {formError && (
-          <div className="validation-error-banner" style={{ marginTop: '1rem' }}>
+          <div className="validation-error-banner" style={{ marginTop: '1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
             <span>{formError}</span>
           </div>
         )}
 
         <div className="modal-footer">
           <button className="btn-secondary" onClick={() => setIsPasswordOpen(false)} disabled={isSaving}>Cancelar</button>
-          <button className="save-button" onClick={handleSavePassword} disabled={isSaving}>
+          <button className="save-button" onClick={handleSavePassword} disabled={isSaving || !isUserPasswordValid}>
             {isSaving ? <Loader2 size={16} className="spin" /> : 'Actualizar'}
           </button>
         </div>

@@ -152,6 +152,8 @@ CREATE TABLE asignaciones_rutas (
     estatus_recorrido VARCHAR(20)
         DEFAULT 'Pendiente',
 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
 

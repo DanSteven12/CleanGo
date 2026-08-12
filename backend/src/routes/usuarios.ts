@@ -57,8 +57,21 @@ router.post('/', async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
   }
 
-  if (password.length < 8) {
-    return res.status(400).json({ message: 'La contraseña debe tener al menos 8 caracteres.' });
+  if (nombre.length < 2 || nombre.length > 100) {
+    return res.status(400).json({ message: 'El nombre debe tener entre 2 y 100 caracteres.' });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (correo.length > 100 || !emailRegex.test(correo)) {
+    return res.status(400).json({ message: 'El correo electrónico debe tener un formato válido (máximo 100 caracteres).' });
+  }
+
+  if (password.length < 8 || password.length > 20) {
+    return res.status(400).json({ message: 'La contraseña debe tener entre 8 y 20 caracteres.' });
+  }
+
+  if (!/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+    return res.status(400).json({ message: 'La contraseña debe contener al menos una mayúscula, un número y un carácter especial.' });
   }
 
   if (rol !== 'Administrador' && rol !== 'Ciudadano') {
@@ -108,6 +121,15 @@ router.put('/:id', async (req: Request, res: Response) => {
     const newRol = rol ?? existing.rol;
     const newEstado = estado ?? existing.estado;
 
+    if (newNombre.length < 2 || newNombre.length > 100) {
+      return res.status(400).json({ message: 'El nombre debe tener entre 2 y 100 caracteres.' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (newCorreo.length > 100 || !emailRegex.test(newCorreo)) {
+      return res.status(400).json({ message: 'El correo electrónico debe tener un formato válido (máximo 100 caracteres).' });
+    }
+
     if (newRol !== 'Administrador' && newRol !== 'Ciudadano') {
       return res.status(400).json({ message: 'Rol inválido.' });
     }
@@ -144,8 +166,12 @@ router.put('/:id/password', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { password } = req.body;
 
-  if (!password || password.length < 8) {
-    return res.status(400).json({ message: 'La contraseña debe tener al menos 8 caracteres.' });
+  if (!password || password.length < 8 || password.length > 20) {
+    return res.status(400).json({ message: 'La contraseña debe tener entre 8 y 20 caracteres.' });
+  }
+
+  if (!/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+    return res.status(400).json({ message: 'La contraseña debe contener al menos una mayúscula, un número y un carácter especial.' });
   }
 
   try {

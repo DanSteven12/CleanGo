@@ -9,6 +9,8 @@ export function initSocketServer(httpServer: HttpServer): Server {
     cors: {
       origin: [
         process.env.FRONTEND_URL || 'http://localhost:5173',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
         'https://cleangomunicipal.com.mx'
       ],
       credentials: true,
