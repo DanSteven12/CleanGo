@@ -218,3 +218,49 @@ export async function fetchRouteGeometry(
   }
 }
 
+/**
+ * Calcula la distancia acumulada sobre una geometría para interpolación
+ */
+export function buildCumulativeDistances(path: {lat: number, lng: number}[]): number[] {
+  const cumulative: number[] = [0];
+  for (let i = 1; i < path.length; i++) {
+    const dx = path[i].lat - path[i - 1].lat;
+    const dy = path[i].lng - path[i - 1].lng;
+    cumulative.push(cumulative[i - 1] + Math.sqrt(dx * dx + dy * dy));
+  }
+  return cumulative;
+}
+
+/**
+ * Devuelve la coordenada exacta (lat/lng) correspondiente a un porcentaje [0, 1] de avance
+ */
+export function interpolateOnPath(
+  path: {lat: number, lng: number}[],
+  cumulative: number[],
+  progress: number
+): {lat: number, lng: number} {
+  if (path.length === 0) return { lat: 0, lng: 0 };
+  if (path.length === 1) return path[0];
+
+  const totalDist = cumulative[cumulative.length - 1];
+  if (totalDist === 0) return path[0];
+
+  const targetDist = Math.max(0, Math.min(progress, 1)) * totalDist;
+
+  let lo = 0;
+  let hi = cumulative.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (cumulative[mid] <= targetDist) lo = mid;
+    else hi = mid;
+  }
+
+  const segLen = cumulative[hi] - cumulative[lo];
+  if (segLen === 0) return path[lo];
+
+  const t = (targetDist - cumulative[lo]) / segLen;
+  return {
+    lat: path[lo].lat + (path[hi].lat - path[lo].lat) * t,
+    lng: path[lo].lng + (path[hi].lng - path[lo].lng) * t,
+  };
+}

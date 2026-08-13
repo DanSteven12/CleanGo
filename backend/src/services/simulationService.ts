@@ -69,7 +69,7 @@ function decodePolyline(encoded: string): LatLng[] {
  * llamadas repetidas. Si la API falla o no hay API Key, retorna null
  * (el llamador hace fallback a interpolación lineal).
  */
-async function fetchRouteGeometry(
+export async function fetchRouteGeometry(
   recorridoId: number,
   checkpoints: any[]
 ): Promise<LatLng[] | null> {
@@ -219,6 +219,58 @@ function interpolateOnPath(
   };
 }
 
+/**
+ * Mapea cada checkpoint a un porcentaje de avance (0 a 1) sobre la geometría real.
+ */
+function calculateCheckpointProgress(
+  checkpoints: any[],
+  routeGeom: LatLng[],
+  cumDistances: number[]
+): number[] {
+  const totalDist = cumDistances[cumDistances.length - 1];
+  if (totalDist === 0) return checkpoints.map(() => 0);
+
+  const progressArray: number[] = [];
+  let lastIdx = 0;
+
+  for (const cp of checkpoints) {
+    const lat = Number(cp.latitud);
+    const lng = Number(cp.longitud);
+    let bestDist = Infinity;
+    let bestIdx = lastIdx;
+    
+    // Buscar hacia adelante (lookahead limitado) para mantener monotonicidad
+    const searchLimit = Math.min(routeGeom.length, lastIdx + 1000);
+    
+    for (let i = lastIdx; i < searchLimit; i++) {
+      const pt = routeGeom[i];
+      const dx = pt.lat - lat;
+      const dy = pt.lng - lng;
+      const dist = dx * dx + dy * dy;
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+    
+    progressArray.push(cumDistances[bestIdx] / totalDist);
+    lastIdx = bestIdx;
+  }
+  
+  // Forzar extremos
+  progressArray[0] = 0;
+  progressArray[progressArray.length - 1] = 1;
+
+  // Garantizar que siempre crezca de manera estricta
+  for (let i = 1; i < progressArray.length; i++) {
+    if (progressArray[i] <= progressArray[i - 1]) {
+      progressArray[i] = Math.min(1, progressArray[i - 1] + 0.0001);
+    }
+  }
+
+  return progressArray;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Simulation control — sin cambios en la interfaz pública
 // ─────────────────────────────────────────────────────────────────────────────
@@ -271,10 +323,13 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
   // Si la API falla, routeGeom quedará null y haremos fallback a línea recta.
   const routeGeom = await fetchRouteGeometry(recorridoId, checkpoints);
   const cumDistances = routeGeom ? buildCumulativeDistances(routeGeom) : null;
-  // ──────────────────────────────────────────────────────────────────────────
+  const cpProgressArray = (routeGeom && cumDistances) 
+    ? calculateCheckpointProgress(checkpoints, routeGeom, cumDistances)
+    : checkpoints.map((_, i) => i / (checkpoints.length - 1));
 
-  let startIndex = 0;
-  let segmentStartTime = Date.now();
+  let globalProgress = 0;
+  let nextCheckpointIdx = 1; // El checkpoint 0 ya es el inicio
+  const totalDurationMs = (checkpoints.length - 1) * ETA_MINUTES_PER_SEGMENT * 60 * 1000;
 
   const intervalId = setInterval(async () => {
     if (!activeSimulations.has(recorridoId)) {
@@ -282,58 +337,50 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
       return;
     }
 
-    const nextIndex = startIndex + 1;
-    const isLastSegment = nextIndex >= checkpoints.length;
-
-    // Si ya no quedan segmentos que recorrer, la simulación termina
-    if (isLastSegment) {
-      // Solo detenemos el ticker sin tocar la BD ni emitir aquí.
-      // updateCheckpointReached del último tick ya lo habrá hecho.
-      stopSimulation(recorridoId);
-      return;
-    }
-
-    const cpStart = checkpoints[startIndex];
-    const cpEnd = checkpoints[nextIndex];
-
-    const latStart = Number(cpStart.latitud);
-    const lngStart = Number(cpStart.longitud);
-    const latEnd = Number(cpEnd.latitud);
-    const lngEnd = Number(cpEnd.longitud);
-
     const now = Date.now();
     const currentSpeed = simulationSpeeds.get(recorridoId) ?? 1;
-    const effectiveDuration = SEGMENT_DURATION_MS / currentSpeed;
-    const segmentProgress = Math.min((now - segmentStartTime) / effectiveDuration, 1);
+    
+    // Incrementar el progreso global matemáticamente
+    globalProgress += (TICK_RATE_MS * currentSpeed) / totalDurationMs;
+    globalProgress = Math.min(globalProgress, 1);
 
-    // ── NUEVO: calcular posición sobre geometría real ─────────────────────
+    // ── NUEVO: calcular posición sobre geometría real usando globalProgress ──
     let currentLat: number;
     let currentLng: number;
 
     if (routeGeom && cumDistances && routeGeom.length >= 2) {
-      // Progreso global = fracción del recorrido total completado
-      // startIndex segmentos ya completados + fracción del segmento actual
-      const globalProgress = (startIndex + segmentProgress) / (checkpoints.length - 1);
       const pos = interpolateOnPath(routeGeom, cumDistances, globalProgress);
       currentLat = pos.lat;
       currentLng = pos.lng;
     } else {
-      // Fallback: interpolación lineal original entre checkpoints
-      currentLat = latStart + (latEnd - latStart) * segmentProgress;
-      currentLng = lngStart + (lngEnd - lngStart) * segmentProgress;
+      // Fallback: interpolación lineal básica si no hay geometría
+      // (No recomendado, pero seguro)
+      const exactIndex = globalProgress * (checkpoints.length - 1);
+      const prevIdx = Math.floor(exactIndex);
+      const nextIdx = Math.min(prevIdx + 1, checkpoints.length - 1);
+      const t = exactIndex - prevIdx;
+      const cpStart = checkpoints[prevIdx];
+      const cpEnd = checkpoints[nextIdx];
+      currentLat = Number(cpStart.latitud) + (Number(cpEnd.latitud) - Number(cpStart.latitud)) * t;
+      currentLng = Number(cpStart.longitud) + (Number(cpEnd.longitud) - Number(cpStart.longitud)) * t;
     }
-    // ─────────────────────────────────────────────────────────────────────
+
+    // Calcular estadísticas para la UI
+    // Completados = cuántos checkpoints ya se pasaron (nextCheckpointIdx - 1)
+    const completados = nextCheckpointIdx - 1;
+    const cpStart = checkpoints[completados];
+    const cpEnd = checkpoints[Math.min(nextCheckpointIdx, checkpoints.length - 1)];
 
     const totalElapsedMs = now - simulationStartWallTime;
-    const expectedCheckpoints = Math.floor(totalElapsedMs / effectiveDuration);
-    const isDelayed = (startIndex + 1) < expectedCheckpoints;
+    const expectedProgress = Math.min(totalElapsedMs / totalDurationMs, 1);
+    // Si vamos más lento de lo que dice el reloj real (retraso físico/simulado)
+    const isDelayed = globalProgress < expectedProgress - 0.05;
 
-    const pendientes = checkpoints.length - 1 - startIndex;
-    const segmentosRestantes = pendientes - segmentProgress;
-    const etaTotalMs = Math.max(0, segmentosRestantes) * ETA_MINUTES_PER_SEGMENT * 60 * 1000 / currentSpeed;
+    const fractionRemaining = 1 - globalProgress;
+    const etaTotalMs = (fractionRemaining * totalDurationMs) / currentSpeed;
     const etaSecs = Math.max(0, Math.floor(etaTotalMs / 1000));
 
-    const rawPercentage = ((startIndex + segmentProgress) / checkpoints.length) * 100;
+    const porcentajeAvance = globalProgress * 100;
 
     const stats = {
       recorridoId,
@@ -341,9 +388,9 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
       longitud: currentLng,
       ultimoCheckpoint: cpStart.nombre || `Punto ${cpStart.orden}`,
       proximoCheckpoint: cpEnd.nombre || `Punto ${cpEnd.orden}`,
-      completados: startIndex,
-      pendientes: pendientes,
-      porcentajeAvance: Math.min(Math.round(rawPercentage), 100),
+      completados: completados + 1, // La vista móvil espera base 1 para el inicio
+      pendientes: checkpoints.length - nextCheckpointIdx,
+      porcentajeAvance, // <- Este es el UNICO que debe usar el Frontend para animar
       etaSegundos: etaSecs,
       horaEstimada: new Date(arrivalWallTime).toLocaleTimeString(),
       estadoDinamico: isDelayed ? 'Retrasado' : 'En Progreso',
@@ -355,13 +402,10 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
     // Emitir ubicación en tiempo real
     io.to(roomName).emit('ubicacion_actualizada', stats);
 
-    // Si el recorrido está retrasado, emitir notificación automática ──────────────
-    // crearSiNoExiste() verifica en BD antes de insertar: deduplicación persistente.
-    // Esto garantiza una sola notificación por recorrido aunque haya miles de ticks.
+    // Si el recorrido está retrasado, emitir notificación automática
     if (isDelayed) {
       ; (async () => {
         try {
-          // Obtener conductor del recorrido para las notificaciones dinámicas
           const [condRows] = await pool.execute<any[]>(
             `SELECT ar.conductor_id, c.nombre_completo AS conductor_nombre
              FROM recorridos r
@@ -373,8 +417,6 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
 
           if (condRows.length > 0) {
             const { conductor_id, conductor_nombre } = condRows[0];
-
-            // Notificar al conductor (deduplicada por recorrido_id + titulo en BD)
             await NotificationService.crearSiNoExiste({
               conductor_id,
               recorrido_id: recorridoId,
@@ -383,7 +425,6 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
               categoria: 'RECORRIDO',
             });
 
-            // Notificar al administrador (deduplicada por recorrido_id + titulo en BD)
             const adminId = await NotificationService.obtenerAdminId();
             if (adminId) {
               await NotificationService.crearSiNoExiste({
@@ -401,7 +442,7 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
       })();
     }
 
-    // Actualizar continuamente en base de datos
+    // Actualizar continuamente en base de datos la ubicación cruda
     pool.execute(
       'UPDATE recorridos SET latitud_actual = ?, longitud_actual = ? WHERE id = ? AND estado = "En progreso"',
       [currentLat, currentLng, recorridoId]
@@ -409,34 +450,33 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
       console.error(`[Simulation SQL] Error actualizando latitud/longitud:`, err);
     });
 
-    // Al llegar al siguiente checkpoint
-    if (segmentProgress >= 1) {
-      segmentStartTime = now;
-      startIndex++;
-
-      const isLastCheckpoint = startIndex >= checkpoints.length - 1;
+    // ── GESTIONAR CHECKPOINTS ALCANZADOS ──
+    // Se evalúa en un bucle while por si la velocidad es muy alta y pasa 2 de un tick
+    while (nextCheckpointIdx < checkpoints.length && globalProgress >= cpProgressArray[nextCheckpointIdx]) {
+      const reachedCp = checkpoints[nextCheckpointIdx];
+      const isLastCheckpoint = nextCheckpointIdx === checkpoints.length - 1;
 
       if (isLastCheckpoint) {
-        // Último checkpoint: esperamos la actualización en BD antes de emitir fin
         try {
-          await updateCheckpointReached(recorridoId, cpEnd, currentLat, currentLng);
-          io.to(roomName).emit('checkpoint_alcanzado', { recorridoId, checkpointId: cpEnd.id });
+          await updateCheckpointReached(recorridoId, reachedCp, currentLat, currentLng);
+          io.to(roomName).emit('checkpoint_alcanzado', { recorridoId, checkpointId: reachedCp.id });
         } catch (err) {
           console.error('Error DB update last checkpoint:', err);
         }
-        // El stopSimulation ocurrirá en el próximo tick (isLastSegment = true)
+        stopSimulation(recorridoId);
       } else {
-        // Checkpoints intermedios: asíncrono para no bloquear el tick
-        updateCheckpointReached(recorridoId, cpEnd, currentLat, currentLng)
+        updateCheckpointReached(recorridoId, reachedCp, currentLat, currentLng)
           .then(() => {
             io.to(roomName).emit('checkpoint_alcanzado', {
               recorridoId,
-              checkpointId: cpEnd.id
+              checkpointId: reachedCp.id
             });
           })
           .catch(err => console.error('Error DB update checkpoint:', err));
       }
+      nextCheckpointIdx++;
     }
+
   }, TICK_RATE_MS);
 
   activeSimulations.set(recorridoId, intervalId);

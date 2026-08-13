@@ -49,9 +49,14 @@ const getBearing = (lat1: number, lon1: number, lat2: number, lon2: number): num
  * Elimina el bug donde girar de 350° → 10° rotaría 340° hacia atrás.
  */
 const shortestAngleDelta = (from: number, to: number): number => {
-  let delta = ((to - from + 540) % 360) - 180;
-  return delta;
+  return ((to - from + 540) % 360) - 180;
 };
+
+/**
+ * Normaliza un ángulo al rango [0, 360).
+ * Necesario para pasarlo a la prop `rotation` del Marker de react-native-maps.
+ */
+const normalizeAngle = (angle: number): number => ((angle % 360) + 360) % 360;
 
 /**
  * Calcula el heading usando los puntos vecinos de streetGeometry alrededor
@@ -121,10 +126,9 @@ const findClosestIdx = (
 
   for (let i = lo; i <= hi; i++) {
     const p = geometry[i];
-    // Distancia euclidiana en metros (normalizar longitud por cos(lat))
     const dlat = (p.latitude - pos.latitude) * 111320;
     const dlng = (p.longitude - pos.longitude) * 111320 * Math.cos(pos.latitude * Math.PI / 180);
-    const dist = dlat * dlat + dlng * dlng; // metros² (sin raíz para comparar)
+    const dist = dlat * dlat + dlng * dlng;
     if (dist < minDist) {
       minDist = dist;
       bestIdx = i;
@@ -134,23 +138,77 @@ const findClosestIdx = (
   return bestIdx;
 };
 
+/**
+ * Calcula la distancia acumulada sobre una geometría para interpolación
+ */
+function buildCumulativeDistances(path: LatLng[]): number[] {
+  const cumulative: number[] = [0];
+  for (let i = 1; i < path.length; i++) {
+    const dlat = (path[i].latitude - path[i - 1].latitude) * 111320;
+    const dlng = (path[i].longitude - path[i - 1].longitude) * 111320 * Math.cos(path[i - 1].latitude * Math.PI / 180);
+    cumulative.push(cumulative[i - 1] + Math.sqrt(dlat * dlat + dlng * dlng));
+  }
+  return cumulative;
+}
+
+/**
+ * Devuelve la coordenada exacta correspondiente a un porcentaje [0, 1] de avance
+ */
+function interpolateOnPath(
+  path: LatLng[],
+  cumulative: number[],
+  progress: number
+): LatLng {
+  if (path.length === 0) return { latitude: 0, longitude: 0 };
+  if (path.length === 1) return path[0];
+
+  const totalDist = cumulative[cumulative.length - 1];
+  if (totalDist === 0) return path[0];
+
+  const targetDist = Math.max(0, Math.min(progress, 1)) * totalDist;
+
+  let lo = 0;
+  let hi = cumulative.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (cumulative[mid] <= targetDist) lo = mid;
+    else hi = mid;
+  }
+
+  const segLen = cumulative[hi] - cumulative[lo];
+  if (segLen === 0) return path[lo];
+
+  const t = (targetDist - cumulative[lo]) / segLen;
+  return {
+    latitude: path[lo].latitude + (path[hi].latitude - path[lo].latitude) * t,
+    longitude: path[lo].longitude + (path[hi].longitude - path[lo].longitude) * t,
+  };
+}
+
+// ─── Constante de tick (debe coincidir con TICK_RATE_MS del backend) ──────────
+const TICK_MS = 1000;
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 const MapaRecorridoScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const mapRef = useRef<MapView | null>(null);
-  const hasCenteredRef = useRef(false);
+  const hasCenteredRef = useRef(true); // true desde el inicio: omitir fitToCoordinates, la cámara de navegación se encarga
 
   const [isLoading, setIsLoading] = useState(true);
   const [isFinishing, setIsFinishing] = useState(false);
   const [recorridoData, setRecorridoData] = useState<any | null>(null);
 
+  // Estado modificado para asegurar la carga del SVG en Android
+  const [trackVehicleChanges, setTrackVehicleChanges] = useState(true);
+
   // La única fuente de verdad para la geometría de la ruta
   const [streetGeometry, setStreetGeometry] = useState<LatLng[]>([]);
+  const cumDistancesRef = useRef<number[]>([]);
 
   // Refs: no causan re-render, se usan solo en efectos y handlers
-  const isFollowingRef = useRef(false);
+  const isFollowingRef = useRef(true);  // true desde el inicio: la cámara sigue al camión inmediatamente al primer tick
   const hasMountedCameraRef = useRef(false);
   const lastSnappedIdxRef = useRef(0); // avance monotónico sobre streetGeometry
 
@@ -208,141 +266,170 @@ const MapaRecorridoScreen = () => {
   );
 
   // ── Carga de geometría real (desde Backend) ────────────────────────────────
-  // El backend envía el encodedPolyline ya decodificado como {lat, lng}[] 
-  // para evitar que la app móvil consuma directamente la API de Google Routes.
   useEffect(() => {
     console.log('[DEBUG FRONTEND] useEffect de streetGeometry disparado. recorridoData?.geometria length:', recorridoData?.geometria?.length);
     if (recorridoData?.geometria && Array.isArray(recorridoData.geometria) && recorridoData.geometria.length >= 2) {
       console.log('[DEBUG FRONTEND] Setting streetGeometry con length:', recorridoData.geometria.length);
-      // Mapear {lat, lng} del backend a {latitude, longitude} para react-native-maps
       const mappedGeometry = recorridoData.geometria.map((pt: any) => ({
         latitude: pt.lat ?? pt.latitude,
         longitude: pt.lng ?? pt.longitude
       }));
       setStreetGeometry(mappedGeometry);
-      lastSnappedIdxRef.current = 0; // resetear al inicio cuando llega nueva geometría
+      cumDistancesRef.current = buildCumulativeDistances(mappedGeometry);
+      lastSnappedIdxRef.current = 0;
     } else {
       console.log('[DEBUG FRONTEND] NO se seteo streetGeometry. Condiciones no cumplidas o geometria vacia.');
     }
   }, [recorridoData?.geometria]);
 
-  // ── Snapping + Heading desde geometría (el núcleo de la corrección) ────────
-  //
-  // PROBLEMA ANTERIOR:
-  //   • heading = getBearing(prevSnapped, currentSnapped)
-  //     → bearing entre dos ticks de socket = vector ruidoso de hasta cientos de metros
-  //     → genera vibraciones, saltos de 180° y rotaciones erróneas en curvas
-  //
-  // SOLUCIÓN ACTUAL:
-  //   • heading = getHeadingFromGeometry(streetGeometry, bestIdx, lookahead=4)
-  //     → usa la dirección REAL de la calle en el punto donde está el camión
-  //     → suavizado natural por el lookahead: promedia la dirección en los próximos ~4 puntos
-  //     → sin vibraciones aunque el socket envíe la misma coordenada varias veces
-  // Estados e interpolación visual (60 FPS sin saltos ni congelamientos)
+  // ── Estados e interpolación visual (60 FPS) ───────────────────────────────
   const [displayPosition, setDisplayPosition] = useState<LatLng | null>(null);
+  // `displayHeading` se pasa al Marker como `rotation` (prop de react-native-maps).
+  // Usar [0, 360) porque la prop `rotation` del Marker lo espera así.
   const [displayHeading, setDisplayHeading] = useState(0);
 
-  const targetPosRef = useRef<LatLng | null>(null);
-  const targetHeadingRef = useRef<number>(0);
-  const animPosRef = useRef<LatLng | null>(null);
-  const animHeadingRef = useRef<number>(0);
-
-  // Refs para interpolación lineal basada en tiempo
+  // Refs para la interpolación lineal basada en tiempo
   const startPosRef = useRef<LatLng | null>(null);
   const startHeadingRef = useRef<number>(0);
-  const startTimeRef = useRef<number>(0);
+  const targetPosRef = useRef<LatLng | null>(null);
+  const targetHeadingRef = useRef<number>(0);      // heading acumulado (puede superar 360 para tomar el camino corto)
+  const tickStartTimeRef = useRef<number>(0);
+  const animPosRef = useRef<LatLng | null>(null);
+  const animHeadingRef = useRef<number>(0);        // heading animado (acumulado, mismo espacio que target)
+  const isFirstTickRef = useRef<boolean>(true);
+
+  // ── Throttle de cámara ─────────────────────────────────────────────────────
+  // La cámara se actualiza máximo 1 vez cada 100ms para no saturar el hilo nativo.
+  const lastCameraUpdateRef = useRef<number>(0);
+  const CAMERA_THROTTLE_MS = 100;
+
+  // ── Tracker de renderización SVG ───────────────────────────────────────────
+  useEffect(() => {
+    if (displayPosition) {
+      // Mantiene tracksViewChanges en true un instante para que el SVG se dibuje completamente.
+      // Luego lo apaga (false) para que las actualizaciones a 60FPS no maten el rendimiento.
+      const timer = setTimeout(() => {
+        setTrackVehicleChanges(false);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [!!displayPosition]);
 
   // ── Actualización de destino al recibir evento del socket / posición ───────
+  // Note: dependemos de 'stats.porcentajeAvance' porque es nuestra fuente de verdad unificada
   useEffect(() => {
     if (!currentPosition) return;
-    if (streetGeometry.length < 2) {
+
+    if (streetGeometry.length < 2 || cumDistancesRef.current.length < 2) {
+      // Sin geometría: usar posición directa del socket
       targetPosRef.current = currentPosition;
       if (!animPosRef.current) {
         animPosRef.current = currentPosition;
+        startPosRef.current = currentPosition;
         setDisplayPosition(currentPosition);
       }
       return;
     }
 
-    // Encontrar el punto más cercano en la geometría real
-    const bestIdx = findClosestIdx(
-      streetGeometry,
-      currentPosition,
-      lastSnappedIdxRef.current
-    );
+    const porcentaje = typeof stats.porcentajeAvance === 'number' ? stats.porcentajeAvance / 100 : 0;
+    const snapped = interpolateOnPath(streetGeometry, cumDistancesRef.current, porcentaje);
+
+    // Encontrar en qué índice geométrico cae aproximadamente la posición
+    const totalDist = cumDistancesRef.current[cumDistancesRef.current.length - 1];
+    const targetDist = porcentaje * totalDist;
+    let bestIdx = 0;
+    while (bestIdx < cumDistancesRef.current.length - 1 && cumDistancesRef.current[bestIdx] <= targetDist) {
+      bestIdx++;
+    }
+    if (bestIdx > 0 && Math.abs(cumDistancesRef.current[bestIdx - 1] - targetDist) < Math.abs(cumDistancesRef.current[bestIdx] - targetDist)) {
+      bestIdx--;
+    }
     lastSnappedIdxRef.current = bestIdx;
 
-    const snapped = streetGeometry[bestIdx];
+    // Heading desde geometría real (lookahead=4). Siempre toma el camino más corto.
     const rawHeading = getHeadingFromGeometry(streetGeometry, bestIdx, 4);
     const prevHeading = targetHeadingRef.current;
     const delta = shortestAngleDelta(prevHeading, rawHeading);
-    const newHeading = prevHeading + delta;
+    const newAccumulatedHeading = prevHeading + delta; // espacio acumulado para interpolación suave
 
-    if (!animPosRef.current) {
+    if (isFirstTickRef.current || !animPosRef.current) {
+      // Primer tick: posicionar directamente sin animar
+      isFirstTickRef.current = false;
       animPosRef.current = snapped;
-      animHeadingRef.current = newHeading;
+      animHeadingRef.current = newAccumulatedHeading;
+      startPosRef.current = snapped;
+      startHeadingRef.current = newAccumulatedHeading;
+      targetPosRef.current = snapped;
+      targetHeadingRef.current = newAccumulatedHeading;
+      tickStartTimeRef.current = Date.now();
       setDisplayPosition(snapped);
-      setDisplayHeading(newHeading);
+      setDisplayHeading(normalizeAngle(newAccumulatedHeading));
     } else {
-      // Registrar estado inicial y tiempo de inicio para la nueva animación
+      // Registrar estado de partida desde la posición animada actual
       startPosRef.current = { ...animPosRef.current };
       startHeadingRef.current = animHeadingRef.current;
-      startTimeRef.current = Date.now();
+      targetPosRef.current = snapped;
+      targetHeadingRef.current = newAccumulatedHeading;
+      tickStartTimeRef.current = Date.now();
     }
-
-    targetPosRef.current = snapped;
-    targetHeadingRef.current = newHeading;
-  }, [currentPosition, streetGeometry]);
+  }, [stats.porcentajeAvance, streetGeometry, currentPosition]);
 
   // ── Bucle continuo a 60 FPS: Interpolador visual lineal (Basado en tiempo) ─
   useEffect(() => {
     let animId: number;
 
     const loop = () => {
-      const targetPos = targetPosRef.current;
-      const startPos = startPosRef.current;
-      const targetHeading = targetHeadingRef.current;
-      const startHeading = startHeadingRef.current;
-      const startTime = startTimeRef.current;
+      const target = targetPosRef.current;
+      const start = startPosRef.current;
       const animPos = animPosRef.current;
 
-      if (targetPos && startPos && startTime) {
-        const now = Date.now();
-        const elapsed = now - startTime;
-        
-        // Progreso lineal de 0 a 1 sobre 1 segundo (1000ms, coincide con el tick del servidor)
-        const progress = Math.min(elapsed / 1000, 1);
-        
-        const nextLat = startPos.latitude + (targetPos.latitude - startPos.latitude) * progress;
-        const nextLng = startPos.longitude + (targetPos.longitude - startPos.longitude) * progress;
-        const nextHeading = startHeading + (targetHeading - startHeading) * progress;
+      if (target && start && tickStartTimeRef.current > 0) {
+        const elapsed = Date.now() - tickStartTimeRef.current;
+        const progress = Math.min(elapsed / TICK_MS, 1);
+
+        const nextLat = start.latitude + (target.latitude - start.latitude) * progress;
+        const nextLng = start.longitude + (target.longitude - start.longitude) * progress;
+        const nextHeading = startHeadingRef.current + (targetHeadingRef.current - startHeadingRef.current) * progress;
 
         const newAnimPos = { latitude: nextLat, longitude: nextLng };
         animPosRef.current = newAnimPos;
         animHeadingRef.current = nextHeading;
 
-        setDisplayPosition(newAnimPos);
-        setDisplayHeading(nextHeading);
+        const normalizedHeading = normalizeAngle(nextHeading);
 
-        // Primera posición: centrar cámara
-        if (!hasMountedCameraRef.current) {
-          hasMountedCameraRef.current = true;
-          isFollowingRef.current = true;
-          mapRef.current?.animateCamera(
-            { center: newAnimPos, zoom: 17, heading: nextHeading },
-            { duration: 500 }
-          );
-        } else if (isFollowingRef.current && mapRef.current) {
-          // Seguimiento de cámara continuo y fluido
-          mapRef.current.setCamera({
-            center: newAnimPos,
-            heading: nextHeading,
-          });
+        setDisplayPosition(newAnimPos);
+        setDisplayHeading(normalizedHeading);
+
+        // ── Actualización de cámara (throttled a 100ms) ─────────────────────
+        const now = Date.now();
+        if (now - lastCameraUpdateRef.current >= CAMERA_THROTTLE_MS && isFollowingRef.current && mapRef.current) {
+          lastCameraUpdateRef.current = now;
+
+          if (!hasMountedCameraRef.current) {
+            hasMountedCameraRef.current = true;
+            // Primera vez: animar suavemente con zoom y pitch de navegación
+            mapRef.current.animateCamera(
+              {
+                center: newAnimPos,
+                zoom: 18.5,
+                heading: normalizedHeading,
+                pitch: 60, // perspectiva de navegación 3D profunda
+              },
+              { duration: 600 }
+            );
+          } else {
+            // Seguimiento continuo: setCamera para máxima fluidez (sin cola de animación)
+            mapRef.current.setCamera({
+              center: newAnimPos,
+              heading: normalizedHeading,
+              pitch: 60,
+              zoom: 18.5,
+            });
+          }
         }
-      } else if (targetPos && animPos && !startPos) {
-        // Fallback en el primer instante antes del primer tick
+      } else if (animPos) {
+        // Antes del primer tick: mostrar posición inicial
         setDisplayPosition(animPos);
-        setDisplayHeading(animHeadingRef.current);
       }
 
       animId = requestAnimationFrame(loop);
@@ -351,21 +438,6 @@ const MapaRecorridoScreen = () => {
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
   }, []);
-
-  // ── Cámara inicial: fitToCoordinates sobre checkpoints ────────────────────
-  useEffect(() => {
-    if (checkpoints.length > 0 && mapRef.current && !hasCenteredRef.current) {
-      if (checkpointCoords.length > 0) {
-        hasCenteredRef.current = true;
-        setTimeout(() => {
-          mapRef.current?.fitToCoordinates(checkpointCoords, {
-            edgePadding: { top: 70, right: 70, bottom: 250, left: 70 },
-            animated: true,
-          });
-        }, 600);
-      }
-    }
-  }, [checkpoints, checkpointCoords]);
 
   // ── Handlers de negocio (sin cambios) ─────────────────────────────────────
   const handleSpeedChange = (mult: number) => {
@@ -427,8 +499,8 @@ const MapaRecorridoScreen = () => {
   const initialRegion: Region = {
     latitude: currentPosition && !isNaN(currentPosition.latitude) ? currentPosition.latitude : safeLat,
     longitude: currentPosition && !isNaN(currentPosition.longitude) ? currentPosition.longitude : safeLng,
-    latitudeDelta: 0.03,
-    longitudeDelta: 0.03,
+    latitudeDelta: 0.004,  // ~400 m de radio — zoom de navegación inicial
+    longitudeDelta: 0.004,
   };
 
   const formattedHoraInicio = recorridoData.hora_inicio
@@ -437,7 +509,7 @@ const MapaRecorridoScreen = () => {
 
   const etaMinutos = Math.ceil(stats.etaSegundos / 60);
 
-  // Distancia restante aproximada desde el vehículo hacia el fin de ruta (lógica de negocio intacta)
+  // Distancia restante aproximada desde el vehículo hacia el fin de ruta
   let distanciaRestanteStr = '0 m';
   if (currentPosition && checkpoints.length > 0 && !isCompleted) {
     let totalKm = 0;
@@ -505,13 +577,8 @@ const MapaRecorridoScreen = () => {
         showsCompass={false}
         toolbarEnabled={false}
         pitchEnabled={true}
+        rotateEnabled={true}
       >
-        {/*
-          Polyline: usa streetGeometry (Routes API) como única fuente.
-          Fallback a checkpointCoords solo si la geometría aún no cargó.
-          NO se simplifica ni recorta: se pasa el array completo tal como
-          lo devuelve decodePolyline() en routeGeometryCache.ts.
-        */}
         {checkpointCoords.length > 1 && (
           <Polyline
             coordinates={streetGeometry.length > 1 ? streetGeometry : checkpointCoords}
@@ -569,16 +636,19 @@ const MapaRecorridoScreen = () => {
           );
         })}
 
-        {/* Marcador del camión: Posición e inclinación interpoladas a 60 FPS */}
+        {/* 
+          Marcador del camión (AQUÍ SE APLICÓ LA CORRECCIÓN DE TRACKSVIEWCHANGES) 
+        */}
         {displayPosition && !isNaN(displayPosition.latitude) && !isNaN(displayPosition.longitude) && (
           <Marker
             coordinate={displayPosition}
             zIndex={999}
             flat={true}
             anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={true}
+            rotation={displayHeading}
+            tracksViewChanges={trackVehicleChanges}
           >
-            <NavigationArrow heading={displayHeading} />
+            <NavigationArrow />
           </Marker>
         )}
       </MapView>
@@ -592,7 +662,8 @@ const MapaRecorridoScreen = () => {
               mapRef.current?.animateCamera({
                 center: animPosRef.current,
                 zoom: 17,
-                heading: animHeadingRef.current,
+                heading: normalizeAngle(animHeadingRef.current),
+                pitch: 30,
               }, { duration: 600 });
             }
           }}

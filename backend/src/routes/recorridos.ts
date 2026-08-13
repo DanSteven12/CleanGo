@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import { ResultSetHeader } from 'mysql2';
 import { getIO } from '../socket/socketServer';
-import { stopSimulation, startSimulation, setSimulationSpeed, getRouteGeometry } from '../services/simulationService';
+import { stopSimulation, startSimulation, setSimulationSpeed, getRouteGeometry, fetchRouteGeometry } from '../services/simulationService';
 import { NotificationService } from '../modules/notifications';
 import * as NotificationMessages from '../constants/notificationMessages';
 
@@ -90,7 +90,7 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
       console.error('Error al emitir nuevo_recorrido_iniciado o iniciar simulación:', err);
     }
 
-    const routeGeom = getRouteGeometry(recorrido_id);
+    const routeGeom = await fetchRouteGeometry(recorrido_id, checkpointsCompletos);
     console.log(`[DEBUG /iniciar] geometria length: ${routeGeom?.length}`);
     if (routeGeom && routeGeom.length > 0) {
       console.log(`[DEBUG /iniciar] primeros 5:`, routeGeom.slice(0, 5));
@@ -540,7 +540,7 @@ router.get('/activo/:asignacion_id', async (req: Request, res: Response): Promis
       [rec.recorrido_id]
     );
 
-    const routeGeom = getRouteGeometry(rec.recorrido_id);
+    const routeGeom = await fetchRouteGeometry(rec.recorrido_id, checkpointsCompletos);
     console.log(`[DEBUG /activo/:id] geometria length: ${routeGeom?.length}`);
     if (routeGeom && routeGeom.length > 0) {
       console.log(`[DEBUG /activo/:id] primeros 5:`, routeGeom.slice(0, 5));
