@@ -13,6 +13,7 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     '/api/auth/forgot-password',
     '/api/auth/reset-password',
     '/api/recorridos',
+    '/api/device/auth', // App móvil no usa cookies — sin riesgo CSRF
   ];
 
   if (excludedPaths.some(excludedPath => req.path.startsWith(excludedPath))) {

@@ -16,6 +16,7 @@ import recorridosRouter from './routes/recorridos';
 import horariosRouter from './routes/horarios';
 import usuariosRouter from './routes/usuarios';
 import authRouter from './routes/auth';
+import deviceAuthRouter from './routes/deviceAuth';
 import camionesRouter from './routes/camiones';
 import conductoresRouter from './routes/conductores';
 import reportesRouter from './routes/reportes';
@@ -113,8 +114,12 @@ app.get('/test-db-dump', async (req, res) => {
   }
 });
 
-// ── Public: auth endpoints (login, register, forgot-password, reset-password, me)
+// ── Public: auth endpoints Web (login, register, forgot-password, reset-password, me)
 app.use('/api/auth', authRouter);
+
+// ── Public/Device: auth endpoints para la app móvil de Conductores
+// Los tokens viajan en body JSON (no cookies). Sin CSRF (ver csrfMiddleware).
+app.use('/api/device/auth', deviceAuthRouter);
 
 // ── Protected: all application routes require a valid JWT ─────────────────────
 app.use('/api/rutas', authMiddleware, rutasRouter);

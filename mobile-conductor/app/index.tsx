@@ -1,12 +1,24 @@
+// mobile-conductor/app/index.tsx
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
+  TouchableOpacity,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AsignacionCard } from '../components/AsignacionCard';
 import { recorridosService } from '../services/recorridosService';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { camion, logout } = useAuth();
   const [asignaciones, setAsignaciones] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -19,7 +31,7 @@ export default function HomeScreen() {
       // Validar que data sea un arreglo antes de filtrar
       if (Array.isArray(data)) {
         const filtradas = data.filter((a: any) => {
-          if (!a.estatus_recorrido) return true; // Si no tiene estatus explícito, mostrarlo por defecto
+          if (!a.estatus_recorrido) return true;
           const estatus = a.estatus_recorrido.toString().toLowerCase().trim();
           return estatus === 'pendiente' || estatus === 'en progreso' || estatus === 'en_progreso' || estatus === 'en progreso';
         });
@@ -47,6 +59,21 @@ export default function HomeScreen() {
     fetchAsignaciones();
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Estás seguro de que deseas cerrar la sesión de este dispositivo?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: () => logout(),
+        },
+      ]
+    );
+  };
+
   const handleIniciarRecorrido = async (asignacion: any, conductorRealNombre?: string) => {
     setStartingId(asignacion.id);
     try {
@@ -66,7 +93,6 @@ export default function HomeScreen() {
   const handleFinalizarRecorrido = async (asignacion: any) => {
     setFinishingId(asignacion.id);
     try {
-      // Necesitamos el recorrido_id activo
       const recorridoActivo = await recorridosService.getRecorridoActivo(asignacion.id);
       if (!recorridoActivo || !recorridoActivo.recorrido_id) {
         throw new Error('No se encontró el recorrido activo.');
@@ -95,8 +121,25 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Mis Asignaciones</Text>
-        <Text style={styles.subtitle}>Recorridos pendientes y activos de hoy</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.title}>Mis Asignaciones</Text>
+          <Text style={styles.subtitle}>Recorridos pendientes y activos de hoy</Text>
+          {/* Info del camión autenticado */}
+          {camion && (
+            <View style={styles.camionBadge}>
+              <Text style={styles.camionBadgeText}>
+                🚛 {camion.numero_economico} · {camion.placa}
+              </Text>
+            </View>
+          )}
+        </View>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.logoutIcon}>⏻</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -144,12 +187,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 16,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+  },
+  headerLeft: {
+    flex: 1,
+    marginRight: 12,
   },
   title: {
     fontSize: 24,
@@ -160,6 +210,34 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#64748b',
+  },
+  camionBadge: {
+    marginTop: 8,
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    alignSelf: 'flex-start',
+  },
+  camionBadgeText: {
+    fontSize: 12,
+    color: '#1763A6',
+    fontWeight: '600',
+  },
+  logoutButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#fef2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    marginTop: 4,
+  },
+  logoutIcon: {
+    fontSize: 18,
+    color: '#ef4444',
   },
   listContent: {
     padding: 16,

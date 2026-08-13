@@ -90,6 +90,10 @@ CREATE TABLE camiones (
     usuario_dispositivo VARCHAR(50) NOT NULL UNIQUE,
     password_dispositivo VARCHAR(255) NOT NULL,
 
+    -- Estado del dispositivo: controla si puede autenticarse en la app móvil.
+    -- Administrado desde el sistema Web. Solo 'Activo' puede iniciar sesión.
+    estado ENUM('Activo', 'Inactivo') NOT NULL DEFAULT 'Activo',
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -346,4 +350,23 @@ CREATE TABLE sesiones (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+-- ============================================================
+-- 13. TABLA DE SESIONES DE CAMIONES (DISPOSITIVOS MÓVILES)
+-- Gestiona las sesiones activas de los dispositivos instalados
+-- en cada camión. Separada de 'sesiones' para no modificar la
+-- integridad referencial de las sesiones de usuarios del sistema.
+-- Implementa: JWT, Refresh Token, rotación y revocación.
+-- ============================================================
+CREATE TABLE sesiones_camiones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    camion_id     INT NOT NULL UNIQUE,          -- 1 sesión activa por camión
+    jti           VARCHAR(255) NOT NULL,        -- UUID del Access Token activo
+    refresh_token_hash VARCHAR(255) NULL,       -- SHA-256 del Refresh Token
+    ip            VARCHAR(45),
+    user_agent    TEXT,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (camion_id) REFERENCES camiones(id) ON DELETE CASCADE
 );

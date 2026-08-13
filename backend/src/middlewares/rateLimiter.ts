@@ -115,3 +115,37 @@ export const forgotPasswordLimiter = rateLimit({
     });
   },
 });
+
+// ─── Device Login Limiter ─────────────────────────────────────────────────────
+
+/**
+ * Rate limiter para POST /api/device/auth/login.
+ * 5 intentos por 60 segundos por IP.
+ * Idéntico al loginLimiter Web — protege contra fuerza bruta de credenciales
+ * de dispositivos.
+ */
+export const deviceLoginLimiter = rateLimit({
+  windowMs: 60 * 1000, // 60 segundos
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  handler: (req, res) => {
+    const ip = getClientIp(req);
+    const usuario: string | null =
+      typeof req.body?.usuario_dispositivo === 'string' ? req.body.usuario_dispositivo : null;
+
+    logSecurityEvent({
+      correo: usuario,
+      ip,
+      userAgent: req.headers['user-agent'] ?? 'unknown',
+      endpoint: req.originalUrl,
+      httpStatus: 429,
+      descripcion: 'Device login bloqueado por Rate Limit (brute-force protection)',
+    });
+
+    res.status(429).json({
+      message: 'Demasiados intentos de inicio de sesión. Por favor espera 60 segundos antes de volver a intentar.',
+    });
+  },
+});
