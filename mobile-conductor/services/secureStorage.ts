@@ -17,8 +17,10 @@ const KEYS = {
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 
 export async function saveTokens(accessToken: string, refreshToken: string): Promise<void> {
-  await SecureStore.setItemAsync(KEYS.ACCESS_TOKEN, accessToken);
-  await SecureStore.setItemAsync(KEYS.REFRESH_TOKEN, refreshToken);
+  await Promise.all([
+    SecureStore.setItemAsync(KEYS.ACCESS_TOKEN, accessToken),
+    SecureStore.setItemAsync(KEYS.REFRESH_TOKEN, refreshToken),
+  ]);
 }
 
 export async function getAccessToken(): Promise<string | null> {
@@ -30,8 +32,10 @@ export async function getRefreshToken(): Promise<string | null> {
 }
 
 export async function clearTokens(): Promise<void> {
-  await SecureStore.deleteItemAsync(KEYS.ACCESS_TOKEN);
-  await SecureStore.deleteItemAsync(KEYS.REFRESH_TOKEN);
+  await Promise.all([
+    SecureStore.deleteItemAsync(KEYS.ACCESS_TOKEN),
+    SecureStore.deleteItemAsync(KEYS.REFRESH_TOKEN),
+  ]);
 }
 
 // ─── Camión data ──────────────────────────────────────────────────────────────

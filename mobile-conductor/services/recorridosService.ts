@@ -7,6 +7,39 @@ export interface RecorridoStartResponse {
   geometria?: { lat: number; lng: number }[];
 }
 
+// ─── Historial ────────────────────────────────────────────────────────────────
+
+export interface RecorridoHistorial {
+  id: number;
+  hora_inicio: string;
+  hora_fin: string | null;
+  estado: string;
+  conductor_real_nombre: string | null;
+  duracion_minutos: number | null;
+  ruta_id: number;
+  ruta_nombre: string;
+  ruta_color: string | null;
+  camion_id: number;
+  numero_economico: string;
+  placa: string;
+  conductor_id: number;
+  conductor_nombre: string;
+  fecha_programada: string;
+  horario_inicio: string | null;
+  horario_fin: string | null;
+  total_checkpoints: number;
+  checkpoints_completados: number;
+}
+
+export interface HistorialResponse {
+  data: RecorridoHistorial[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+// ─── Service ──────────────────────────────────────────────────────────────────
+
 export const recorridosService = {
   /**
    * Inicia un recorrido para la asignación seleccionada.
@@ -64,4 +97,20 @@ export const recorridosService = {
   cambiarVelocidad: async (recorridoId: number, velocidad: number): Promise<void> => {
     await api.post(`/recorridos/${recorridoId}/velocidad`, { velocidad });
   },
+
+  /**
+   * Obtiene el historial paginado de recorridos completados del camión autenticado.
+   *
+   * El endpoint usa deviceAuthMiddleware: el camion_id se extrae del JWT en el
+   * backend y nunca se envía desde el cliente.
+   *
+   * GET /api/device/recorridos/historial?page=N
+   */
+  getHistorial: async (page: number = 1): Promise<HistorialResponse> => {
+    const response = await api.get<HistorialResponse>('/device/recorridos/historial', {
+      params: { page },
+    });
+    return response.data;
+  },
 };
+

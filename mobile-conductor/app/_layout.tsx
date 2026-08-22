@@ -7,17 +7,19 @@
  *  2. Implementa navegación protegida basada en el estado de autenticación:
  *       - Sin sesión  → redirige a /login
  *       - Con sesión  → muestra las pantallas protegidas
- *  3. Muestra un indicador de carga durante la restauración de sesión
- *     (evita el flash de pantalla equivocada al arrancar)
+ *  3. Mantiene el Splash Screen nativo hasta resolver el arranque
+ *     (evita el flash de pantalla equivocada)
  *  4. Registra las pantallas en el Stack de Expo Router
  */
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { RecorridoMapCacheProvider } from '../contexts/RecorridoMapCache';
+import { AsignacionProvider } from '../contexts/AsignacionContext';
 
 // Prevenir que el Splash Screen se oculte automáticamente
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -38,6 +40,9 @@ function ProtectedNavigator() {
   useEffect(() => {
     if (isLoading) return; // Esperar a que termine la restauración de sesión
 
+    // Ocultar el Splash Screen una vez resuelto el estado de autenticación
+    SplashScreen.hideAsync().catch(() => {});
+
     const inLoginScreen = segments[0] === 'login';
 
     if (!isAuthenticated && !inLoginScreen) {
@@ -49,65 +54,51 @@ function ProtectedNavigator() {
     }
   }, [isAuthenticated, isLoading, segments, router]);
 
-  // Mostrar loader durante la restauración de sesión
+  // Mantener el fondo del splash mientras se resuelve la sesión
+  // (el splash nativo cubre esta vista hasta hideAsync).
   if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1763A6" />
-      </View>
-    );
+    return <View style={styles.loadingContainer} />;
   }
 
-  return null; // La navegación ya está configurada en el Stack
+  return (
+    <Stack
+      screenOptions={{ headerShown: false }}
+      initialRouteName={isAuthenticated ? 'index' : 'login'}
+    >
+      {/* Pantalla de login — pública */}
+      <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+
+      {/* Pantalla principal — protegida */}
+      <Stack.Screen name="index" />
+
+      {/* Mapa — protegida */}
+      <Stack.Screen name="mapa/[id]" />
+    </Stack>
+  );
 }
 
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
-  useEffect(() => {
-    console.log('[Mobile Startup] Root Layout montado correctamente');
-    SplashScreen.hideAsync().catch((err) => {
-      console.warn('[Mobile Startup] Error al ocultar Splash Screen:', err);
-    });
-  }, []);
-
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RootNavigator />
+        {/* RecorridoMapCacheProvider vive aquí para sobrevivir al desmontaje
+            de /mapa/[id] y mantener geometría, posición y socket activos
+            mientras el usuario navega a otros tabs. */}
+        <RecorridoMapCacheProvider>
+          <AsignacionProvider>
+            <ProtectedNavigator />
+          </AsignacionProvider>
+        </RecorridoMapCacheProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
 }
 
-function RootNavigator() {
-  return (
-    <>
-      <ProtectedNavigator />
-      <Stack screenOptions={{ headerShown: false }}>
-        {/* Pantalla de login — pública */}
-        <Stack.Screen name="login" options={{ gestureEnabled: false }} />
-
-        {/* Pantalla principal — protegida */}
-        <Stack.Screen name="index" />
-
-        {/* Mapa — protegida */}
-        <Stack.Screen name="mapa/[id]" />
-      </Stack>
-    </>
-  );
-}
-
 const styles = StyleSheet.create({
   loadingContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#0f172a',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
 });

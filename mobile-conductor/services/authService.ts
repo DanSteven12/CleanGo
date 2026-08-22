@@ -15,6 +15,7 @@ export interface CamionAuth {
   placa: string;
   usuario_dispositivo: string;
   estado: string;
+  gps_instalado: boolean;
 }
 
 export interface DeviceLoginResponse {

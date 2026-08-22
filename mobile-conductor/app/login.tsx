@@ -26,7 +26,7 @@ import {
   Dimensions,
   Easing,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
@@ -367,7 +367,7 @@ function FeatureItem({ icon, title, desc }: { icon: string; title: string; desc:
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { isAuthenticated, isLoading, login } = useAuth();
 
   const [usuarioDispositivo, setUsuarioDispositivo] = useState('');
   const [password, setPassword]                     = useState('');
@@ -394,6 +394,18 @@ export default function LoginScreen() {
     return () => clearInterval(id);
   }, [blockTime]);
 
+  if (isLoading) {
+    return (
+      <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={T.primary} />
+      </View>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Redirect href="/" />;
+  }
+
   const isBlocked = blockTime !== null && blockTime > 0;
 
   // ── Helpers de formato ──────────────────────────────────────────────────────
@@ -418,8 +430,10 @@ export default function LoginScreen() {
     setIsSubmitting(true);
     try {
       await login(user, pass);
+      setIsSubmitting(false);
       router.replace('/');
     } catch (error: any) {
+      setIsSubmitting(false);
       if (error instanceof ApiError || error?.name === 'ApiError') {
         if (error.status === 429 && error.retryAfter) {
           setBlockTime(error.retryAfter);
@@ -433,8 +447,6 @@ export default function LoginScreen() {
       } else {
         setServerError(error?.message || 'Error al conectar con el servidor.');
       }
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

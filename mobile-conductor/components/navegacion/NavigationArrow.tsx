@@ -1,30 +1,30 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Navigation } from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
+import { theme } from '../../theme/colors';
 
 /**
- * Marcador de navegación del camión para react-native-maps.
+ * Marcador de navegación del camión.
  *
- * IMPORTANTE: La rotación NO se aplica aquí. El componente padre (Marker)
- * debe usar la prop `rotation={heading}` de react-native-maps para que
- * el mapa integre correctamente el heading con el sistema de coordenadas
- * geográficas (teniendo en cuenta la orientación de la cámara).
- *
- * Si la rotación se aplica con CSS/transform interno, el ícono rota
- * respecto al píxel de pantalla, no respecto al norte geográfico,
- * lo que produce orientaciones incorrectas cuando la cámara gira.
+ * La flecha se dibuja siempre hacia ARRIBA (norte del viewBox).
+ * En el mapa, la cámara ya rota con el rumbo de avance, así que el
+ * marcador no debe volver a rotarse: si se aplica heading otra vez
+ * (o un Path invertido 180°), la flecha se ve hacia atrás en pantalla.
  */
 export const NavigationArrow = () => {
   return (
     <View style={styles.container}>
       <View style={styles.pulseRing} />
       <View style={styles.arrowContainer}>
-        {/* El ícono Navigation de Lucide apunta a 45° (arriba-derecha) por defecto.
-            Rotamos -45° para que apunte perfectamente recto hacia ARRIBA. 
-            CORRECCIÓN: Se envuelve el SVG en un View para evitar bugs de transform en Android */}
-        <View style={{ transform: [{ translateY: -1 }, { rotate: '-45deg' }] }}>
-          <Navigation size={26} color="#ffffff" fill="#ffffff" />
-        </View>
+        <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M12 2L20 22L12 18L4 22Z"
+            fill={theme.colors.primaryForeground}
+            stroke={theme.colors.primaryForeground}
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+        </Svg>
       </View>
     </View>
   );
@@ -42,21 +42,17 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: 'rgba(16, 185, 129, 0.30)',
+    backgroundColor: `${theme.colors.success}4D`, // 30% opacity approximation
   },
   arrowContainer: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#10b981',
+    backgroundColor: theme.colors.success,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 8,
+    borderColor: theme.colors.primaryForeground,
+    ...theme.shadows.card,
   },
 });

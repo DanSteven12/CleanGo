@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import * as authApiService from '../services/authService';
 import * as SecureStorage from '../services/secureStorage';
 import { setSessionExpiredCallback } from '../services/api';
+import { disconnectMobileSocket } from '../services/socketService';
 import type { CamionAuth } from '../services/authService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -50,17 +51,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Logout ─────────────────────────────────────────────────────────────────
 
   const logout = useCallback(async (): Promise<void> => {
-    // Intentar revocar la sesión en el backend (best-effort)
-    try {
-      await authApiService.logoutDevice();
-    } catch {
-      // Si falla (token ya expirado, sin red) igualmente limpiamos localmente
-    }
-
-    await SecureStorage.clearAllSession();
+    // 1. Desconectar sockets y limpiar estado en memoria inmediatamente
+    disconnectMobileSocket();
     setCamion(null);
 
-    // Navegar a login reemplazando la pila de navegación
+    // 2. Ejecutar revocación en backend y borrado de SecureStore en segundo plano
+    authApiService.logoutDevice().catch(() => {});
+    SecureStorage.clearAllSession().catch(() => {});
+
+    // 3. Navegar a login inmediatamente
     router.replace('/login');
   }, [router]);
 
@@ -74,39 +73,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [router]);
 
-  // ─── Restauración de sesión al arrancar ──────────────────────────────────────
+  // ─── Arranque siempre en Login ───────────────────────────────────────────────
+  //
+  // Al abrir la app desde cero, siempre se limpia la sesión previa para que
+  // el usuario deba autenticarse. El refresh de tokens (interceptor en api.ts)
+  // funciona correctamente dentro de la sesión activa porque los tokens se
+  // guardan de nuevo en cada login exitoso.
 
   useEffect(() => {
-    async function restoreSession(): Promise<void> {
-      try {
-        // Intentar leer datos del camión desde SecureStore
-        const storedCamion = await SecureStorage.getCamionData();
-        const storedToken = await SecureStorage.getAccessToken();
-
-        if (!storedCamion || !storedToken) {
-          // No hay sesión almacenada
-          setIsLoading(false);
-          return;
-        }
-
-        // Verificar que la sesión sigue válida en el backend
-        // El interceptor de axios manejará el refresh automático si el token expiró
-        const { camion: freshCamion } = await authApiService.getMeDevice();
-        setCamion(freshCamion);
-
-        // Actualizar datos en SecureStore si cambiaron
-        await SecureStorage.saveCamionData(freshCamion);
-      } catch {
-        // Sesión no válida — limpiar y dejar que el layout redirigirá a /login
-        await SecureStorage.clearAllSession();
-        setCamion(null);
-      } finally {
-        setIsLoading(false);
-      }
+    async function clearSessionOnStart(): Promise<void> {
+      // Limpiar cualquier sesión previa almacenada en SecureStore
+      await SecureStorage.clearAllSession();
+      // Camion queda null (valor inicial) → el usuario verá el Login
+      setIsLoading(false);
     }
 
-    restoreSession();
-  }, []); // Solo al montar
+    clearSessionOnStart();
+  }, []); // Solo al montar (arranque de la app)
 
   // ─── Login ───────────────────────────────────────────────────────────────────
 
@@ -114,9 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (usuario_dispositivo: string, password: string): Promise<void> => {
       const result = await authApiService.loginDevice(usuario_dispositivo, password);
 
-      // Guardar tokens y datos del camión en SecureStore
-      await SecureStorage.saveTokens(result.accessToken, result.refreshToken);
-      await SecureStorage.saveCamionData(result.camion);
+      // Guardar tokens y datos del camión en SecureStore en paralelo
+      await Promise.all([
+        SecureStorage.saveTokens(result.accessToken, result.refreshToken),
+        SecureStorage.saveCamionData(result.camion),
+      ]);
 
       setCamion(result.camion);
     },

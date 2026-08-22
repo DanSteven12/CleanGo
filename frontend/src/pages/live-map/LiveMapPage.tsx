@@ -141,7 +141,9 @@ export const LiveMapPage: React.FC = () => {
                             <div style={{ width: 28, height: 28, borderRadius: '0.5rem', background: '#90BF491E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <MapPin size={14} style={{ color: '#90BF49' }} />
                             </div>
-                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Progreso</span>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                              {st?.estadoDinamico === 'Completado' ? 'Progreso Completado' : 'Progreso'}
+                            </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginBottom: '0.5rem' }}>
                             <AnimatePresence mode="popLayout">
@@ -160,13 +162,21 @@ export const LiveMapPage: React.FC = () => {
                               height: '100%',
                               background: st?.estadoDinamico === 'Retrasado'
                                 ? 'oklch(0.58 0.22 25)'
-                                : 'linear-gradient(90deg, #1763A6, #90BF49)',
+                                : st?.estadoDinamico === 'Completado'
+                                  ? '#388C35'
+                                  : 'linear-gradient(90deg, #1763A6, #90BF49)',
                               width: `${st?.porcentajeAvance || 0}%`,
                               borderRadius: '3px',
                               transition: 'width 0.5s linear, background-color 0.3s'
                             }} />
                           </div>
-                          <div style={{ fontSize: '0.72rem', textAlign: 'right', marginTop: '0.25rem', color: 'var(--text)' }}>
+                          <div style={{ 
+                            fontSize: '0.72rem', 
+                            textAlign: 'right', 
+                            marginTop: '0.25rem', 
+                            color: st?.estadoDinamico === 'Completado' ? '#388C35' : 'var(--text)',
+                            fontWeight: st?.estadoDinamico === 'Completado' ? 700 : 400
+                          }}>
                             {Math.round(st?.porcentajeAvance || 0)}%
                           </div>
                         </div>

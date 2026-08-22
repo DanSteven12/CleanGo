@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { User, Clock, TrendingUp, ChevronDown, ChevronUp, ArrowLeft, Zap } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { theme } from '../../theme/colors';
 
 interface NavigationHeaderProps {
   rutaNombre: string;
@@ -46,18 +47,35 @@ export const NavigationHeader = ({
       <View style={styles.card}>
         <TouchableOpacity style={styles.headerRow} onPress={toggleExpand} activeOpacity={0.8}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
-            <ArrowLeft size={20} color="#0f172a" />
+            <ArrowLeft size={20} color={theme.colors.text} />
           </TouchableOpacity>
           
           <View style={styles.titleContainer}>
             <Text style={styles.routeName} numberOfLines={1}>{rutaNombre}</Text>
-            <View style={styles.statusPill}>
-              <View style={[styles.statusDot, { backgroundColor: isCompleted ? '#3b82f6' : '#10b981' }]} />
-              <Text style={styles.statusText}>{isCompleted ? 'Concluida' : 'En Ruta'}</Text>
-            </View>
+          <View
+            style={[
+              styles.statusPill,
+              isCompleted ? styles.statusPillCompleted : styles.statusPillActive,
+            ]}
+          >
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: isCompleted ? theme.colors.primary : theme.colors.success },
+              ]}
+            />
+            <Text
+              style={[
+                styles.statusText,
+                isCompleted ? styles.statusTextCompleted : styles.statusTextActive,
+              ]}
+            >
+              {isCompleted ? 'Concluida' : 'En Ruta'}
+            </Text>
+          </View>
           </View>
           
-          {expanded ? <ChevronUp size={20} color="#64748b" /> : <ChevronDown size={20} color="#64748b" />}
+          {expanded ? <ChevronUp size={20} color={theme.colors.textMuted} /> : <ChevronDown size={20} color={theme.colors.textMuted} />}
         </TouchableOpacity>
 
         {expanded && (
@@ -68,7 +86,7 @@ export const NavigationHeader = ({
             <View style={styles.statsRow}>
               <View style={styles.statCol}>
                 <View style={styles.statIconRow}>
-                  <User size={12} color="#64748b" />
+                  <User size={12} color={theme.colors.textMuted} />
                   <Text style={styles.statLabel}>Conductor</Text>
                 </View>
                 <Text style={styles.statValue} numberOfLines={2}>{conductorNombre}</Text>
@@ -78,7 +96,7 @@ export const NavigationHeader = ({
 
               <View style={styles.statCol}>
                 <View style={styles.statIconRow}>
-                  <Clock size={12} color="#64748b" />
+                  <Clock size={12} color={theme.colors.textMuted} />
                   <Text style={styles.statLabel}>Inicio / Transcur.</Text>
                 </View>
                 <Text style={styles.statValue}>{horaInicio}</Text>
@@ -89,7 +107,7 @@ export const NavigationHeader = ({
 
               <View style={styles.statCol}>
                 <View style={styles.statIconRow}>
-                  <TrendingUp size={12} color="#64748b" />
+                  <TrendingUp size={12} color={theme.colors.textMuted} />
                   <Text style={styles.statLabel}>Avance</Text>
                 </View>
                 <Text style={styles.statValue}>{porcentajeAvance}%</Text>
@@ -99,13 +117,14 @@ export const NavigationHeader = ({
 
             {/* ── Barra de progreso ── */}
             <View style={styles.progressBarBg}>
+              {/* Gradiente institucional azul→verde, igual que la web */}
               <View
                 style={[
                   styles.progressBarFill,
                   {
-                    width: `${porcentajeAvance}%`,
-                    backgroundColor: isCompleted ? '#3b82f6' : '#10b981',
+                    width: `${porcentajeAvance}%` as any,
                   },
+                  isCompleted && styles.progressBarFillCompleted,
                 ]}
               />
             </View>
@@ -117,14 +136,14 @@ export const NavigationHeader = ({
                 <View style={styles.speedDivider} />
                 <View style={styles.speedSection}>
                   <View style={styles.speedLabelRow}>
-                    <Zap size={14} color="#f59e0b" />
+                    <Zap size={14} color={theme.colors.warning} />
                     <Text style={styles.speedLabel}>
                       Velocidad de simulación{' '}
                       <Text style={styles.speedDemoTag}>(Demo)</Text>
                     </Text>
                   </View>
                   <View style={styles.speedChipsRow}>
-                    {SPEED_OPTIONS.map((mult) => {
+                  {SPEED_OPTIONS.map((mult) => {
                       const isActive = speedMultiplier === mult;
                       return (
                         <TouchableOpacity
@@ -158,14 +177,12 @@ const styles = StyleSheet.create({
     zIndex: 90,
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadows.card,
   },
   headerRow: {
     flexDirection: 'row',
@@ -174,7 +191,7 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 4,
     marginRight: 8,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: theme.colors.background,
     borderRadius: 20,
   },
   titleContainer: {
@@ -185,20 +202,28 @@ const styles = StyleSheet.create({
   routeName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0f172a',
+    color: theme.colors.text,
     flex: 1,
     marginRight: 8,
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ecfdf5',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
     marginRight: 8,
+  },
+  // En Ruta → verde
+  statusPillActive: {
+    backgroundColor: theme.colors.successBg,
+    borderColor: '#B7DFB5',
+  },
+  // Concluida → azul primario (igual que los badges azules de la web)
+  statusPillCompleted: {
+    backgroundColor: theme.colors.activeBg,
+    borderColor: '#BFDBFE',
   },
   statusDot: {
     width: 6,
@@ -209,14 +234,19 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#065f46',
+  },
+  statusTextActive: {
+    color: theme.colors.successText,
+  },
+  statusTextCompleted: {
+    color: theme.colors.primary,
   },
   expandedContent: {
     marginTop: 8,
   },
   divider: {
     height: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: theme.colors.background,
     marginBottom: 12,
   },
   // ── Stats row (3 columns) ──────────────────────────────────────────
@@ -239,49 +269,57 @@ const styles = StyleSheet.create({
   },
   statDividerV: {
     width: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: theme.colors.border,
     marginHorizontal: 10,
     alignSelf: 'stretch',
     minHeight: 40,
   },
   statLabel: {
     fontSize: 10,
-    color: '#64748b',
+    color: theme.colors.textMuted,
     fontWeight: '500',
   },
   statValue: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0f172a',
+    color: theme.colors.text,
     lineHeight: 17,
   },
   statSubValue: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#475569',
+    color: theme.colors.textMuted,
     lineHeight: 15,
   },
   progressLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748b',
+    color: theme.colors.textMuted,
     textAlign: 'right',
     marginTop: 4,
     marginBottom: 2,
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: theme.colors.border,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     borderRadius: 3,
+    // Gradiente institucional azul→verde, igual que la web (linear-gradient(90deg, #1763A6, #90BF49))
+    // React Native no soporta gradientes directamente sin expo-linear-gradient,
+    // así que usamos el azul primario como valor sólido, se alinea con el primario de la web.
+    backgroundColor: theme.colors.primary,
+  },
+  // Cuando el recorrido está completado, la barra se pone verde (estado final)
+  progressBarFillCompleted: {
+    backgroundColor: theme.colors.success,
   },
   speedDivider: {
     height: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: theme.colors.background,
     marginTop: 12,
     marginBottom: 10,
   },
@@ -296,12 +334,12 @@ const styles = StyleSheet.create({
   speedLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569',
+    color: theme.colors.textMuted,
   },
   speedDemoTag: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#94a3b8',
+    color: theme.colors.textMuted,
   },
   speedChipsRow: {
     flexDirection: 'row',
@@ -312,20 +350,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 7,
     borderRadius: 8,
-    backgroundColor: '#f8fafc',
+    backgroundColor: theme.colors.background,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: theme.colors.border,
   },
+  // Chip activo → azul primario, alineado con los estilos de selección de la web
   speedChipActive: {
-    backgroundColor: '#fffbeb',
-    borderColor: '#f59e0b',
+    backgroundColor: theme.colors.activeBg,
+    borderColor: theme.colors.primary,
   },
   speedChipText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748b',
+    color: theme.colors.textMuted,
   },
   speedChipTextActive: {
-    color: '#b45309',
+    color: theme.colors.primary,
   },
 });

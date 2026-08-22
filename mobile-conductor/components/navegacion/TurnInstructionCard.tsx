@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Navigation } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { theme } from '../../theme/colors';
 
 interface TurnInstructionCardProps {
   distancia: string;
@@ -37,16 +38,12 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   card: {
-    backgroundColor: '#064e3b', // Deep green for Google Maps-like nav header
+    backgroundColor: theme.colors.success,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
+    ...theme.shadows.card,
   },
   iconContainer: {
     width: 48,
@@ -62,12 +59,12 @@ const styles = StyleSheet.create({
   distanceText: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#ffffff',
+    color: theme.colors.primaryForeground,
   },
   destinationText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#a7f3d0',
+    color: 'rgba(255,255,255,0.85)',
     marginTop: 2,
   },
 });

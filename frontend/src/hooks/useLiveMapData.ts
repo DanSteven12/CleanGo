@@ -52,15 +52,18 @@ export const useLiveMapData = () => {
             const etaInicialSecs = Math.floor(etaInicialMs / 1000);
             const horaLlegadaInicial = new Date(now + etaInicialMs).toLocaleTimeString();
 
+            const isCompleted = completadosCount === totalCps && totalCps > 0;
+            const porcentaje = totalSegmentos > 0 ? Math.min(Math.round(((completadosCount - (totalCps > 0 ? 1 : 0)) / totalSegmentos) * 100), 100) : (isCompleted ? 100 : 0);
+
             newStatsMap[recorridoId] = {
               ultimoCheckpoint: recData.checkpoints?.[0]?.nombre || 'Base / Salida',
               proximoCheckpoint: recData.checkpoints?.[1]?.nombre || 'Iniciando...',
               completados: completadosCount,
               pendientes: pendientesCount,
-              porcentajeAvance: totalSegmentos > 0 ? Math.min(Math.round(((completadosCount - (totalCps > 0 ? 1 : 0)) / totalSegmentos) * 100), 100) : 0,
-              etaSegundos: etaInicialSecs,
+              porcentajeAvance: isCompleted ? 100 : porcentaje,
+              etaSegundos: isCompleted ? 0 : etaInicialSecs,
               horaEstimada: horaLlegadaInicial,
-              estadoDinamico: 'En Progreso'
+              estadoDinamico: isCompleted ? 'Completado' : 'En Progreso'
             };
           }
         } catch (err) {
@@ -114,7 +117,11 @@ export const useLiveMapData = () => {
   const handleStatsUpdate = useCallback((recorridoId: number, newStats: LiveStats) => {
     if (recorridosCompletadosRef.current.has(recorridoId)) return;
 
-    if (newStats.estadoDinamico === 'Completado') {
+    const isCompleted = newStats.estadoDinamico === 'Completado' || 
+                        newStats.porcentajeAvance >= 100 || 
+                        (newStats.pendientes === 0 && newStats.completados > 0);
+
+    if (isCompleted) {
       recorridosCompletadosRef.current.add(recorridoId);
       setStatsMap(prev => ({
         ...prev,

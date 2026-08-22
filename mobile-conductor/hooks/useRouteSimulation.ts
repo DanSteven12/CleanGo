@@ -151,7 +151,10 @@ export function useRouteSimulation({
     socket.on('velocidad_simulacion_actualizada', handleVelocidad);
 
     return () => {
-      socket.emit('salir_de_recorrido', recorridoId);
+      // No emitir 'salir_de_recorrido': el RecorridoMapCacheProvider mantiene
+      // la sala activa mientras el recorrido está en progreso, incluso cuando
+      // el mapa se desmonta al navegar a otro tab. La sala solo se abandona
+      // cuando el caché se limpia (cache.clear()) al finalizar el recorrido.
       socket.off('ubicacion_actualizada', handleUbicacion);
       socket.off('recorrido_finalizado', handleFinalizado);
       socket.off('velocidad_simulacion_actualizada', handleVelocidad);

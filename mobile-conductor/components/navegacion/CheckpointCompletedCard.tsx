@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { CheckCircle2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { theme } from '../../theme/colors';
 
 interface CheckpointCompletedCardProps {
   completados: number;
@@ -62,7 +63,7 @@ export const CheckpointCompletedCard = ({ completados, ultimoCheckpoint }: Check
   return (
     <Animated.View style={[styles.container, { top: insets.top + 100, opacity, transform: [{ translateY }] }]}>
       <View style={styles.card}>
-        <CheckCircle2 size={24} color="#10b981" />
+        <CheckCircle2 size={24} color={theme.colors.success} />
         <View style={styles.textContainer}>
           <Text style={styles.title}>Checkpoint completado</Text>
           <Text style={styles.timeText}>Llegada: {timeString}</Text>
@@ -81,19 +82,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.card,
     borderRadius: 100,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    shadowColor: '#10b981',
+    shadowColor: theme.colors.success,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 10,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#B7DFB5', // Verde definido, más contraste que successBg (#dcfce7)
   },
   textContainer: {
     marginLeft: 12,
@@ -101,11 +102,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#065f46',
+    color: theme.colors.successText,
   },
   timeText: {
     fontSize: 12,
-    color: '#64748b',
+    color: theme.colors.textMuted,
     marginTop: 2,
   },
 });

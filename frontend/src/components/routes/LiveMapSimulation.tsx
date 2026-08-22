@@ -40,24 +40,34 @@ const lerpBearing = (from: number, to: number, t: number): number => {
  */
 const getHeadingFromGeometry = (
   path: { lat: number; lng: number }[],
-  idx: number,
-  lookahead = 4
+  idx: number
 ): number => {
   const n = path.length;
   if (n < 2) return 0;
 
-  let targetIdx = Math.min(idx + lookahead, n - 1);
-  while (targetIdx > idx) {
+  // Buscar el siguiente punto distinto hacia adelante (dirección del segmento actual)
+  let targetIdx = idx + 1;
+  while (targetIdx < n) {
     const dx = path[targetIdx].lat - path[idx].lat;
     const dy = path[targetIdx].lng - path[idx].lng;
-    if (dx * dx + dy * dy > 1e-12) break;
-    targetIdx--;
+    if (dx * dx + dy * dy > 1e-12) {
+      return getBearing(path[idx], path[targetIdx]);
+    }
+    targetIdx++;
   }
 
-  if (targetIdx === idx && idx > 0) {
-    return getBearing(path[idx - 1], path[idx]);
+  // Si no hay más adelante, buscar hacia atrás
+  let prevIdx = idx - 1;
+  while (prevIdx >= 0) {
+    const dx = path[idx].lat - path[prevIdx].lat;
+    const dy = path[idx].lng - path[prevIdx].lng;
+    if (dx * dx + dy * dy > 1e-12) {
+      return getBearing(path[prevIdx], path[idx]);
+    }
+    prevIdx--;
   }
-  return getBearing(path[idx], path[targetIdx]);
+  
+  return 0;
 };
 
 /**
@@ -183,8 +193,8 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(
         strokeOpacity: 1.0, strokeWeight: 5, zIndex: 2, map,
       });
       const polylineRemaining = new googleMaps.Polyline({
-        path: [], geodesic: true, strokeColor: routeColor,
-        strokeOpacity: 0.3, strokeWeight: 4, zIndex: 1, map,
+        path: [], geodesic: true, strokeColor: '#94A3B8',
+        strokeOpacity: 1.0, strokeWeight: 4, zIndex: 1, map,
       });
       progressPolylineRef.current = { traveled: polylineTraveled, remaining: polylineRemaining };
 
@@ -306,34 +316,34 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(
           // Clampear progress a [0, 1]: el camión llega exactamente al destino
           // cuando elapsed >= TICK_MS, y luego permanece ahí hasta el siguiente tick.
           const progress = Math.min(elapsed / TICK_MS, 1);
-
-          const newLat = start.lat + (target.lat - start.lat) * progress;
-          const newLng = start.lng + (target.lng - start.lng) * progress;
-          const newPos = { lat: newLat, lng: newLng };
-          const newHeading = lerpBearing(startHeadingRef.current, targetHeadingRef.current, progress);
           const newPercentage = startPercentageRef.current + (targetPercentageRef.current - startPercentageRef.current) * progress;
+          const newHeading = lerpBearing(startHeadingRef.current, targetHeadingRef.current, progress);
+
+          const geom = fullPathRef.current;
+          const cumDists = cumDistancesRef.current;
+          let newPos = {
+            lat: start.lat + (target.lat - start.lat) * progress,
+            lng: start.lng + (target.lng - start.lng) * progress,
+          };
+
+          if (geom.length >= 2 && cumDists.length === geom.length) {
+            newPos = interpolateOnPath(geom, cumDists, newPercentage);
+            const totalDist = cumDists[cumDists.length - 1];
+            const targetDist = Math.max(0, Math.min(newPercentage, 1)) * totalDist;
+            let nextIdx = 0;
+            while (nextIdx < geom.length - 1 && cumDists[nextIdx] < targetDist - 1e-6) {
+              nextIdx++;
+            }
+            const traveled = nextIdx <= 0 ? [geom[0], newPos] : [...geom.slice(0, nextIdx), newPos];
+            if (progressPolylineRef.current) {
+              progressPolylineRef.current.traveled.setPath(traveled);
+              progressPolylineRef.current.remaining.setPath([newPos, ...geom.slice(nextIdx)]);
+            }
+          }
 
           animPosRef.current = newPos;
           animHeadingRef.current = newHeading;
           animPercentageRef.current = newPercentage;
-
-          // Actualizar polylines de progreso animadas a 60FPS
-          const geom = fullPathRef.current;
-          const cumDists = cumDistancesRef.current;
-          if (progressPolylineRef.current && geom.length >= 2 && cumDists.length === geom.length) {
-            const totalDist = cumDists[cumDists.length - 1];
-            const targetDist = newPercentage * totalDist;
-            let closestIdx = 0;
-            while (closestIdx < cumDists.length - 1 && cumDists[closestIdx] <= targetDist) {
-              closestIdx++;
-            }
-            if (closestIdx > 0 && Math.abs(cumDists[closestIdx - 1] - targetDist) < Math.abs(cumDists[closestIdx] - targetDist)) {
-              closestIdx--;
-            }
-            // Agregamos el newPos animado como el último punto visible de la línea
-            progressPolylineRef.current.traveled.setPath([...geom.slice(0, closestIdx + 1), newPos]);
-            progressPolylineRef.current.remaining.setPath([newPos, ...geom.slice(closestIdx + 1)]);
-          }
 
           // Actualizar posición y rotación del marcador
           if (camionMarkerRef.current) {
@@ -380,20 +390,20 @@ export const LiveMapSimulation: React.FC<LiveMapSimulationProps> = React.memo(
           // ── NUEVO: Usar porcentaje global como única fuente de verdad ──
           snappedPos = interpolateOnPath(geom, cumDists, porcentaje);
 
-          // Encontrar en qué índice geométrico cae aproximadamente la posición para polylines y heading
+          // Encontrar en qué segmento geométrico cae exactamente la posición
           const totalDist = cumDists[cumDists.length - 1];
-          const targetDist = porcentaje * totalDist;
-          let closestIdx = 0;
-          while (closestIdx < cumDists.length - 1 && cumDists[closestIdx] <= targetDist) {
-            closestIdx++;
+          const targetDist = Math.max(0, Math.min(porcentaje, 1)) * totalDist;
+          let segStart = 0;
+          let segEnd = cumDists.length - 1;
+          while (segStart < segEnd - 1) {
+            const mid = (segStart + segEnd) >> 1;
+            if (cumDists[mid] <= targetDist) segStart = mid;
+            else segEnd = mid;
           }
-          if (closestIdx > 0 && Math.abs(cumDists[closestIdx - 1] - targetDist) < Math.abs(cumDists[closestIdx] - targetDist)) {
-            closestIdx--;
-          }
-          lastIdxRef.current = closestIdx;
+          lastIdxRef.current = segStart;
 
-          // Heading desde geometría real (lookahead=4 puntos)
-          const rawHeading = getHeadingFromGeometry(geom, closestIdx, 4);
+          // Heading desde geometría real (segmento actual)
+          const rawHeading = getHeadingFromGeometry(geom, segStart);
           const prevHeading = targetHeadingRef.current;
           let delta = rawHeading - prevHeading;
           while (delta > 180) delta -= 360;

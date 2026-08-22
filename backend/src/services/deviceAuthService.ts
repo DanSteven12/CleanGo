@@ -24,6 +24,7 @@ export interface CamionAuth {
   placa: string;
   usuario_dispositivo: string;
   estado: string;
+  gps_instalado: boolean;
 }
 
 export interface DeviceLoginResult {
@@ -75,7 +76,7 @@ export async function loginCamion(
   const logCtx = ctx ?? { ip: 'unknown', userAgent: 'unknown', endpoint: '/api/device/auth/login' };
 
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT id, numero_economico, placa, usuario_dispositivo, password_dispositivo, estado
+    `SELECT id, numero_economico, placa, usuario_dispositivo, password_dispositivo, estado, gps_instalado
      FROM camiones
      WHERE usuario_dispositivo = ?`,
     [usuario_dispositivo]
@@ -128,6 +129,7 @@ export async function loginCamion(
     placa: camionRow.placa,
     usuario_dispositivo: camionRow.usuario_dispositivo,
     estado: camionRow.estado,
+    gps_instalado: !!camionRow.gps_instalado,
   };
 
   const jti = crypto.randomUUID();
@@ -172,7 +174,7 @@ export async function refreshCamionSession(
 
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT sc.id AS session_id, sc.camion_id, sc.jti,
-            c.numero_economico, c.placa, c.usuario_dispositivo, c.estado
+            c.numero_economico, c.placa, c.usuario_dispositivo, c.estado, c.gps_instalado
      FROM sesiones_camiones sc
      JOIN camiones c ON sc.camion_id = c.id
      WHERE sc.refresh_token_hash = ?`,
@@ -197,6 +199,7 @@ export async function refreshCamionSession(
     placa: session.placa,
     usuario_dispositivo: session.usuario_dispositivo,
     estado: session.estado,
+    gps_instalado: !!session.gps_instalado,
   };
 
   // Rotation: nuevo jti + nuevo Refresh Token
@@ -229,7 +232,7 @@ export async function logoutCamionSession(camionId: number, jti: string): Promis
  */
 export async function getAuthCamion(camionId: number): Promise<CamionAuth> {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT id, numero_economico, placa, usuario_dispositivo, estado
+    `SELECT id, numero_economico, placa, usuario_dispositivo, estado, gps_instalado
      FROM camiones
      WHERE id = ? AND estado = 'Activo'`,
     [camionId]
@@ -245,6 +248,7 @@ export async function getAuthCamion(camionId: number): Promise<CamionAuth> {
     placa: rows[0].placa,
     usuario_dispositivo: rows[0].usuario_dispositivo,
     estado: rows[0].estado,
+    gps_instalado: !!rows[0].gps_instalado,
   };
 }
 
@@ -254,6 +258,10 @@ export async function getAuthCamion(camionId: number): Promise<CamionAuth> {
  * La identidad del camión proviene del token autenticado, no del cliente.
  */
 export async function getAsignacionActual(camionId: number): Promise<RowDataPacket | null> {
+  // Mapear el número de día JS (0=Dom, 1=Lun ... 6=Sab) al ENUM de horarios_rutas
+  const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const diaSemanaActual = diasSemana[new Date().getDay()];
+
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT
        ar.id,
@@ -268,17 +276,22 @@ export async function getAsignacionActual(camionId: number): Promise<RowDataPack
        r.color         AS ruta_color,
        c.numero_economico,
        c.placa,
-       d.nombre_completo AS conductor_nombre
+       c.gps_instalado,
+       d.nombre_completo AS conductor_nombre,
+       hr.hora_inicio_estimada AS horario_ruta_inicio,
+       hr.hora_fin_estimada    AS horario_ruta_fin
      FROM asignaciones_rutas ar
      LEFT JOIN rutas r       ON r.id = ar.ruta_id
      LEFT JOIN camiones c    ON c.id = ar.camion_id
      LEFT JOIN conductores d ON d.id = ar.conductor_id
+     LEFT JOIN horarios_rutas hr
+       ON hr.ruta_id = ar.ruta_id AND hr.dia_semana = ?
      WHERE ar.camion_id = ?
        AND ar.fecha_programada = CURDATE()
        AND ar.estatus_recorrido IN ('Pendiente', 'En progreso')
      ORDER BY ar.horario_inicio ASC
      LIMIT 1`,
-    [camionId]
+    [diaSemanaActual, camionId]
   );
 
   if (rows.length === 0) {
