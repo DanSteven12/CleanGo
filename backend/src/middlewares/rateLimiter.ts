@@ -149,3 +149,36 @@ export const deviceLoginLimiter = rateLimit({
     });
   },
 });
+
+// ─── Mobile Ciudadano Login Limiter ───────────────────────────────────────────
+
+/**
+ * Rate limiter para POST /api/mobile/auth/login.
+ * 5 intentos por 60 segundos por IP.
+ * Idéntico al loginLimiter Web — protege contra fuerza bruta sobre
+ * las credenciales de ciudadanos.
+ */
+export const mobileLoginLimiter = rateLimit({
+  windowMs: 60 * 1000, // 60 segundos
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  handler: (req, res) => {
+    const ip = getClientIp(req);
+    const correo: string | null = typeof req.body?.email === 'string' ? req.body.email : null;
+
+    logSecurityEvent({
+      correo,
+      ip,
+      userAgent: req.headers['user-agent'] ?? 'unknown',
+      endpoint: req.originalUrl,
+      httpStatus: 429,
+      descripcion: 'Mobile login bloqueado por Rate Limit (brute-force protection)',
+    });
+
+    res.status(429).json({
+      message: 'Demasiados intentos de inicio de sesión. Por favor espera 60 segundos antes de volver a intentar.',
+    });
+  },
+});

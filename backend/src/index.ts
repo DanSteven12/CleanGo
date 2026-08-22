@@ -17,6 +17,7 @@ import horariosRouter from './routes/horarios';
 import usuariosRouter from './routes/usuarios';
 import authRouter from './routes/auth';
 import deviceAuthRouter from './routes/deviceAuth';
+import mobileAuthRouter from './routes/mobileAuth';
 import deviceRecorridosRouter from './routes/deviceRecorridos';
 import camionesRouter from './routes/camiones';
 import conductoresRouter from './routes/conductores';
@@ -121,6 +122,10 @@ app.use('/api/auth', authRouter);
 // ── Public/Device: auth endpoints para la app móvil de Conductores
 // Los tokens viajan en body JSON (no cookies). Sin CSRF (ver csrfMiddleware).
 app.use('/api/device/auth', deviceAuthRouter);
+
+// ── Public/Mobile: auth endpoints para la app móvil de Ciudadanos
+// Los tokens viajan en body JSON (no cookies). Sin CSRF (ver csrfMiddleware).
+app.use('/api/mobile/auth', mobileAuthRouter);
 
 // ── Device: recorridos del camión autenticado (solo lectura, camion_id del JWT)
 app.use('/api/device/recorridos', deviceRecorridosRouter);
