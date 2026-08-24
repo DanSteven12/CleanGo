@@ -211,3 +211,83 @@ export async function mobileLogout(req: Request, res: Response): Promise<void> {
     handleServiceError(err, res);
   }
 }
+
+/**
+ * POST /api/mobile/auth/register
+ *
+ * Registra a un nuevo Ciudadano.
+ * No genera tokens automáticamente ni emite cookies. El usuario debe iniciar sesión manualmente.
+ * Fuerza el rol a 'Ciudadano'.
+ *
+ * Request:  { nombre, correo, password, confirmPassword }
+ * Response: { message, user: { id, nombre, correo, rol } }
+ */
+export async function mobileRegister(req: Request, res: Response): Promise<void> {
+  if (handleValidationErrors(req, res)) return;
+
+  const { nombre, correo, password } = req.body;
+
+  try {
+    // Forzamos el rol 'Ciudadano', ignorando si el body intenta enviar otro rol
+    const user = await authService.registerUser(nombre, correo, password, 'Ciudadano');
+    
+    // No registramos sesión, ni devolvemos tokens.
+    // El frontend debe navegar al Login.
+    res.status(201).json({
+      message: 'Cuenta creada correctamente.',
+      user,
+    });
+  } catch (err) {
+    handleServiceError(err, res);
+  }
+}
+
+/**
+ * POST /api/mobile/auth/forgot-password
+ *
+ * Solicita restablecimiento de contraseña para un Ciudadano.
+ * Envía el deep link a la app por correo electrónico.
+ *
+ * Request:  { email }
+ * Response: { message }
+ */
+export async function mobileForgotPassword(req: Request, res: Response): Promise<void> {
+  if (handleValidationErrors(req, res)) return;
+
+  const { email } = req.body;
+
+  try {
+    await authService.forgotPassword(email, 'mobile');
+
+    // Siempre responder con mensaje genérico para prevenir enumeración de correos
+    res.status(200).json({
+      message: 'Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña en la aplicación.',
+    });
+  } catch (err) {
+    handleServiceError(err, res);
+  }
+}
+
+/**
+ * POST /api/mobile/auth/reset-password
+ *
+ * Restablece la contraseña con token de deep link recibido.
+ *
+ * Request:  { token, newPassword, confirmPassword }
+ * Response: { message }
+ */
+export async function mobileResetPassword(req: Request, res: Response): Promise<void> {
+  if (handleValidationErrors(req, res)) return;
+
+  const { token, newPassword } = req.body;
+
+  try {
+    await authService.resetPassword(token, newPassword);
+    res.status(200).json({
+      message: 'Contraseña restablecida correctamente. Ya puedes iniciar sesión en la aplicación.',
+    });
+  } catch (err) {
+    handleServiceError(err, res);
+  }
+}
+

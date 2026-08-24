@@ -13,13 +13,21 @@
  * Sin CSRF — la autenticación es por Bearer Token, no por cookies.
  */
 import { Router } from 'express';
-import { mobileLoginLimiter } from '../middlewares/rateLimiter';
+import { mobileLoginLimiter, registerLimiter, forgotPasswordLimiter } from '../middlewares/rateLimiter';
 import { mobileAuthMiddleware } from '../middlewares/mobileAuthMiddleware';
-import { mobileLoginValidators } from '../validators/mobileAuthValidators';
+import { 
+  mobileLoginValidators, 
+  mobileRegisterValidators, 
+  mobileForgotPasswordValidators, 
+  mobileResetPasswordValidators 
+} from '../validators/mobileAuthValidators';
 import {
   mobileLogin,
   mobileRefresh,
   mobileLogout,
+  mobileRegister,
+  mobileForgotPassword,
+  mobileResetPassword,
 } from '../controllers/mobileAuthController';
 
 const router = Router();
@@ -31,6 +39,14 @@ const router = Router();
  * Devuelve: { message, user, accessToken, refreshToken }
  */
 router.post('/login', mobileLoginLimiter, mobileLoginValidators, mobileLogin);
+
+/**
+ * POST /api/mobile/auth/register
+ * Rate limited (10 req / 1h por IP) · Input validado
+ * Registra un Ciudadano nuevo sin auto-login
+ */
+router.post('/register', registerLimiter, mobileRegisterValidators, mobileRegister);
+
 
 /**
  * POST /api/mobile/auth/refresh
@@ -47,5 +63,17 @@ router.post('/refresh', mobileRefresh);
  * La identidad del usuario proviene del token — nunca del body.
  */
 router.post('/logout', mobileAuthMiddleware, mobileLogout);
+
+/**
+ * POST /api/mobile/auth/forgot-password
+ * Solicita restablecimiento enviando enlace deep link al correo
+ */
+router.post('/forgot-password', forgotPasswordLimiter, mobileForgotPasswordValidators, mobileForgotPassword);
+
+/**
+ * POST /api/mobile/auth/reset-password
+ * Restablece la contraseña con token de deep link
+ */
+router.post('/reset-password', mobileResetPasswordValidators, mobileResetPassword);
 
 export default router;

@@ -194,7 +194,7 @@ export async function registerUser(
  * Returns the token (for dev fallback if email fails).
  * NOTE: We always respond with a generic message to prevent email enumeration.
  */
-export async function forgotPassword(email: string): Promise<{ token: string | null }> {
+export async function forgotPassword(email: string, clientType: 'web' | 'mobile' = 'web'): Promise<{ token: string | null }> {
   const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT id, nombre FROM usuarios WHERE correo = ? AND estado = ?',
     [email, 'Activo']
@@ -228,14 +228,18 @@ export async function forgotPassword(email: string): Promise<{ token: string | n
       },
     });
 
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const resetLink = clientType === 'web' 
+      ? `${process.env.FRONTEND_URL}/reset-password?token=${token}`
+      : `mobilecuidadano://reset-password?token=${token}`;
 
-    const mailOptions = {
-      from: `"Soporte CleanGo" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Restablecer contraseña de tu cuenta CleanGo - Acción requerida',
-      text: `Hola ${nombre},\n\nHas solicitado restablecer tu contraseña para tu cuenta en CleanGo.\nCopia y pega el siguiente enlace en tu navegador para continuar:\n\n${resetLink}\n\nEste enlace expirará en 1 hora. Si no solicitaste este cambio, puedes ignorar este correo de forma segura.`,
-      html: `
+    const webLinkFallback = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    
+    const plainText = clientType === 'web'
+      ? `Hola ${nombre},\n\nHas solicitado restablecer tu contraseña para tu cuenta en CleanGo.\nCopia y pega el siguiente enlace en tu navegador para continuar:\n\n${resetLink}\n\nEste enlace expirará en 1 hora. Si no solicitaste este cambio, puedes ignorar este correo de forma segura.`
+      : `Hola ${nombre},\n\nHas solicitado restablecer tu contraseña para tu cuenta en CleanGo.\nHaz clic en el siguiente enlace para abrir la aplicación y continuar:\n\n${resetLink}\n\nSi el enlace anterior no abre la aplicación, también puedes usar este enlace web:\n${webLinkFallback}\n\nEste enlace expirará en 1 hora. Si no solicitaste este cambio, puedes ignorar este correo de forma segura.`;
+
+    const htmlContent = clientType === 'web'
+      ? `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
           <h2 style="color: #1763A6;">Recuperación de contraseña</h2>
           <p>Hola ${nombre},</p>
@@ -248,7 +252,28 @@ export async function forgotPassword(email: string): Promise<{ token: string | n
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 30px 0;" />
           <p style="font-size: 12px; color: #999;">Este enlace expirará en 1 hora. Si no solicitaste este cambio, puedes ignorar este correo de forma segura.</p>
         </div>
-      `,
+      `
+      : `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+          <h2 style="color: #1763A6;">Recuperación de contraseña</h2>
+          <p>Hola ${nombre},</p>
+          <p>Has solicitado restablecer tu contraseña para tu cuenta en <strong>CleanGo</strong>. Haz clic en el botón de abajo para abrir la aplicación y crear una nueva:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetLink}" style="background-color: #1763A6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Restablecer en la aplicación CleanGo</a>
+          </div>
+          <p style="font-size: 14px; color: #666;">¿No te funciona el botón? Intenta con este enlace web alternativo:</p>
+          <p style="font-size: 12px; word-break: break-all; color: #0066cc;"><a href="${webLinkFallback}">${webLinkFallback}</a></p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 30px 0;" />
+          <p style="font-size: 12px; color: #999;">Este enlace expirará en 1 hora. Si no solicitaste este cambio, puedes ignorar este correo de forma segura.</p>
+        </div>
+      `;
+
+    const mailOptions = {
+      from: `"Soporte CleanGo" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Restablecer contraseña de tu cuenta CleanGo - Acción requerida',
+      text: plainText,
+      html: htmlContent,
     };
 
     const info = await transporter.sendMail(mailOptions);

@@ -552,7 +552,7 @@ export default function LoginScreen() {
               </FadeSlideIn>
 
               {/* ── Warning: intentos restantes ──────────────────────────── */}
-              {remaining !== null && remaining <= 3 && remaining > 0 && (
+              {remaining !== null && remaining > 0 && (
                 <View style={[
                   styles.banner,
                   remaining <= 2 ? styles.bannerDestructive : styles.bannerWarning,
