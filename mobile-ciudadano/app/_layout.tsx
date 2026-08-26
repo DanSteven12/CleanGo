@@ -73,6 +73,10 @@ function ProtectedNavigator() {
 
       {/* Pantalla principal — protegida */}
       <Stack.Screen name="index" />
+
+      {/* Pantallas protegidas - detalle */}
+      <Stack.Screen name="mapa/[id]" />
+      <Stack.Screen name="horarios/[id]" />
     </Stack>
   );
 }
