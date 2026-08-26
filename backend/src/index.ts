@@ -19,6 +19,7 @@ import authRouter from './routes/auth';
 import deviceAuthRouter from './routes/deviceAuth';
 import mobileAuthRouter from './routes/mobileAuth';
 import deviceRecorridosRouter from './routes/deviceRecorridos';
+import ciudadanoRecorridosRouter from './routes/ciudadanoRecorridos';
 import camionesRouter from './routes/camiones';
 import conductoresRouter from './routes/conductores';
 import reportesRouter from './routes/reportes';
@@ -128,6 +129,9 @@ app.use('/api/device/auth', deviceAuthRouter);
 // ── Public/Mobile: auth endpoints para la app móvil de Ciudadanos
 // Los tokens viajan en body JSON (no cookies). Sin CSRF (ver csrfMiddleware).
 app.use('/api/mobile/auth', mobileAuthRouter);
+
+// ── Mobile/Ciudadano: recorridos y seguimiento para la app móvil de Ciudadanos
+app.use('/api/ciudadano/recorridos', ciudadanoRecorridosRouter);
 
 // ── Device: recorridos del camión autenticado (solo lectura, camion_id del JWT)
 app.use('/api/device/recorridos', deviceRecorridosRouter);
