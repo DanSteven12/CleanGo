@@ -77,6 +77,8 @@ function ProtectedNavigator() {
       {/* Pantallas protegidas - detalle */}
       <Stack.Screen name="mapa/[id]" />
       <Stack.Screen name="horarios/[id]" />
+      <Stack.Screen name="perfil/mis-reportes" options={{ title: 'Mis Reportes' }} />
+      <Stack.Screen name="perfil/notificaciones" options={{ title: 'Notificaciones' }} />
     </Stack>
   );
 }

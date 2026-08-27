@@ -156,6 +156,15 @@ export async function obtenerPorUsuario(
 }
 
 /**
+ * Obtiene el conteo de notificaciones no leídas de un usuario (ciudadano o administrador).
+ */
+export async function obtenerConteoNoLeidasPorUsuario(
+  usuario_id: number
+): Promise<number> {
+  return NotificationRepository.obtenerConteoNoLeidasPorUsuario(usuario_id);
+}
+
+/**
  * Obtiene todas las notificaciones de un conductor.
  */
 export async function obtenerPorConductor(
@@ -185,6 +194,20 @@ export async function marcarLeida(id: number): Promise<boolean> {
     throw new Error('NotificationService.marcarLeida: ID inválido.');
   }
   return NotificationRepository.marcarNotificacionLeida(id);
+}
+
+/**
+ * Marca una notificación como leída asegurando pertenencia al usuario.
+ * @returns `true` si se actualizó; `false` si no existía, ya estaba leída o no pertenece al usuario.
+ */
+export async function marcarLeidaPorUsuario(
+  id: number,
+  usuario_id: number
+): Promise<boolean> {
+  if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(usuario_id) || usuario_id <= 0) {
+    throw new Error('NotificationService.marcarLeidaPorUsuario: Parámetros inválidos.');
+  }
+  return NotificationRepository.marcarNotificacionLeidaPorUsuario(id, usuario_id);
 }
 
 // ─── Helper de contexto ───────────────────────────────────────────────────────

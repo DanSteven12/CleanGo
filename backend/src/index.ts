@@ -23,6 +23,7 @@ import deviceRecorridosRouter from './routes/deviceRecorridos';
 import ciudadanoRecorridosRouter from './routes/ciudadanoRecorridos';
 import ciudadanoHorariosRouter from './routes/ciudadanoHorarios';
 import ciudadanoReportesRouter from './routes/ciudadanoReportes';
+import ciudadanoNotificacionesRouter from './routes/ciudadanoNotificaciones';
 import camionesRouter from './routes/camiones';
 import conductoresRouter from './routes/conductores';
 import reportesRouter from './routes/reportes';
@@ -140,6 +141,7 @@ app.use('/api/mobile/auth', mobileAuthRouter);
 app.use('/api/ciudadano/recorridos', ciudadanoRecorridosRouter);
 app.use('/api/ciudadano/horarios', ciudadanoHorariosRouter);
 app.use('/api/ciudadano/reportes', ciudadanoReportesRouter);
+app.use('/api/ciudadano/notificaciones', ciudadanoNotificacionesRouter);
 
 // ── Device: recorridos del camión autenticado (solo lectura, camion_id del JWT)
 app.use('/api/device/recorridos', deviceRecorridosRouter);

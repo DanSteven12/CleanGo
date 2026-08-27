@@ -105,6 +105,20 @@ export async function obtenerNotificacionesPorUsuario(
 }
 
 /**
+ * Obtiene el conteo de notificaciones no leídas de un usuario ciudadano/administrador.
+ */
+export async function obtenerConteoNoLeidasPorUsuario(
+  usuario_id: number
+): Promise<number> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT COUNT(*) as count FROM notificaciones
+     WHERE usuario_id = ? AND leida = FALSE`,
+    [usuario_id]
+  );
+  return Number(rows[0].count);
+}
+
+/**
  * Obtiene todas las notificaciones de un conductor,
  * ordenadas por fecha de creación descendente.
  */
@@ -227,6 +241,23 @@ export async function marcarNotificacionLeida(id: number): Promise<boolean> {
      SET leida = TRUE, fecha_lectura = NOW()
      WHERE id = ? AND leida = FALSE`,
     [id]
+  );
+  return result.affectedRows > 0;
+}
+
+/**
+ * Marca una notificación como leída asegurando que pertenezca a un usuario_id específico.
+ * @returns `true` si se actualizó algún registro; `false` si no existe o no pertenece al usuario.
+ */
+export async function marcarNotificacionLeidaPorUsuario(
+  id: number,
+  usuario_id: number
+): Promise<boolean> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE notificaciones
+     SET leida = TRUE, fecha_lectura = NOW()
+     WHERE id = ? AND usuario_id = ? AND leida = FALSE`,
+    [id, usuario_id]
   );
   return result.affectedRows > 0;
 }

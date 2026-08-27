@@ -155,6 +155,15 @@ router.post('/', (req: any, res: any, next: any) => {
       }).catch(err => console.error('Error enviando notif al admin:', err));
     }
 
+    // Notificar al ciudadano (Etapa C - Cobertura de reportes)
+    await NotificationService.crear({
+      usuario_id: usuarioId,
+      titulo: 'Reporte recibido',
+      mensaje: 'Hemos recibido tu reporte y está en revisión. Te avisaremos cuando haya actualizaciones.',
+      tipo: 'AUTOMATICA',
+      categoria: 'REPORTE',
+    }).catch(err => console.error('Error enviando notif al ciudadano:', err));
+
     res.status(201).json({ 
       message: 'Reporte creado correctamente',
       reporteId: result.insertId,
