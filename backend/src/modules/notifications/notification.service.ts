@@ -28,6 +28,8 @@ import type {
  *
  * @throws Error si no se especifica al menos un destinatario (usuario_id o conductor_id).
  */
+import { getIO } from '../../socket/socketServer';
+
 export async function crear(
   dto: CrearNotificacionDTO,
   connection?: PoolConnection
@@ -46,7 +48,20 @@ export async function crear(
     throw new Error('NotificationService.crear: el mensaje no puede estar vacío.');
   }
 
-  return NotificationRepository.insertarNotificacion(dto, connection);
+  const notificacion = await NotificationRepository.insertarNotificacion(dto, connection);
+
+  if (notificacion.usuario_id) {
+    try {
+      const io = getIO();
+      if (io) {
+        io.to(`usuario:${notificacion.usuario_id}`).emit('notificacion_nueva', notificacion);
+      }
+    } catch (err) {
+      console.error('[NotificationService] Error al emitir notificacion_nueva:', err);
+    }
+  }
+
+  return notificacion;
 }
 
 /**

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, Info, AlertTriangle, Route, MessageSquare, ArrowLeft, Check, CheckCircle2 } from 'lucide-react-native';
 import { getNotificaciones, marcarComoLeida, Notificacion } from '../services/notificacionesService';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNotifications } from '../contexts/NotificationsContext';
 
 const T = {
   primary: '#1763A6',
@@ -53,6 +56,18 @@ export function NotificacionesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { newNotification, clearNewNotification, decrementUnreadCount } = useNotifications();
+
+  React.useEffect(() => {
+    if (newNotification) {
+      // Evitar duplicados por ID
+      setNotificaciones((prev) => {
+        if (prev.find((n) => n.id === newNotification.id)) return prev;
+        return [newNotification, ...prev];
+      });
+      clearNewNotification();
+    }
+  }, [newNotification, clearNewNotification]);
 
   const loadData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -69,10 +84,29 @@ export function NotificacionesScreen() {
   };
 
   useFocusEffect(
-    useCallback(() => {
-      loadData();
+    React.useCallback(() => {
+      let isActive = true;
+      if (isActive) {
+        loadData();
+      }
+      return () => {
+        isActive = false;
+      };
     }, [])
   );
+
+  React.useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        // Refrescar lista si el usuario vuelve a la app y ya estaba en esta pantalla
+        loadData(true);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   const handleMarcarLeida = async (id: number) => {
     // Optimistic UI update
@@ -81,6 +115,7 @@ export function NotificacionesScreen() {
     );
     try {
       await marcarComoLeida(id);
+      decrementUnreadCount();
     } catch (err) {
       // Revertir si falla
       loadData();

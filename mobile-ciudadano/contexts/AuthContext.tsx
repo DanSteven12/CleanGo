@@ -22,6 +22,7 @@ import * as authApiService from '../services/authService';
 import * as SecureStorage from '../services/secureStorage';
 import { setSessionExpiredCallback } from '../services/api';
 import type { CiudadanoUser } from '../services/authService';
+import { connectMobileSocket, disconnectMobileSocket } from '../services/socketService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 2. Ejecutar revocación en backend y borrado de SecureStore en segundo plano
     authApiService.logoutCiudadano().catch(() => {});
     SecureStorage.clearAllSession().catch(() => {});
+    disconnectMobileSocket();
 
     // 3. Navegar a login inmediatamente
     router.replace('/login');
@@ -67,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionExpiredCallback(() => {
       // El interceptor de axios llama esto cuando el refresh falla
       setUser(null);
+      disconnectMobileSocket();
       router.replace('/login');
     });
   }, [router]);
@@ -94,6 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
              await SecureStorage.saveTokens(refreshResult.accessToken, refreshResult.refreshToken);
              await SecureStorage.saveUserData(refreshResult.user);
              setUser(refreshResult.user);
+             connectMobileSocket(refreshResult.accessToken);
+          } else {
+             connectMobileSocket(accessToken);
           }
         } else {
           // No hay datos suficientes para restaurar sesión
@@ -125,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ]);
 
       setUser(result.user);
+      connectMobileSocket(result.accessToken);
     },
     []
   );

@@ -36,6 +36,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { getUnreadCount } from '../services/notificacionesService';
+import { useNotifications } from '../contexts/NotificationsContext';
 
 // ─── Design Tokens (idénticos al resto de la app) ─────────────────────────────
 
@@ -172,18 +173,7 @@ export function PerfilScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
-  const [unreadCount, setUnreadCount] = useState<number>(0);
-  
-  useFocusEffect(
-    useCallback(() => {
-      let isMounted = true;
-      getUnreadCount().then(count => {
-        if (isMounted) setUnreadCount(count);
-      });
-      return () => { isMounted = false; };
-    }, [])
-  );
+  const { unreadCount } = useNotifications();
 
   // ── Animaciones de entrada ───────────────────────────────────────────────────
   const headerAnim = useRef(new Animated.Value(0)).current;

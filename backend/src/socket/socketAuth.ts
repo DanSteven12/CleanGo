@@ -6,8 +6,27 @@ import { AuthPayload } from '../middlewares/authMiddleware';
 
 export function setupSocketAuth(io: Server) {
   io.use((socket: Socket, next) => {
-    // Si la conexión es de la app móvil (conductor), saltamos la autenticación por cookie
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return next(new Error('Server configuration error'));
+    }
+
+    // Si la conexión es de la app móvil (conductor o ciudadano)
     if (socket.handshake.auth?.client === 'mobile') {
+      const mobileToken = socket.handshake.auth?.token;
+      if (mobileToken) {
+        try {
+          const payload = jwt.verify(mobileToken, secret) as any;
+          if (payload.tipo === 'camion') {
+            socket.data.camion = payload;
+          } else {
+            socket.data.user = payload; // Ciudadano
+          }
+        } catch (error) {
+          return next(new Error('Authentication error: Invalid mobile token'));
+        }
+      }
+      // Permitimos que continúe (si no hay token, entra como anónimo para retrocompatibilidad con el conductor)
       return next();
     }
 
@@ -22,11 +41,6 @@ export function setupSocketAuth(io: Server) {
 
     if (!token) {
       return next(new Error('Authentication error: Token missing'));
-    }
-
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      return next(new Error('Server configuration error'));
     }
 
     try {

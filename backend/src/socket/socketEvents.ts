@@ -3,6 +3,11 @@ import { setSimulationSpeed } from '../services/simulationService';
 
 export function setupSocketEvents(io: Server) {
   io.on('connection', (socket: Socket) => {
+    // Si la conexión es de un ciudadano autenticado, lo unimos a su room privado
+    if (socket.data.user?.id) {
+      socket.join(`usuario:${socket.data.user.id}`);
+    }
+
     socket.on('unirse_a_recorrido', (recorridoId: number) => {
       if (!recorridoId) return;
       const roomName = `recorrido:${recorridoId}`;

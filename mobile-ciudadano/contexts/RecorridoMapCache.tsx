@@ -106,7 +106,13 @@ export function RecorridoMapCacheProvider({ children }: { children: ReactNode })
   useEffect(() => {
     if (!activeRecorridoId) return;
     const socket = getMobileSocket();
+    if (!socket) return;
+    
     socket.emit('unirse_a_recorrido', activeRecorridoId);
+
+    const handleReconnect = () => {
+      socket.emit('unirse_a_recorrido', activeRecorridoId);
+    };
 
     const handleUbicacion = (data: any) => {
       if (data.recorridoId !== activeRecorridoId) return;
@@ -150,9 +156,11 @@ export function RecorridoMapCacheProvider({ children }: { children: ReactNode })
       });
     };
 
+    socket.on('connect', handleReconnect);
     socket.on('ubicacion_actualizada', handleUbicacion);
     socket.on('recorrido_finalizado', handleFinalizado);
     return () => {
+      socket.off('connect', handleReconnect);
       socket.off('ubicacion_actualizada', handleUbicacion);
       socket.off('recorrido_finalizado', handleFinalizado);
       socket.emit('salir_de_recorrido', activeRecorridoId);

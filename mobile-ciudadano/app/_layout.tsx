@@ -19,6 +19,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { RecorridoMapCacheProvider } from '../contexts/RecorridoMapCache';
+import { NotificationsProvider } from '../contexts/NotificationsContext';
 
 // Prevenir que el Splash Screen se oculte automáticamente
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -89,9 +90,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RecorridoMapCacheProvider>
-          <ProtectedNavigator />
-        </RecorridoMapCacheProvider>
+        <NotificationsProvider>
+          <RecorridoMapCacheProvider>
+            <ProtectedNavigator />
+          </RecorridoMapCacheProvider>
+        </NotificationsProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
