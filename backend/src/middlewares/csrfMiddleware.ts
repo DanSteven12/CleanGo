@@ -13,8 +13,9 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     '/api/auth/forgot-password',
     '/api/auth/reset-password',
     '/api/recorridos',
-    '/api/device/auth', // App móvil Conductor — Bearer token, sin riesgo CSRF
-    '/api/mobile/auth', // App móvil Ciudadano — Bearer token, sin riesgo CSRF
+    '/api/device/auth',    // App móvil Conductor — Bearer token, sin riesgo CSRF
+    '/api/mobile/auth',   // App móvil Ciudadano — auth endpoints
+    '/api/ciudadano',     // App móvil Ciudadano — todas las rutas protegidas con Bearer token
   ];
 
   if (excludedPaths.some(excludedPath => req.originalUrl.startsWith(excludedPath))) {

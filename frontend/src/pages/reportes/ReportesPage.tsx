@@ -73,6 +73,8 @@ interface ReporteImageProps {
   placeholderSize?: number;
 }
 
+const BACKEND_BASE = (import.meta.env.VITE_API_URL as string || '').replace('/api', '');
+
 const ReporteImage: React.FC<ReporteImageProps> = ({
   src,
   alt = 'Fotografía del reporte',
@@ -82,7 +84,16 @@ const ReporteImage: React.FC<ReporteImageProps> = ({
 }) => {
   const [broken, setBroken] = useState(false);
 
-  if (!src || broken) {
+  // Construir URL absoluta: si empieza con /uploads, anteponemos el backend base.
+  // En dev (Vite proxy) BACKEND_BASE es '' y el proxy reenvía /uploads al backend.
+  // En producción BACKEND_BASE es la URL del backend sin /api.
+  const resolvedSrc = src
+    ? src.startsWith('http')
+      ? src
+      : `${BACKEND_BASE}${src}`
+    : null;
+
+  if (!resolvedSrc || broken) {
     return (
       <div className={placeholderClassName}>
         <ImageOff size={placeholderSize} />
@@ -92,7 +103,7 @@ const ReporteImage: React.FC<ReporteImageProps> = ({
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       className={className}
       onError={() => setBroken(true)}

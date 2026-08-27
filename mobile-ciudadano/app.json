@@ -35,6 +35,19 @@
           "image": "./assets/images/icon.png",
           "resizeMode": "contain"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CleanGo necesita acceso a tus fotos para adjuntar evidencia a tu reporte.",
+          "cameraPermission": "CleanGo necesita acceso a tu cámara para tomar evidencia de tu reporte."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "CleanGo requiere tu ubicación para registrar el lugar del reporte."
+        }
       ]
     ],
     "experiments": {

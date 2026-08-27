@@ -2,6 +2,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -21,6 +22,7 @@ import mobileAuthRouter from './routes/mobileAuth';
 import deviceRecorridosRouter from './routes/deviceRecorridos';
 import ciudadanoRecorridosRouter from './routes/ciudadanoRecorridos';
 import ciudadanoHorariosRouter from './routes/ciudadanoHorarios';
+import ciudadanoReportesRouter from './routes/ciudadanoReportes';
 import camionesRouter from './routes/camiones';
 import conductoresRouter from './routes/conductores';
 import reportesRouter from './routes/reportes';
@@ -76,6 +78,9 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '1mb' }));
+
+// ─── Static files (Uploads) ───────────────────────────────────────────────────
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ─── Cookie Parser ────────────────────────────────────────────────────────────
 // Must be registered before routes so req.cookies is populated in authMiddleware.
@@ -134,6 +139,7 @@ app.use('/api/mobile/auth', mobileAuthRouter);
 // ── Mobile/Ciudadano: recorridos y seguimiento para la app móvil de Ciudadanos
 app.use('/api/ciudadano/recorridos', ciudadanoRecorridosRouter);
 app.use('/api/ciudadano/horarios', ciudadanoHorariosRouter);
+app.use('/api/ciudadano/reportes', ciudadanoReportesRouter);
 
 // ── Device: recorridos del camión autenticado (solo lectura, camion_id del JWT)
 app.use('/api/device/recorridos', deviceRecorridosRouter);

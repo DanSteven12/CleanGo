@@ -22,9 +22,8 @@ import * as SecureStorage from './secureStorage';
 const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.75:5001/api',
   timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // No se define Content-Type por defecto: Axios lo infiere por request
+  // (application/json para objetos, multipart/form-data con boundary para FormData)
 });
 
 // ─── Session expired callback ─────────────────────────────────────────────────
