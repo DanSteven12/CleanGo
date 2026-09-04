@@ -18,8 +18,8 @@ import { sanitizeText } from '../../utils/sanitize';
  */
 export async function create(req: Request, res: Response): Promise<void> {
   try {
-    const tipo = req.body.tipo;
-    const categoria = req.body.categoria;
+    const tipo = req.body.tipo || 'MANUAL';
+    const categoria = req.body.categoria || 'AVISO';
     const destinatario = req.body.destinatario;
     const titulo = sanitizeText(req.body.titulo);
     const mensaje = sanitizeText(req.body.mensaje);

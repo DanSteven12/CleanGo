@@ -7,6 +7,7 @@ import {
   registerValidators,
   forgotPasswordValidators,
   resetPasswordValidators,
+  fcmTokenValidators,
 } from '../validators/authValidators';
 import {
   login,
@@ -16,6 +17,7 @@ import {
   resetPassword,
   getMe,
   refresh,
+  registerFcmToken,
 } from '../controllers/authController';
 
 const router = Router();
@@ -65,5 +67,11 @@ router.post('/reset-password', resetPasswordValidators, resetPassword);
  * Requires valid session cookie
  */
 router.get('/me', authMiddleware, getMe);
+
+/**
+ * POST /api/auth/fcm-token
+ * Registra o actualiza el FCM token del dispositivo.
+ */
+router.post('/fcm-token', authMiddleware, fcmTokenValidators, registerFcmToken);
 
 export default router;

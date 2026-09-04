@@ -291,3 +291,31 @@ export async function mobileResetPassword(req: Request, res: Response): Promise<
   }
 }
 
+/**
+ * POST /api/mobile/auth/fcm-token
+ *
+ * Registra o actualiza el FCM Device Token del ciudadano.
+ * La identidad del usuario se extrae del Bearer JWT validado por mobileAuthMiddleware.
+ *
+ * Request:  { token: string, plataforma?: 'android' | 'ios' | 'web' }
+ * Response: { message: string }
+ */
+export async function mobileRegisterFcmToken(req: Request, res: Response): Promise<void> {
+  if (handleValidationErrors(req, res)) return;
+
+  const user = req.user as AuthPayload;
+  if (!user || !user.id) {
+    res.status(401).json({ message: 'No autenticado.' });
+    return;
+  }
+
+  const { token, plataforma = 'android' } = req.body;
+
+  try {
+    await authService.upsertFcmToken(user.id, token, plataforma);
+    console.log(`[MobileAuth] FCM token registrado para usuario ${user.id} (plataforma: ${plataforma})`);
+    res.status(200).json({ message: 'FCM Token registrado exitosamente.' });
+  } catch (err) {
+    handleServiceError(err, res);
+  }
+}

@@ -261,6 +261,12 @@ export function PerfilScreen() {
     router.push('/perfil/mis-reportes' as any);
   }, [router]);
 
+  // ── Navegación a Mis Zonas ───────────────────────────────────────────────────
+
+  const handleMisZonas = useCallback(() => {
+    router.push('/perfil/mis-zonas' as any);
+  }, [router]);
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   const initials = user ? getInitials(user.nombre) : '?';
@@ -375,11 +381,9 @@ export function PerfilScreen() {
             />
             <View style={styles.divider} />
             <MenuRow
-              icon={<MapPin size={20} color={T.muted} strokeWidth={2} />}
+              icon={<MapPin size={20} color={T.primary} strokeWidth={2} />}
               label="Zonas de interés"
-              showChevron={false}
-              disabled
-              badge="Próximamente"
+              onPress={handleMisZonas}
             />
             <View style={styles.divider} />
             <MenuRow

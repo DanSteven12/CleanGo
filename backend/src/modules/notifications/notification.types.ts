@@ -8,7 +8,7 @@
 export type NotificacionTipo = 'AUTOMATICA' | 'MANUAL';
 
 /** Categoría temática de la notificación. */
-export type NotificacionCategoria = 'REPORTE' | 'RECORRIDO' | 'RUTA' | 'AVISO';
+export type NotificacionCategoria = 'REPORTE' | 'RECORRIDO' | 'RUTA' | 'AVISO' | 'PROXIMIDAD';
 
 /** Destinatario de los avisos manuales. */
 export type NotificacionDestinatario = 'CIUDADANOS' | 'CONDUCTORES' | 'AMBOS';

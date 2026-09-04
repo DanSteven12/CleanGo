@@ -214,11 +214,11 @@ export default function CiudadanoMapScreen() {
       const data = await recorridosService.getRecorridoDetalle(Number(id));
       cache.setFromApi(Number(id), data);
       setRecorridoData(data);
-    } catch (error) {
-      console.error('Error al cargar detalle del recorrido:', error);
+    } catch (error: any) {
+      console.warn(`[Mapa] No se pudo obtener el recorrido ${id}:`, error?.message);
       Alert.alert(
         'Recorrido no encontrado',
-        'Este recorrido ya no está activo o no existe.',
+        'Este recorrido ya no está disponible o no existe.',
         [{ text: 'Volver', onPress: () => router.replace('/') }]
       );
     } finally {
@@ -254,7 +254,10 @@ export default function CiudadanoMapScreen() {
     checkpoints,
   });
 
-  const isCompleted = hookIsCompleted || (cache.entry?.isCompleted ?? false);
+  const isCompleted =
+    hookIsCompleted ||
+    (cache.entry?.isCompleted ?? false) ||
+    recorridoData?.estado === 'Completado';
 
   const checkpointCoords = useMemo<LatLng[]>(() =>
     checkpoints

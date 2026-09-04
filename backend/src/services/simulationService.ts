@@ -4,6 +4,8 @@ import { ResultSetHeader } from 'mysql2';
 import { getIO } from '../socket/socketServer';
 import { NotificationService } from '../modules/notifications';
 import * as NotificationMessages from '../constants/notificationMessages';
+import { checkProximity, clearProximityCache } from './proximityAlertService';
+import { notifyCitizensOfDelay, clearDelayCache } from './delayAlertService';
 
 const SEGMENT_DURATION_MS = process.env.SIMULATION_SEGMENT_DURATION
   ? Number(process.env.SIMULATION_SEGMENT_DURATION)
@@ -16,6 +18,11 @@ const activeSimulations = new Map<number, NodeJS.Timeout>();
 
 // Velocidad actual de cada simulación (1 = 1x, 2 = 2x, etc.)
 const simulationSpeeds = new Map<number, number>();
+
+// Contador de ticks por recorrido para throttling de proximidad (1 tick = 1 segundo)
+// La comprobación de proximidad se ejecuta cada PROXIMITY_THROTTLE_TICKS ticks.
+const PROXIMITY_THROTTLE_TICKS = 30; // 30 segundos
+const proximityTickCounters = new Map<number, number>();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Routes API — Geometry fetching & decoding
@@ -297,8 +304,12 @@ export function stopSimulation(recorridoId: number) {
     clearInterval(activeSimulations.get(recorridoId)!);
     activeSimulations.delete(recorridoId);
     simulationSpeeds.delete(recorridoId);
-    // Limpiar también la geometría cacheada al detener la simulación
+    // Limpiar geometría cacheada al detener la simulación
     routeGeometryCache.delete(recorridoId);
+    // Limpiar caché de alertas de proximidad para este recorrido
+    proximityTickCounters.delete(recorridoId);
+    clearProximityCache(recorridoId);
+    clearDelayCache(recorridoId);
     console.log(`[Simulation] Simulación detenida para recorridoId: ${recorridoId}`);
   }
 }
@@ -316,6 +327,8 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
   // Emitir velocidad inicial
   io.to(roomName).emit('velocidad_simulacion_actualizada', { recorridoId, velocidad: 1 });
 
+  // ── NUEVO: Extraemos la hora programada oficial desde el Checkpoint 1 ──
+  const horaProgramadaInicio = new Date(checkpoints[0].hora_estimada);
   const simulationStartWallTime = Date.now();
   const arrivalWallTime = simulationStartWallTime + (checkpoints.length - 1) * ETA_MINUTES_PER_SEGMENT * 60 * 1000;
 
@@ -371,8 +384,9 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
     const cpStart = checkpoints[completados];
     const cpEnd = checkpoints[Math.min(nextCheckpointIdx, checkpoints.length - 1)];
 
-    const totalElapsedMs = now - simulationStartWallTime;
-    const expectedProgress = Math.min(totalElapsedMs / totalDurationMs, 1);
+    // ── NUEVO: Cálculo del progreso esperado sobre la base de la hora programada oficial ──
+    const totalElapsedMs = now - horaProgramadaInicio.getTime();
+    const expectedProgress = Math.max(0, Math.min(totalElapsedMs / totalDurationMs, 1));
     // Si vamos más lento de lo que dice el reloj real (retraso físico/simulado)
     const isDelayed = globalProgress < expectedProgress - 0.05;
 
@@ -440,6 +454,13 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
           console.error('[Simulation] Error al crear notificación de RETRASO_DETECTADO:', notifErr);
         }
       })();
+
+      // Notificar a ciudadanos afectados por la ruta (fire-and-forget)
+      const delayFraction = expectedProgress - globalProgress;
+      const delayMinutes = Math.max(1, Math.round((delayFraction * totalDurationMs) / 60000));
+      notifyCitizensOfDelay(recorridoId, delayMinutes).catch(err => {
+        console.error('[Simulation] Error inesperado en notifyCitizensOfDelay:', err);
+      });
     }
 
     // Actualizar continuamente en base de datos la ubicación cruda
@@ -449,6 +470,17 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
     ).catch(err => {
       console.error(`[Simulation SQL] Error actualizando latitud/longitud:`, err);
     });
+
+    // ── PROXIMIDAD: Camión Cerca ──────────────────────────────────────────────
+    // Throttle: ejecutar solo 1 vez cada PROXIMITY_THROTTLE_TICKS ticks (30s).
+    // La llamada es fire-and-forget: no bloquea el tick ni el movimiento del camión.
+    const currentTick = (proximityTickCounters.get(recorridoId) ?? 0) + 1;
+    proximityTickCounters.set(recorridoId, currentTick);
+    if (currentTick % PROXIMITY_THROTTLE_TICKS === 0) {
+      checkProximity(recorridoId, currentLat, currentLng).catch(err => {
+        console.error('[Simulation] Error inesperado en checkProximity:', err);
+      });
+    }
 
     // ── GESTIONAR CHECKPOINTS ALCANZADOS ──
     // Se evalúa en un bucle while por si la velocidad es muy alta y pasa 2 de un tick
@@ -504,10 +536,9 @@ async function updateCheckpointReached(recorridoId: number, cpEnd: any, latitud:
     }
 
     const asignacionId = recorridos[0].asignacion_id;
-    const horaInicio = new Date(recorridos[0].hora_inicio);
     const orden = cpEnd.orden;
-    const minutosTranscurridos = (orden - 1) * 5;
-    const horaLlegada = new Date(horaInicio.getTime() + minutosTranscurridos * 60_000);
+    // La hora real/simulada de llegada al checkpoint es el tiempo actual
+    const horaLlegada = new Date();
 
     await connection.execute(
       'UPDATE recorridos SET latitud_actual = ?, longitud_actual = ? WHERE id = ?',

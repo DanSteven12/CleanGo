@@ -74,7 +74,11 @@ export async function crearAvisoManual(payload: AvisoManualPayload): Promise<{ m
   const res = await fetch(BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      tipo: 'MANUAL',
+      categoria: 'AVISO',
+      ...payload
+    }),
   });
 
   return handleResponse<{ message: string }>(res);

@@ -201,3 +201,28 @@ export async function resetPassword(token: string, newPassword: string, confirmP
     handleAxiosError(error);
   }
 }
+
+/**
+ * Registra o actualiza el FCM Device Token del ciudadano en el backend.
+ * Usa el interceptor de api.ts para inyectar el Bearer Token automáticamente.
+ *
+ * POST /api/mobile/auth/fcm-token
+ *
+ * No lanza excepción al caller si falla: los errores se logean internamente.
+ * Un fallo aquí NO debe interrumpir el login ni la restauración de sesión.
+ */
+export async function registerFcmTokenInBackend(
+  token: string,
+  plataforma: 'android' | 'ios' | 'web' = 'android'
+): Promise<void> {
+  try {
+    await api.post<GenericResponse>('/mobile/auth/fcm-token', { token, plataforma });
+    console.log(`[FCM] Token registrado en backend (plataforma: ${plataforma})`);
+  } catch (error) {
+    // Fallo silencioso: no impide login ni restauración de sesión.
+    // Solo log del código de error, sin exponer el token.
+    const errMsg = error instanceof Error ? error.message : 'Error desconocido';
+    console.warn('[FCM] No se pudo registrar el token en el backend:', errMsg);
+  }
+}
+

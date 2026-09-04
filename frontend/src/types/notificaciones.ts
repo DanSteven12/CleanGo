@@ -60,4 +60,5 @@ export interface AvisoManualPayload {
   mensaje: string;
   destinatario: NotificacionDestinatario;
   categoria?: NotificacionCategoria;
+  tipo?: NotificacionTipo;
 }

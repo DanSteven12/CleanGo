@@ -305,7 +305,8 @@ CREATE TABLE notificaciones (
         'REPORTE',
         'RECORRIDO',
         'RUTA',
-        'AVISO'
+        'AVISO',
+        'PROXIMIDAD'
     ) NOT NULL,
 
     destinatario ENUM(
@@ -369,4 +370,22 @@ CREATE TABLE sesiones_camiones (
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (camion_id) REFERENCES camiones(id) ON DELETE CASCADE
+);
+
+-- Tabla para almacenar las Zonas de Interés guardadas por cada ciudadano,
+-- como domicilio, trabajo u otros lugares de referencia para consultar
+-- recorridos y recibir notificaciones relacionadas con esas zonas.
+
+CREATE TABLE zonas_interes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT NOT NULL,
+  alias VARCHAR(50) DEFAULT 'Mi Domicilio',
+  latitud DECIMAL(10,8) NOT NULL,
+  longitud DECIMAL(11,8) NOT NULL,
+  activo BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+  -- Previene duplicados exactos en un mismo usuario
+  UNIQUE KEY unique_zona_usuario (usuario_id, latitud, longitud) 
 );

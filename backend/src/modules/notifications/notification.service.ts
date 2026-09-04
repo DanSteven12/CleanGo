@@ -29,6 +29,7 @@ import type {
  * @throws Error si no se especifica al menos un destinatario (usuario_id o conductor_id).
  */
 import { getIO } from '../../socket/socketServer';
+import { getMessaging } from '../../config/firebase';
 
 export async function crear(
   dto: CrearNotificacionDTO,
@@ -51,6 +52,7 @@ export async function crear(
   const notificacion = await NotificationRepository.insertarNotificacion(dto, connection);
 
   if (notificacion.usuario_id) {
+    // ─── 1. Socket.IO (tiempo real, si el usuario está conectado) ──────────────
     try {
       const io = getIO();
       if (io) {
@@ -59,9 +61,73 @@ export async function crear(
     } catch (err) {
       console.error('[NotificationService] Error al emitir notificacion_nueva:', err);
     }
+
+    // ─── 2. FCM Push (fire-and-forget: no bloquea la respuesta HTTP) ──────────
+    //
+    // Se ejecuta en background. Si Firebase falla no afecta al flujo principal.
+    // Los tokens inválidos se eliminan automáticamente de la BD.
+    enviarFcmAUsuario(notificacion.usuario_id, notificacion.titulo, notificacion.mensaje).catch(
+      (err) => console.error('[NotificationService] Error inesperado en enviarFcmAUsuario:', err)
+    );
   }
 
   return notificacion;
+}
+
+// ─── FCM helper ────────────────────────────────────────────────────────────────
+
+/**
+ * Obtiene los tokens FCM del usuario y envía un mensaje push a cada dispositivo.
+ * Se ejecuta de forma fire-and-forget desde `crear()`.
+ *
+ * - Si Firebase está no inicializado (credenciales faltantes), sale silenciosamente.
+ * - Si un token es inválido (`messaging/registration-token-not-registered`),
+ *   lo elimina de la tabla `fcm_tokens` para evitar acumular tokens muertos.
+ * - No expone tokens completos en logs de producción.
+ */
+async function enviarFcmAUsuario(
+  usuario_id: number,
+  titulo: string,
+  mensaje: string
+): Promise<void> {
+  let messaging: ReturnType<typeof getMessaging>;
+  try {
+    messaging = getMessaging();
+  } catch {
+    // Firebase Admin no inicializado (credenciales ausentes en .env)
+    return;
+  }
+
+  const tokens = await NotificationRepository.getFcmTokensByUsuarioId(usuario_id);
+  if (tokens.length === 0) return;
+
+  const envios = tokens.map(async (token) => {
+    try {
+      await messaging.send({
+        token,
+        notification: {
+          title: titulo,
+          body: mensaje,
+        },
+        android: {
+          priority: 'high',
+        },
+      });
+      console.log(`[FCM] Push enviado al usuario ${usuario_id} (token ...${token.slice(-8)})`);
+    } catch (err: any) {
+      const code: string = err?.code ?? err?.errorInfo?.code ?? '';
+      if (code === 'messaging/registration-token-not-registered') {
+        console.warn(`[FCM] Token inválido para usuario ${usuario_id}. Eliminando de BD.`);
+        await NotificationRepository.deleteFcmToken(token).catch((dbErr) =>
+          console.error('[FCM] Error al eliminar token inválido de BD:', dbErr)
+        );
+      } else {
+        console.error(`[FCM] Error al enviar push al usuario ${usuario_id}:`, code || err?.message);
+      }
+    }
+  });
+
+  await Promise.allSettled(envios);
 }
 
 /**
@@ -80,7 +146,9 @@ export async function crearSiNoExiste(
   const yaExiste = await NotificationRepository.existeNotificacionParaRecorrido(
     dto.recorrido_id,
     dto.categoria,
-    dto.titulo
+    dto.titulo,
+    dto.usuario_id,
+    dto.conductor_id
   );
 
   if (yaExiste) {

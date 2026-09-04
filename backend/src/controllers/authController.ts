@@ -200,7 +200,29 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
 
   try {
     await authService.resetPassword(token, newPassword);
-    res.status(200).json({ message: 'Contraseña restablecida correctamente. Ya puedes iniciar sesión.' });
+    res.status(200).json({ message: 'Contraseña restablecida exitosamente.' });
+  } catch (err) {
+    handleServiceError(err, res);
+  }
+}
+
+/**
+ * POST /api/auth/fcm-token
+ */
+export async function registerFcmToken(req: Request, res: Response): Promise<void> {
+  if (handleValidationErrors(req, res)) return;
+
+  const user = req.user as AuthPayload;
+  if (!user || !user.id) {
+    res.status(401).json({ message: 'No autenticado.' });
+    return;
+  }
+
+  const { token, plataforma = 'android' } = req.body;
+
+  try {
+    await authService.upsertFcmToken(user.id, token, plataforma);
+    res.status(200).json({ message: 'FCM Token registrado exitosamente.' });
   } catch (err) {
     handleServiceError(err, res);
   }

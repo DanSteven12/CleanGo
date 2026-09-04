@@ -13,18 +13,22 @@
  */
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, LogBox } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { RecorridoMapCacheProvider } from '../contexts/RecorridoMapCache';
 import { NotificationsProvider } from '../contexts/NotificationsContext';
+import { registerBackgroundHandler, onFcmTokenRefresh, handleNotificationOpen } from '../services/fcmService';
 
 // Prevenir que el Splash Screen se oculte automáticamente
-SplashScreen.preventAutoHideAsync().catch(() => {
-  /* ignorar errores si ya se previno */
+SplashScreen.preventAutoHideAsync().catch((err) => {
+  console.log('[Splash] preventAutoHideAsync error:', err);
 });
+
+// Ignorar advertencias espurias de Dev Client con Firebase Messaging
+LogBox.ignoreLogs(['Error: undefined', 'undefined']);
 
 // ─── Componente de navegación protegida ───────────────────────────────────────
 
@@ -79,6 +83,7 @@ function ProtectedNavigator() {
       <Stack.Screen name="mapa/[id]" />
       <Stack.Screen name="horarios/[id]" />
       <Stack.Screen name="perfil/mis-reportes" options={{ title: 'Mis Reportes' }} />
+      <Stack.Screen name="perfil/mis-zonas" options={{ title: 'Mis Zonas' }} />
       <Stack.Screen name="perfil/notificaciones" options={{ title: 'Notificaciones' }} />
     </Stack>
   );
@@ -87,6 +92,20 @@ function ProtectedNavigator() {
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
+  useEffect(() => {
+    // P5: Activar listener de rotación silenciosa de token FCM.
+    const unsubscribeTokenRefresh = onFcmTokenRefresh();
+
+    // P4/P5: Manejar apertura de notificación desde estado TERMINADO.
+    // getInitialNotification() devuelve el mensaje que abrió la app (o null).
+    // Consumirlo evita el "Error: undefined" en React Native DevTools.
+    handleNotificationOpen();
+
+    return () => {
+      unsubscribeTokenRefresh();
+    };
+  }, []);
+
   return (
     <SafeAreaProvider>
       <AuthProvider>

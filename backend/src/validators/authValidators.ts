@@ -69,3 +69,13 @@ export const resetPasswordValidators: ValidationChain[] = [
       return true;
     }),
 ];
+
+export const fcmTokenValidators: ValidationChain[] = [
+  body('token')
+    .trim()
+    .notEmpty().withMessage('El token FCM es obligatorio.'),
+  body('plataforma')
+    .optional()
+    .trim()
+    .isIn(['android', 'ios', 'web']).withMessage('Plataforma inválida.'),
+];

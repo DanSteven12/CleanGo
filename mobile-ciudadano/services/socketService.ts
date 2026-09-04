@@ -17,15 +17,23 @@ export function connectMobileSocket(token?: string): Socket {
     transports: ['websocket', 'polling'],
     reconnectionAttempts: 5,
     reconnectionDelay: 2000,
-    auth: async (cb) => {
-      // Dinámicamente obtener el último token disponible de SecureStore
-      const currentToken = await SecureStorage.getAccessToken();
-      cb({ client: 'mobile', token: currentToken });
+    auth: (cb) => {
+      (async () => {
+        try {
+          const currentToken = token ?? (await SecureStorage.getAccessToken());
+          cb({ client: 'mobile', token: currentToken || undefined });
+        } catch (error) {
+          cb({ client: 'mobile' });
+        }
+      })();
     },
   });
 
   socket.on('connect', () => {
     console.log('[Ciudadano Socket] Conectado al backend:', socket?.id);
+    // A partir de aquí las reconexiones deben usar SecureStore (token puede haber rotado)
+    // Limpiamos el token capturado para que el closure ya no lo use.
+    token = undefined;
   });
 
   socket.on('connect_error', (err) => {

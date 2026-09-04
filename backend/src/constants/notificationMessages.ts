@@ -103,3 +103,13 @@ export const RECORRIDO_FINALIZADO_ADMIN = (nombre: string) =>
     titulo: 'Recorrido finalizado',
     mensaje: `${nombre} finalizó el recorrido asignado correctamente.`,
   } as const);
+
+/**
+ * Notificar al ciudadano cuando se detecta un retraso en la ruta cercana a su zona.
+ * @param minutos - Minutos estimados de retraso.
+ */
+export const RETRASO_DETECTADO_CIUDADANO = (minutos: number) =>
+  ({
+    titulo: '⚠️ Retraso en la recolección',
+    mensaje: `El camión de tu ruta presenta un retraso estimado de ${minutos} minuto${minutos !== 1 ? 's' : ''}.`,
+  } as const);

@@ -19,7 +19,8 @@ import {
   mobileLoginValidators, 
   mobileRegisterValidators, 
   mobileForgotPasswordValidators, 
-  mobileResetPasswordValidators 
+  mobileResetPasswordValidators,
+  mobileFcmTokenValidators,
 } from '../validators/mobileAuthValidators';
 import {
   mobileLogin,
@@ -28,6 +29,7 @@ import {
   mobileRegister,
   mobileForgotPassword,
   mobileResetPassword,
+  mobileRegisterFcmToken,
 } from '../controllers/mobileAuthController';
 
 const router = Router();
@@ -75,5 +77,12 @@ router.post('/forgot-password', forgotPasswordLimiter, mobileForgotPasswordValid
  * Restablece la contraseña con token de deep link
  */
 router.post('/reset-password', mobileResetPasswordValidators, mobileResetPassword);
+
+/**
+ * POST /api/mobile/auth/fcm-token
+ * Registra o actualiza el FCM Device Token del ciudadano autenticado.
+ * Sin CSRF — la autenticación es por Bearer Token (mobileAuthMiddleware).
+ */
+router.post('/fcm-token', mobileAuthMiddleware, mobileFcmTokenValidators, mobileRegisterFcmToken);
 
 export default router;

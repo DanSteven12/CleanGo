@@ -305,6 +305,7 @@ const AvisosManualesTab: React.FC = () => {
         mensaje: mensajeTrim,
         destinatario,
         categoria: 'AVISO',
+        tipo: 'MANUAL',
       });
       setSuccess(true);
       setTitulo('');

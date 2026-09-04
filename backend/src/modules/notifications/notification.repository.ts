@@ -72,17 +72,40 @@ export async function insertarNotificacion(
 export async function existeNotificacionParaRecorrido(
   recorrido_id: number,
   categoria: NotificacionCategoria,
-  titulo: string
+  titulo: string,
+  usuario_id?: number | null,
+  conductor_id?: number | null
 ): Promise<boolean> {
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT id FROM notificaciones
-     WHERE recorrido_id = ?
-       AND categoria = ?
-       AND titulo = ?
-       AND tipo = 'AUTOMATICA'
-     LIMIT 1`,
-    [recorrido_id, categoria, titulo]
-  );
+  let query = `
+    SELECT id FROM notificaciones
+    WHERE recorrido_id = ?
+      AND categoria = ?
+      AND titulo = ?
+      AND tipo = 'AUTOMATICA'
+  `;
+  const params: any[] = [recorrido_id, categoria, titulo];
+
+  if (usuario_id !== undefined) {
+    if (usuario_id === null) {
+      query += ` AND usuario_id IS NULL`;
+    } else {
+      query += ` AND usuario_id = ?`;
+      params.push(usuario_id);
+    }
+  }
+
+  if (conductor_id !== undefined) {
+    if (conductor_id === null) {
+      query += ` AND conductor_id IS NULL`;
+    } else {
+      query += ` AND conductor_id = ?`;
+      params.push(conductor_id);
+    }
+  }
+
+  query += ` LIMIT 1`;
+
+  const [rows] = await pool.execute<RowDataPacket[]>(query, params);
   return rows.length > 0;
 }
 
@@ -302,4 +325,32 @@ export async function obtenerIdsConductores(): Promise<number[]> {
     `SELECT id FROM conductores`
   );
   return rows.map((row) => row.id as number);
+}
+
+// ─── FCM Tokens ───────────────────────────────────────────────────────────────
+
+/**
+ * Obtiene todos los tokens FCM registrados para un usuario ciudadano.
+ * Un usuario puede tener múltiples tokens (varios dispositivos).
+ *
+ * @param usuario_id - ID del usuario en la tabla `usuarios`.
+ * @returns Array de tokens FCM.
+ */
+export async function getFcmTokensByUsuarioId(usuario_id: number): Promise<string[]> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT token FROM fcm_tokens WHERE usuario_id = ?`,
+    [usuario_id]
+  );
+  return rows.map((row) => row.token as string);
+}
+
+/**
+ * Elimina un token FCM de la base de datos.
+ * Se llama cuando Firebase informa que el token ya no es válido
+ * (app desinstalada, token rotado, etc.) para evitar acumular tokens muertos.
+ *
+ * @param token - El token FCM inválido a eliminar.
+ */
+export async function deleteFcmToken(token: string): Promise<void> {
+  await pool.execute(`DELETE FROM fcm_tokens WHERE token = ?`, [token]);
 }

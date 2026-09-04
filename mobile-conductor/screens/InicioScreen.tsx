@@ -86,8 +86,12 @@ export function InicioScreen({ onRecorridoIniciado }: InicioScreenProps) {
       });
       // Cambiar el tab activo a Recorrido para cuando el usuario regrese del mapa
       onRecorridoIniciado?.();
-    } catch {
-      Alert.alert('Error', 'No se pudo iniciar el recorrido.');
+    } catch (error: any) {
+      if (error.response?.data?.error) {
+        Alert.alert('Aviso', error.response.data.error);
+      } else {
+        Alert.alert('Error', 'No se pudo iniciar el recorrido.');
+      }
     } finally {
       setStartingId(null);
     }

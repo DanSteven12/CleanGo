@@ -1,6 +1,11 @@
 // backend/src/index.ts
 import dotenv from 'dotenv';
 dotenv.config();
+import { initializeFirebaseAdmin } from './config/firebase';
+
+// Inicializar Firebase Admin SDK antes de cualquier otra cosa
+initializeFirebaseAdmin();
+
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
@@ -23,6 +28,7 @@ import deviceRecorridosRouter from './routes/deviceRecorridos';
 import ciudadanoRecorridosRouter from './routes/ciudadanoRecorridos';
 import ciudadanoHorariosRouter from './routes/ciudadanoHorarios';
 import ciudadanoReportesRouter from './routes/ciudadanoReportes';
+import ciudadanoZonasRouter from './routes/ciudadanoZonas';
 import ciudadanoNotificacionesRouter from './routes/ciudadanoNotificaciones';
 import camionesRouter from './routes/camiones';
 import conductoresRouter from './routes/conductores';
@@ -142,6 +148,7 @@ app.use('/api/ciudadano/recorridos', ciudadanoRecorridosRouter);
 app.use('/api/ciudadano/horarios', ciudadanoHorariosRouter);
 app.use('/api/ciudadano/reportes', ciudadanoReportesRouter);
 app.use('/api/ciudadano/notificaciones', ciudadanoNotificacionesRouter);
+app.use('/api/ciudadano/zonas', ciudadanoZonasRouter);
 
 // ── Device: recorridos del camión autenticado (solo lectura, camion_id del JWT)
 app.use('/api/device/recorridos', deviceRecorridosRouter);

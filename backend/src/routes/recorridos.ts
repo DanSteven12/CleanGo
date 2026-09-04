@@ -21,9 +21,46 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
 
   try {
     connection = await pool.getConnection();
-    await connection.beginTransaction();
 
-    const horaInicio = new Date();
+    // 0. Obtener el horario programado de la asignación
+    const [asignaciones] = await connection.execute<any[]>(
+      'SELECT fecha_programada, horario_inicio FROM asignaciones_rutas WHERE id = ?',
+      [asignacion_id]
+    );
+
+    if (asignaciones.length === 0) {
+      res.status(404).json({ error: 'Asignación no encontrada' });
+      return;
+    }
+
+    const { fecha_programada, horario_inicio } = asignaciones[0];
+    // Asegurar formato correcto para Date (fecha_programada a veces viene como Date object, horario_inicio como string)
+    const fechaStr = fecha_programada instanceof Date ? fecha_programada.toISOString().split('T')[0] : fecha_programada;
+    const horaProgramadaInicio = new Date(`${fechaStr}T${horario_inicio}`);
+    
+    // Fallback por si la fecha es inválida
+    if (isNaN(horaProgramadaInicio.getTime())) {
+      console.warn('Fecha u horario programado inválido, usando hora actual como fallback.');
+    }
+    const horaProgramadaFinal = isNaN(horaProgramadaInicio.getTime()) ? new Date() : horaProgramadaInicio;
+
+    const horaInicioReal = new Date();
+
+    // NUEVO: Validación para no permitir inicio anticipado
+    if (horaInicioReal < horaProgramadaFinal) {
+      const ampm = horaProgramadaFinal.getHours() >= 12 ? 'PM' : 'AM';
+      const hours = horaProgramadaFinal.getHours() % 12 || 12;
+      const mins = horaProgramadaFinal.getMinutes().toString().padStart(2, '0');
+      const formattedTime = `${hours.toString().padStart(2, '0')}:${mins} ${ampm}`;
+
+      res.status(400).json({
+        error: `No es posible iniciar el recorrido antes del horario programado (${formattedTime}). Por favor espera a la hora de inicio.`,
+        horario_programado: horario_inicio
+      });
+      return;
+    }
+
+    await connection.beginTransaction();
 
     // 1. Insertar un nuevo registro en la tabla recorridos
     // conductor_real_nombre se almacena solo si el conductor que realiza el viaje
@@ -32,7 +69,7 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
 
     const [resultRecorrido] = await connection.execute<ResultSetHeader>(
       'INSERT INTO recorridos (asignacion_id, hora_inicio, estado, conductor_real_nombre) VALUES (?, ?, ?, ?)',
-      [asignacion_id, horaInicio, 'En progreso', conductorReal]
+      [asignacion_id, horaInicioReal, 'En progreso', conductorReal]
     );
 
     const recorrido_id = resultRecorrido.insertId;
@@ -54,11 +91,11 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
       const minutosASumar = (punto.orden - 1) * 5;
 
       const horaEstimada = new Date(
-        horaInicio.getTime() + minutosASumar * 60000
+        horaProgramadaFinal.getTime() + minutosASumar * 60000
       );
 
       const estado = punto.orden === 1 ? 'Completado' : 'Pendiente';
-      const horaLlegada = punto.orden === 1 ? horaInicio : null;
+      const horaLlegada = punto.orden === 1 ? horaInicioReal : null;
 
       await connection.execute(
         'INSERT INTO recorrido_checkpoints (recorrido_id, checkpoint_id, nombre, latitud, longitud, orden, hora_estimada, estado, hora_llegada) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -68,10 +105,10 @@ router.post('/iniciar', async (req: Request, res: Response): Promise<void> => {
 
     await connection.commit();
 
-    // Volver a consultar la tabla puntos_control para obtener los datos geoespaciales requeridos por el frontend
+    // Volver a consultar la tabla recorrido_checkpoints para obtener los datos geoespaciales requeridos por el frontend y la simulación
     const [checkpointsCompletos] = await connection.execute<any[]>(
-      'SELECT id, nombre, latitud, longitud, orden FROM puntos_control WHERE ruta_id = ? ORDER BY orden ASC',
-      [ruta_id]
+      'SELECT checkpoint_id as id, nombre, latitud, longitud, orden, hora_estimada FROM recorrido_checkpoints WHERE recorrido_id = ? ORDER BY orden ASC',
+      [recorrido_id]
     );
 
     // Consultar el color de la ruta

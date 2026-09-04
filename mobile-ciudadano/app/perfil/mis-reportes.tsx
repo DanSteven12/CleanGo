@@ -38,6 +38,7 @@ import {
   FileText,
   Plus,
   RefreshCw,
+  Settings,
 } from 'lucide-react-native';
 import { reportesService, ReporteCiudadano } from '../../services/reportesService';
 
@@ -84,7 +85,7 @@ function getStatusIcon(estado: string, color: string): React.ReactNode {
     case 'Pendiente':
       return <Clock size={14} color={color} strokeWidth={2.5} />;
     case 'En proceso':
-      return <ActivityIndicator size="small" color={color} />;
+      return <Settings size={14} color={color} strokeWidth={2.5} />;
     case 'Cerrado':
       return <CheckCircle2 size={14} color={color} strokeWidth={2.5} />;
     default:

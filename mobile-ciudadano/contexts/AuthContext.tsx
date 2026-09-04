@@ -23,6 +23,7 @@ import * as SecureStorage from '../services/secureStorage';
 import { setSessionExpiredCallback } from '../services/api';
 import type { CiudadanoUser } from '../services/authService';
 import { connectMobileSocket, disconnectMobileSocket } from '../services/socketService';
+import { getFcmToken } from '../services/fcmService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,33 +82,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const storedUser = await SecureStorage.getUserData();
         const refreshToken = await SecureStorage.getRefreshToken();
-        const accessToken = await SecureStorage.getAccessToken();
 
-        // Si tenemos un usuario y un refresh token, intentamos restaurar
+        // Si tenemos un usuario y un refresh token, renovamos el token en cada arranque.
+        // Esto garantiza que el socket siempre reciba un Access Token vigente,
+        // ya que el token guardado en SecureStore puede haber expirado (TTL: 15 min).
         if (storedUser && refreshToken) {
-          // Asumimos que la sesión es válida temporalmente para acelerar UI
-          // Si el access token ya expiró, la próxima llamada HTTP hará el refresh auto
-          setUser(storedUser);
-          
-          // Opcional: Si no hay accessToken pero sí refreshToken, podríamos forzar
-          // un refresh aquí mismo antes de mostrar la app. Para simplificar,
-          // confiamos en el interceptor de Axios.
-          if (!accessToken) {
-             const refreshResult = await authApiService.refreshCiudadanoToken(refreshToken);
-             await SecureStorage.saveTokens(refreshResult.accessToken, refreshResult.refreshToken);
-             await SecureStorage.saveUserData(refreshResult.user);
-             setUser(refreshResult.user);
-             connectMobileSocket(refreshResult.accessToken);
-          } else {
-             connectMobileSocket(accessToken);
-          }
+          const refreshResult = await authApiService.refreshCiudadanoToken(refreshToken);
+          await SecureStorage.saveTokens(refreshResult.accessToken, refreshResult.refreshToken);
+          await SecureStorage.saveUserData(refreshResult.user);
+          setUser(refreshResult.user);
+          connectMobileSocket(refreshResult.accessToken);
+          getFcmToken().catch(() => {});
         } else {
           // No hay datos suficientes para restaurar sesión
           await SecureStorage.clearAllSession();
           setUser(null);
         }
       } catch (error) {
-        // Fallo al restaurar (ej. refresh token inválido)
+        // Fallo al restaurar (ej. refresh token inválido o expirado)
         await SecureStorage.clearAllSession();
         setUser(null);
       } finally {
@@ -132,6 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(result.user);
       connectMobileSocket(result.accessToken);
+      // P2: Obtener FCM Token tras login exitoso (non-blocking)
+      getFcmToken().catch(() => {});
     },
     []
   );

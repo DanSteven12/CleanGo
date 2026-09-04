@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "227534597697",
+    "project_id": "cleango-notificaciones",
+    "storage_bucket": "cleango-notificaciones.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:227534597697:android:ea1fde4dc5616f622160c0",
+        "android_client_info": {
+          "package_name": "com.cleango.mobilecuidadano"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7V9-eSthy9QyFaRcc5fzNVpQclaHpLTA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

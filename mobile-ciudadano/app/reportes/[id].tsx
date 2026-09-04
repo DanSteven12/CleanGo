@@ -9,7 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Clock, MapPin, CheckCircle2, AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, Clock, MapPin, CheckCircle2, AlertCircle, Settings } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { reportesService, ReporteCiudadano } from '../../services/reportesService';
 
@@ -67,7 +67,7 @@ export default function ReporteDetailScreen() {
   const getStatusIcon = (status: string, color: string) => {
     switch (status) {
       case 'Pendiente': return <Clock size={20} color={color} />;
-      case 'En proceso': return <ActivityIndicator size="small" color={color} />;
+      case 'En proceso': return <Settings size={20} color={color} />;
       case 'Cerrado': return <CheckCircle2 size={20} color={color} />;
       default: return <Clock size={20} color={color} />;
     }

@@ -10,6 +10,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import { getMobileSocket } from '../services/socketService';
 import { getUnreadCount, Notificacion } from '../services/notificacionesService';
 import { useAuth } from './AuthContext';
+import { onForegroundMessage } from '../services/fcmService';
 
 interface NotificationsContextValue {
   unreadCount: number;
@@ -64,7 +65,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     };
   }, [isAuthenticated]);
 
-  // Suscribirse a eventos de Socket.IO
+  // Suscribirse a eventos de Socket.IO y FCM Foreground
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -86,9 +87,19 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     socket.on('notificacion_nueva', handleNotificacionNueva);
     socket.on('connect', handleReconnect);
 
+    // Etapa P4: Registrar listener de FCM en foreground
+    // Si llega un mensaje push mientras la app está abierta, sincronizamos el contador vía REST
+    // en lugar de sumar 1 a ciegas, para evitar duplicar el incremento si Socket.IO también avisó.
+    const unsubscribeFCM = onForegroundMessage((message) => {
+      getUnreadCount()
+        .then((count) => setUnreadCount(count))
+        .catch((err) => console.warn('Error sincronizando conteo (FCM Foreground):', err));
+    });
+
     return () => {
       socket.off('notificacion_nueva', handleNotificacionNueva);
       socket.off('connect', handleReconnect);
+      unsubscribeFCM();
     };
   }, [isAuthenticated]);
 

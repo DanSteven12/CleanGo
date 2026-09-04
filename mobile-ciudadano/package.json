@@ -1,8 +1,10 @@
 {
   "name": "mobile-ciudadano",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.0.0",
   "dependencies": {
+    "@react-native-firebase/app": "^26.3.2",
+    "@react-native-firebase/messaging": "^26.3.2",
     "axios": "^1.18.1",
     "expo": "~57.0.8",
     "expo-constants": "~57.0.7",

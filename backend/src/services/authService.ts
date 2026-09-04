@@ -425,3 +425,22 @@ export async function invalidateSessionByJti(jti: string): Promise<void> {
 export async function invalidateAllUserSessions(userId: number): Promise<void> {
   await pool.execute('DELETE FROM sesiones WHERE usuario_id = ?', [userId]);
 }
+
+/**
+ * Inserta o actualiza un token de Firebase Cloud Messaging para un usuario.
+ */
+export async function upsertFcmToken(
+  usuarioId: number, 
+  token: string, 
+  plataforma: 'android' | 'ios' | 'web' = 'android'
+): Promise<void> {
+  const query = `
+    INSERT INTO fcm_tokens (usuario_id, token, plataforma) 
+    VALUES (?, ?, ?) 
+    ON DUPLICATE KEY UPDATE 
+      usuario_id = VALUES(usuario_id),
+      plataforma = VALUES(plataforma),
+      updated_at = CURRENT_TIMESTAMP
+  `;
+  await pool.execute(query, [usuarioId, token, plataforma]);
+}

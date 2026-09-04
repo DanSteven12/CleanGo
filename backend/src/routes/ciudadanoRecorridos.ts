@@ -70,13 +70,13 @@ router.get('/:recorridoId', async (req: Request, res: Response): Promise<void> =
        INNER JOIN rutas ru ON ru.id = ar.ruta_id
        INNER JOIN camiones c ON c.id = ar.camion_id
        INNER JOIN conductores d ON d.id = ar.conductor_id
-       WHERE r.id = ? AND r.estado = 'En progreso'
+       WHERE r.id = ?
        LIMIT 1`,
       [recorridoId]
     );
 
     if (rows.length === 0) {
-      res.status(404).json({ error: 'Recorrido no encontrado o ya finalizado.' });
+      res.status(404).json({ error: 'Recorrido no encontrado.' });
       return;
     }
 

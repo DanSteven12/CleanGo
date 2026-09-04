@@ -19,7 +19,8 @@
         "googleMaps": {
           "apiKey": "AIzaSyBF_4ISy8XCjWdxVuetx4CXFxslOF_QQKE"
         }
-      }
+      },
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -28,6 +29,7 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "@react-native-firebase/app",
       [
         "expo-splash-screen",
         {

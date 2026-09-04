@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Truck, User, Clock, CheckCircle2, UserCircle, MapPin } from 'lucide-react-native';
 
@@ -37,6 +37,33 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
 
   const estatusColor = asignacion.estatus_recorrido === 'Pendiente' ? '#f59e0b' : '#3b82f6';
   const estatusBg = asignacion.estatus_recorrido === 'Pendiente' ? '#fef3c7' : '#dbeafe';
+
+  // NUEVO: Calcular si el horario ya permite iniciar
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    if (asignacion.estatus_recorrido !== 'Pendiente') return;
+    const interval = setInterval(() => setNow(new Date()), 5000); // Re-check cada 5 segundos
+    return () => clearInterval(interval);
+  }, [asignacion.estatus_recorrido]);
+
+  let isEarly = false;
+  let timeStr = '';
+
+  if (asignacion.fecha_programada && asignacion.horario_inicio) {
+    const fechaStr = typeof asignacion.fecha_programada === 'string' 
+      ? asignacion.fecha_programada.split('T')[0] 
+      : new Date(asignacion.fecha_programada).toISOString().split('T')[0];
+    const programada = new Date(`${fechaStr}T${asignacion.horario_inicio}`);
+    
+    if (!isNaN(programada.getTime()) && now < programada) {
+      isEarly = true;
+      const ampm = programada.getHours() >= 12 ? 'PM' : 'AM';
+      const hours = programada.getHours() % 12 || 12;
+      const mins = programada.getMinutes().toString().padStart(2, '0');
+      timeStr = `${hours.toString().padStart(2, '0')}:${mins} ${ampm}`;
+    }
+  }
 
   return (
     <View style={styles.card}>
@@ -78,7 +105,17 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
         <View style={styles.actionSection}>
           <View style={styles.divider} />
           
-          {confirmStep === 'ask' ? (
+          {isEarly ? (
+            <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+              <Clock size={28} color="#f59e0b" style={{ marginBottom: 8 }} />
+              <Text style={{ textAlign: 'center', color: '#374151', fontSize: 15, fontWeight: '600' }}>
+                Programado para las {timeStr}
+              </Text>
+              <Text style={{ textAlign: 'center', color: '#6b7280', fontSize: 13, marginTop: 4 }}>
+                El botón se habilitará automáticamente a esa hora.
+              </Text>
+            </View>
+          ) : confirmStep === 'ask' ? (
             <View>
               <Text style={styles.questionText}>¿Eres tú quien realizará este recorrido?</Text>
               
