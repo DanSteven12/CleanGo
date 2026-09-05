@@ -23,6 +23,7 @@ import * as SecureStorage from '../services/secureStorage';
 import { setSessionExpiredCallback } from '../services/api';
 import { disconnectMobileSocket } from '../services/socketService';
 import type { CamionAuth } from '../services/authService';
+import { getFcmToken, onFcmTokenRefresh } from '../services/fcmService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearSessionOnStart();
   }, []); // Solo al montar (arranque de la app)
 
+  // ─── Listener para renovación de token FCM ────────────────────────────────────
+
+  useEffect(() => {
+    if (!camion) return;
+    const unsubscribe = onFcmTokenRefresh();
+    return () => {
+      unsubscribe();
+    };
+  }, [camion]);
+
   // ─── Login ───────────────────────────────────────────────────────────────────
 
   const login = useCallback(
@@ -104,6 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ]);
 
       setCamion(result.camion);
+
+      // Esperar a que el interceptor pueda leer el token antes de registrar FCM
+      setTimeout(() => {
+        getFcmToken().catch(() => {});
+      }, 400);
     },
     []
   );

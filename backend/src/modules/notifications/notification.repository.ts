@@ -158,6 +158,66 @@ export async function obtenerNotificacionesPorConductor(
 }
 
 /**
+ * Conteo de notificaciones no leídas de un conductor.
+ */
+export async function obtenerConteoNoLeidasPorConductor(
+  conductor_id: number
+): Promise<number> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT COUNT(*) as count FROM notificaciones
+     WHERE conductor_id = ? AND leida = FALSE`,
+    [conductor_id]
+  );
+  return Number(rows[0].count);
+}
+
+/**
+ * Marca como leída una notificación que pertenece al conductor indicado.
+ */
+export async function marcarNotificacionLeidaPorConductor(
+  id: number,
+  conductor_id: number
+): Promise<boolean> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE notificaciones
+     SET leida = TRUE, fecha_lectura = NOW()
+     WHERE id = ? AND conductor_id = ? AND leida = FALSE`,
+    [id, conductor_id]
+  );
+  return result.affectedRows > 0;
+}
+
+/**
+ * Marca como leídas TODAS las notificaciones de un conductor.
+ */
+export async function marcarTodasNotificacionesLeidasPorConductor(
+  conductor_id: number
+): Promise<number> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE notificaciones
+     SET leida = TRUE, fecha_lectura = NOW()
+     WHERE conductor_id = ? AND leida = FALSE`,
+    [conductor_id]
+  );
+  return result.affectedRows;
+}
+
+/**
+ * Elimina una notificación perteneciente al conductor indicado.
+ */
+export async function eliminarNotificacionPorConductor(
+  id: number,
+  conductor_id: number
+): Promise<boolean> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `DELETE FROM notificaciones
+     WHERE id = ? AND conductor_id = ?`,
+    [id, conductor_id]
+  );
+  return result.affectedRows > 0;
+}
+
+/**
  * Obtiene todas las notificaciones del sistema con filtros opcionales.
  * Para uso exclusivo del panel de administración.
  *
@@ -353,4 +413,54 @@ export async function getFcmTokensByUsuarioId(usuario_id: number): Promise<strin
  */
 export async function deleteFcmToken(token: string): Promise<void> {
   await pool.execute(`DELETE FROM fcm_tokens WHERE token = ?`, [token]);
+}
+
+/**
+ * Obtiene todos los tokens FCM registrados para un dispositivo camión.
+ * @param camion_id - ID del camión en la tabla `camiones`.
+ * @returns Array de tokens FCM.
+ */
+export async function getFcmTokensByCamionId(camion_id: number): Promise<string[]> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT token FROM fcm_tokens_camiones WHERE camion_id = ?`,
+    [camion_id]
+  );
+  return rows.map((row) => row.token as string);
+}
+
+/**
+ * Elimina un token FCM inválido de la tabla `fcm_tokens_camiones`.
+ * @param token - El token FCM inválido a eliminar.
+ */
+export async function deleteFcmTokenCamion(token: string): Promise<void> {
+  await pool.execute(`DELETE FROM fcm_tokens_camiones WHERE token = ?`, [token]);
+}
+
+/**
+ * Obtiene el camion_id asociado a un conductor_id a través de su asignación de ruta más reciente.
+ * @param conductor_id - ID del conductor en la tabla `conductores`.
+ * @returns ID del camión o null si no tiene asignación registrada.
+ */
+export async function getCamionIdByConductorId(conductor_id: number): Promise<number | null> {
+  const [hoy] = await pool.execute<RowDataPacket[]>(
+    `SELECT camion_id FROM asignaciones_rutas
+     WHERE conductor_id = ?
+       AND fecha_programada = CURDATE()
+       AND estatus_recorrido IN ('Pendiente', 'En progreso')
+     ORDER BY id DESC
+     LIMIT 1`,
+    [conductor_id]
+  );
+  if (hoy.length > 0 && hoy[0].camion_id) {
+    return hoy[0].camion_id as number;
+  }
+
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT camion_id FROM asignaciones_rutas
+     WHERE conductor_id = ? AND camion_id IS NOT NULL
+     ORDER BY fecha_programada DESC, id DESC
+     LIMIT 1`,
+    [conductor_id]
+  );
+  return rows.length > 0 && rows[0].camion_id ? (rows[0].camion_id as number) : null;
 }

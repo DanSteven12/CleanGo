@@ -300,3 +300,22 @@ export async function getAsignacionActual(camionId: number): Promise<RowDataPack
 
   return rows[0];
 }
+
+/**
+ * Inserta o actualiza un token de Firebase Cloud Messaging para un dispositivo camión.
+ */
+export async function upsertFcmTokenCamion(
+  camionId: number,
+  token: string,
+  plataforma: 'android' | 'ios' | 'web' = 'android'
+): Promise<void> {
+  const query = `
+    INSERT INTO fcm_tokens_camiones (camion_id, token, plataforma)
+    VALUES (?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      camion_id = VALUES(camion_id),
+      plataforma = VALUES(plataforma),
+      updated_at = CURRENT_TIMESTAMP
+  `;
+  await pool.execute(query, [camionId, token, plataforma]);
+}

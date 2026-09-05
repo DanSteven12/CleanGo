@@ -62,13 +62,38 @@ export async function crear(
       console.error('[NotificationService] Error al emitir notificacion_nueva:', err);
     }
 
-    // ─── 2. FCM Push (fire-and-forget: no bloquea la respuesta HTTP) ──────────
+    // ─── 2. FCM Push a Usuario (fire-and-forget: no bloquea la respuesta HTTP) ─
     //
     // Se ejecuta en background. Si Firebase falla no afecta al flujo principal.
     // Los tokens inválidos se eliminan automáticamente de la BD.
     enviarFcmAUsuario(notificacion.usuario_id, notificacion.titulo, notificacion.mensaje).catch(
       (err) => console.error('[NotificationService] Error inesperado en enviarFcmAUsuario:', err)
     );
+  } else if (notificacion.conductor_id) {
+    // ─── 3. Socket + FCM Push a Conductor / Camión (fire-and-forget) ───────────
+    NotificationRepository.getCamionIdByConductorId(notificacion.conductor_id)
+      .then(async (camionId) => {
+        if (!camionId) {
+          console.warn(
+            `[NotificationService] No se encontró camión asignado para el conductor ID ${notificacion.conductor_id}`
+          );
+          return;
+        }
+
+        try {
+          const io = getIO();
+          if (io) {
+            io.to(`camion:${camionId}`).emit('notificacion_nueva', notificacion);
+          }
+        } catch (err) {
+          console.error('[NotificationService] Error al emitir notificacion_nueva al camión:', err);
+        }
+
+        await enviarFcmACamion(camionId, notificacion.titulo, notificacion.mensaje);
+      })
+      .catch((err) => {
+        console.error('[NotificationService] Error inesperado en enviarFcmACamion:', err);
+      });
   }
 
   return notificacion;
@@ -111,6 +136,9 @@ async function enviarFcmAUsuario(
         },
         android: {
           priority: 'high',
+          notification: {
+            channelId: 'default',
+          },
         },
       });
       console.log(`[FCM] Push enviado al usuario ${usuario_id} (token ...${token.slice(-8)})`);
@@ -128,6 +156,76 @@ async function enviarFcmAUsuario(
   });
 
   await Promise.allSettled(envios);
+}
+
+/**
+ * Obtiene los tokens FCM del camión y envía un mensaje push a cada dispositivo registrado.
+ * Maneja auto-limpieza de tokens no registrados o inválidos (`messaging/registration-token-not-registered`).
+ */
+export async function enviarFcmACamion(
+  camion_id: number,
+  titulo: string,
+  mensaje: string
+): Promise<{ enviados: number; fallidos: number; totalTokens: number }> {
+  let messaging: ReturnType<typeof getMessaging>;
+  try {
+    messaging = getMessaging();
+  } catch (err: any) {
+    console.warn('[FCM Camión] Firebase Admin no está inicializado:', err?.message || err);
+    return { enviados: 0, fallidos: 0, totalTokens: 0 };
+  }
+
+  const tokens = await NotificationRepository.getFcmTokensByCamionId(camion_id);
+  if (tokens.length === 0) {
+    console.warn(`[FCM Camión] No se encontraron tokens FCM registrados para el camión ID ${camion_id}`);
+    return { enviados: 0, fallidos: 0, totalTokens: 0 };
+  }
+
+  let enviados = 0;
+  let fallidos = 0;
+
+  const envios = tokens.map(async (token) => {
+    try {
+      await messaging.send({
+        token,
+        notification: {
+          title: titulo,
+          body: mensaje,
+        },
+        data: {
+          tipo: 'notificacion_conductor',
+          titulo: String(titulo),
+          mensaje: String(mensaje),
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'default',
+            sound: 'default',
+          },
+        },
+      });
+      enviados++;
+      console.log(`[FCM Camión] Push enviado exitosamente al camión ${camion_id} (token ...${token.slice(-8)})`);
+    } catch (err: any) {
+      fallidos++;
+      const code: string = err?.code ?? err?.errorInfo?.code ?? '';
+      if (
+        code === 'messaging/registration-token-not-registered' ||
+        code === 'messaging/invalid-registration-token'
+      ) {
+        console.warn(`[FCM Camión] Token inválido detectado para el camión ${camion_id}. Eliminando de BD.`);
+        await NotificationRepository.deleteFcmTokenCamion(token).catch((dbErr) =>
+          console.error('[FCM Camión] Error al eliminar token inválido de BD:', dbErr)
+        );
+      } else {
+        console.error(`[FCM Camión] Error al enviar push al camión ${camion_id}:`, code || err?.message);
+      }
+    }
+  });
+
+  await Promise.allSettled(envios);
+  return { enviados, fallidos, totalTokens: tokens.length };
 }
 
 /**
@@ -254,6 +352,53 @@ export async function obtenerPorConductor(
   conductor_id: number
 ): Promise<Notificacion[]> {
   return NotificationRepository.obtenerNotificacionesPorConductor(conductor_id);
+}
+
+/**
+ * Obtiene el conteo de notificaciones no leídas de un conductor.
+ */
+export async function obtenerConteoNoLeidasPorConductor(
+  conductor_id: number
+): Promise<number> {
+  return NotificationRepository.obtenerConteoNoLeidasPorConductor(conductor_id);
+}
+
+/**
+ * Marca una notificación como leída asegurando pertenencia al conductor.
+ */
+export async function marcarLeidaPorConductor(
+  id: number,
+  conductor_id: number
+): Promise<boolean> {
+  if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(conductor_id) || conductor_id <= 0) {
+    throw new Error('NotificationService.marcarLeidaPorConductor: Parámetros inválidos.');
+  }
+  return NotificationRepository.marcarNotificacionLeidaPorConductor(id, conductor_id);
+}
+
+/**
+ * Marca como leídas TODAS las notificaciones del conductor.
+ */
+export async function marcarTodasLeidasPorConductor(
+  conductor_id: number
+): Promise<number> {
+  if (!Number.isFinite(conductor_id) || conductor_id <= 0) {
+    throw new Error('NotificationService.marcarTodasLeidasPorConductor: Parámetros inválidos.');
+  }
+  return NotificationRepository.marcarTodasNotificacionesLeidasPorConductor(conductor_id);
+}
+
+/**
+ * Elimina una notificación asegurando pertenencia al conductor.
+ */
+export async function eliminarPorConductor(
+  id: number,
+  conductor_id: number
+): Promise<boolean> {
+  if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(conductor_id) || conductor_id <= 0) {
+    throw new Error('NotificationService.eliminarPorConductor: Parámetros inválidos.');
+  }
+  return NotificationRepository.eliminarNotificacionPorConductor(id, conductor_id);
 }
 
 /**

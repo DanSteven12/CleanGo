@@ -21,3 +21,16 @@ export const deviceLoginValidators: ValidationChain[] = [
     .trim()
     .notEmpty().withMessage('La contraseña es obligatoria.'),
 ];
+
+export const deviceFcmTokenValidators: ValidationChain[] = [
+  body('token')
+    .trim()
+    .notEmpty().withMessage('El token FCM es obligatorio.')
+    .isString().withMessage('El token debe ser una cadena de texto.')
+    .isLength({ min: 10, max: 4096 }).withMessage('El token FCM no tiene una longitud válida.'),
+
+  body('plataforma')
+    .optional()
+    .trim()
+    .isIn(['android', 'ios', 'web']).withMessage('Plataforma no soportada.'),
+];

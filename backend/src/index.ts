@@ -25,6 +25,7 @@ import authRouter from './routes/auth';
 import deviceAuthRouter from './routes/deviceAuth';
 import mobileAuthRouter from './routes/mobileAuth';
 import deviceRecorridosRouter from './routes/deviceRecorridos';
+import deviceNotificacionesRouter from './routes/deviceNotificaciones';
 import ciudadanoRecorridosRouter from './routes/ciudadanoRecorridos';
 import ciudadanoHorariosRouter from './routes/ciudadanoHorarios';
 import ciudadanoReportesRouter from './routes/ciudadanoReportes';
@@ -79,7 +80,7 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-XSRF-TOKEN'],
   exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset', 'Retry-After'],
 }));
@@ -150,8 +151,9 @@ app.use('/api/ciudadano/reportes', ciudadanoReportesRouter);
 app.use('/api/ciudadano/notificaciones', ciudadanoNotificacionesRouter);
 app.use('/api/ciudadano/zonas', ciudadanoZonasRouter);
 
-// ── Device: recorridos del camión autenticado (solo lectura, camion_id del JWT)
+// ── Device: recorridos y notificaciones del camión autenticado (camion_id del JWT)
 app.use('/api/device/recorridos', deviceRecorridosRouter);
+app.use('/api/device/notificaciones', deviceNotificacionesRouter);
 
 // ── Protected: all application routes require a valid JWT ─────────────────────
 app.use('/api/rutas', authMiddleware, rutasRouter);
@@ -174,11 +176,13 @@ app.use('/api/notificaciones', authMiddleware, notificacionesRouter);
 import { initSocketServer } from './socket/socketServer';
 import { resumeActiveSimulations } from './services/simulationService';
 import { ensureHistoricalSnapshotSchema } from './utils/historyMigration';
+import { ensureFcmTokensCamionesSchema } from './utils/fcmCamionesMigration';
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);
   console.log(`🔐 Auth routes: /api/auth/{login,register,forgot-password,reset-password,me}`);
   void ensureHistoricalSnapshotSchema();
+  void ensureFcmTokensCamionesSchema();
 });
 
 // Initialize Socket.IO and resume any active simulations

@@ -8,6 +8,10 @@ export function setupSocketEvents(io: Server) {
       socket.join(`usuario:${socket.data.user.id}`);
     }
 
+    if (socket.data.camion?.camion_id) {
+      socket.join(`camion:${socket.data.camion.camion_id}`);
+    }
+
     socket.on('unirse_a_recorrido', (recorridoId: number) => {
       if (!recorridoId) return;
       const roomName = `recorrido:${recorridoId}`;

@@ -11,13 +11,15 @@
 import { Router } from 'express';
 import { deviceLoginLimiter } from '../middlewares/rateLimiter';
 import { deviceAuthMiddleware } from '../middlewares/deviceAuthMiddleware';
-import { deviceLoginValidators } from '../validators/deviceAuthValidators';
+import { deviceLoginValidators, deviceFcmTokenValidators } from '../validators/deviceAuthValidators';
 import {
   deviceLogin,
   deviceRefresh,
   deviceLogout,
   deviceMe,
   deviceAsignacion,
+  deviceRegisterFcmToken,
+  deviceTestFcmPush,
 } from '../controllers/deviceAuthController';
 
 const router = Router();
@@ -57,5 +59,19 @@ router.get('/me', deviceAuthMiddleware, deviceMe);
  * El camion_id viene del token — nunca del cliente.
  */
 router.get('/asignacion', deviceAuthMiddleware, deviceAsignacion);
+
+/**
+ * POST /api/device/auth/fcm-token
+ * Registra o actualiza el FCM Device Token del camión autenticado.
+ * Requiere Bearer token válido.
+ */
+router.post('/fcm-token', deviceAuthMiddleware, deviceFcmTokenValidators, deviceRegisterFcmToken);
+
+/**
+ * POST /api/device/auth/test-push
+ * Envía una notificación FCM de prueba al camión autenticado usando su token en BD.
+ * Requiere Bearer token válido.
+ */
+router.post('/test-push', deviceAuthMiddleware, deviceTestFcmPush);
 
 export default router;

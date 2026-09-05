@@ -15,9 +15,21 @@
  */
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStorage from './secureStorage';
+import Constants from 'expo-constants';
+
+function getApiUrl(): string {
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const ip = hostUri.split(':')[0];
+      return `http://${ip}:5001/api`;
+    }
+  }
+  return process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.75:5001/api';
+}
 
 const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.75:5001/api',
+  baseURL: getApiUrl(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

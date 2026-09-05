@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { Truck, User, Clock, CheckCircle2, UserCircle, MapPin } from 'lucide-react-native';
+import { Truck, User, Clock, CheckCircle2, UserCircle, MapPin, Calendar } from 'lucide-react-native';
 
 interface AsignacionCardProps {
   asignacion: any;
@@ -9,6 +9,54 @@ interface AsignacionCardProps {
   onVerMapa?: () => void;
   isStarting: boolean;
   isFinishing: boolean;
+}
+
+function formatFechaCompleta(fechaRaw: any): { fechaBadgeText: string; prefijoEarly: string } {
+  if (!fechaRaw) return { fechaBadgeText: '', prefijoEarly: 'hoy' };
+  try {
+    const fechaStr = typeof fechaRaw === 'string'
+      ? fechaRaw.split('T')[0]
+      : new Date(fechaRaw).toISOString().split('T')[0];
+
+    const [year, month, day] = fechaStr.split('-').map(Number);
+    const d = new Date(year, month - 1, day);
+
+    if (isNaN(d.getTime())) return { fechaBadgeText: '', prefijoEarly: 'hoy' };
+
+    const hoy = new Date();
+    const esHoy =
+      hoy.getFullYear() === d.getFullYear() &&
+      hoy.getMonth() === d.getMonth() &&
+      hoy.getDate() === d.getDate();
+
+    const manana = new Date(hoy);
+    manana.setDate(manana.getDate() + 1);
+    const esManana =
+      manana.getFullYear() === d.getFullYear() &&
+      manana.getMonth() === d.getMonth() &&
+      manana.getDate() === d.getDate();
+
+    const diaSemana = d.toLocaleDateString('es-MX', { weekday: 'short' });
+    const mes = d.toLocaleDateString('es-MX', { month: 'short' });
+    const diaNum = String(d.getDate()).padStart(2, '0');
+    const diaSemanaCap = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+
+    const fechaBadgeText = esHoy
+      ? `Hoy, ${diaNum} ${mes}`
+      : esManana
+      ? `Mañana, ${diaNum} ${mes}`
+      : `${diaSemanaCap}, ${diaNum} ${mes}`;
+
+    const prefijoEarly = esHoy
+      ? 'hoy'
+      : esManana
+      ? 'mañana'
+      : `el ${diaSemanaCap} ${diaNum} de ${mes}`;
+
+    return { fechaBadgeText, prefijoEarly };
+  } catch {
+    return { fechaBadgeText: '', prefijoEarly: 'hoy' };
+  }
 }
 
 export const AsignacionCard: React.FC<AsignacionCardProps> = ({
@@ -38,7 +86,10 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
   const estatusColor = asignacion.estatus_recorrido === 'Pendiente' ? '#f59e0b' : '#3b82f6';
   const estatusBg = asignacion.estatus_recorrido === 'Pendiente' ? '#fef3c7' : '#dbeafe';
 
-  // NUEVO: Calcular si el horario ya permite iniciar
+  // Calcular fecha formateada y prefijo de horario
+  const { fechaBadgeText, prefijoEarly } = formatFechaCompleta(asignacion.fecha_programada);
+
+  // Calcular si el horario ya permite iniciar
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -92,11 +143,20 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
             <Text style={styles.infoText}>{asignacion.conductor_nombre}</Text>
           </View>
         </View>
-        <View style={styles.infoRight}>
-          <Clock size={14} color="#4b5563" />
-          <Text style={styles.infoText}>
-            {asignacion.horario_inicio?.slice(0, 5)} - {asignacion.horario_fin?.slice(0, 5)}
-          </Text>
+
+        <View style={styles.infoRightCol}>
+          {Boolean(fechaBadgeText) && (
+            <View style={styles.infoRowRight}>
+              <Calendar size={13} color="#1763A6" />
+              <Text style={styles.infoDateText}>{fechaBadgeText}</Text>
+            </View>
+          )}
+          <View style={styles.infoRowRight}>
+            <Clock size={13} color="#4b5563" />
+            <Text style={styles.infoText}>
+              {asignacion.horario_inicio?.slice(0, 5)} - {asignacion.horario_fin?.slice(0, 5)}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -109,7 +169,7 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
               <Clock size={28} color="#f59e0b" style={{ marginBottom: 8 }} />
               <Text style={{ textAlign: 'center', color: '#374151', fontSize: 15, fontWeight: '600' }}>
-                Programado para las {timeStr}
+                Programado para {prefijoEarly} a las {timeStr}
               </Text>
               <Text style={{ textAlign: 'center', color: '#6b7280', fontSize: 13, marginTop: 4 }}>
                 El botón se habilitará automáticamente a esa hora.
@@ -291,10 +351,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#4b5563',
   },
-  infoRight: {
+  infoRightCol: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  infoRowRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+  },
+  infoDateText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1763A6',
   },
   actionSection: {
     marginTop: 16,

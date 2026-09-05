@@ -122,3 +122,22 @@ export async function getMeDevice(): Promise<{ camion: CamionAuth }> {
   const response = await api.get<{ camion: CamionAuth }>('/device/auth/me');
   return response.data;
 }
+
+/**
+ * Registra o actualiza el FCM Device Token del camión en el backend.
+ * POST /api/device/auth/fcm-token
+ */
+export async function registerFcmTokenInBackend(
+  token: string,
+  plataforma: 'android' | 'ios' | 'web' = 'android'
+): Promise<void> {
+  try {
+    await api.post('/device/auth/fcm-token', { token, plataforma });
+    console.log('[FCM] Token registrado exitosamente en el backend');
+  } catch (err: any) {
+    console.warn(
+      '[FCM] Advertencia: No se pudo registrar token FCM en backend:',
+      err?.response?.data?.message || err?.message
+    );
+  }
+}

@@ -13,18 +13,24 @@
  */
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, LogBox } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { RecorridoMapCacheProvider } from '../contexts/RecorridoMapCache';
 import { AsignacionProvider } from '../contexts/AsignacionContext';
+import { registerBackgroundHandler, onForegroundMessage, onFcmTokenRefresh, handleNotificationOpen } from '../services/fcmService';
+
+// El handler de background se registra en index.js (entry point).
 
 // Prevenir que el Splash Screen se oculte automáticamente
 SplashScreen.preventAutoHideAsync().catch(() => {
   /* ignorar errores si ya se previno */
 });
+
+// Ignorar advertencias espurias de Dev Client con Firebase Messaging
+LogBox.ignoreLogs(['Error: undefined', 'undefined']);
 
 // ─── Componente de navegación protegida ───────────────────────────────────────
 
@@ -54,6 +60,18 @@ function ProtectedNavigator() {
     }
   }, [isAuthenticated, isLoading, segments, router]);
 
+  // Suscribirse a mensajes de foreground mientras la app está protegida
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const unsubscribe = onForegroundMessage((message) => {
+      // La notificación local ya se maneja internamente en fcmService.ts
+      // Aquí podrías agregar actualización de contexto/estado si es necesario.
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [isAuthenticated]);
+
   // Mantener el fondo del splash mientras se resuelve la sesión
   // (el splash nativo cubre esta vista hasta hideAsync).
   if (isLoading) {
@@ -80,6 +98,19 @@ function ProtectedNavigator() {
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
+  useEffect(() => {
+    // Activar listener de rotación silenciosa de token FCM.
+    const unsubscribeTokenRefresh = onFcmTokenRefresh();
+
+    // Manejar apertura de notificación desde estado TERMINADO/BACKGROUND.
+    const unsubscribeNotificationOpen = handleNotificationOpen();
+
+    return () => {
+      unsubscribeTokenRefresh();
+      unsubscribeNotificationOpen();
+    };
+  }, []);
+
   return (
     <SafeAreaProvider>
       <AuthProvider>

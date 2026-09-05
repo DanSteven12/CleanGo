@@ -1,9 +1,11 @@
 {
   "name": "mobile-conductor",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.7",
+    "@react-native-firebase/app": "^26.3.2",
+    "@react-native-firebase/messaging": "^26.3.2",
     "axios": "^1.18.1",
     "expo": "~57.0.8",
     "expo-constants": "~57.0.7",
@@ -13,6 +15,7 @@
     "expo-glass-effect": "~57.0.1",
     "expo-image": "~57.0.1",
     "expo-linking": "~57.0.4",
+    "expo-notifications": "^57.0.17",
     "expo-router": "~57.0.8",
     "expo-secure-store": "~57.0.1",
     "expo-splash-screen": "~57.0.5",

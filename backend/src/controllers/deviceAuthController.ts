@@ -14,7 +14,7 @@ import jwt from 'jsonwebtoken';
 import * as deviceAuthService from '../services/deviceAuthService';
 import { logSecurityEvent } from '../services/securityLogService';
 import type { DeviceAuthPayload } from '../middlewares/deviceAuthMiddleware';
-import { config } from '../config';
+import * as NotificationService from '../modules/notifications/notification.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -163,6 +163,62 @@ export async function deviceAsignacion(req: Request, res: Response): Promise<voi
   try {
     const asignacion = await deviceAuthService.getAsignacionActual(camion.camion_id);
     res.status(200).json({ asignacion });
+  } catch (err) {
+    handleServiceError(err, res);
+  }
+}
+
+/**
+ * POST /api/device/auth/fcm-token
+ * Registra o actualiza el FCM Device Token para un dispositivo camión.
+ * La identidad del camión se extrae del Bearer JWT validado por deviceAuthMiddleware.
+ *
+ * Request:  { token: string, plataforma?: 'android' | 'ios' | 'web' }
+ * Response: { success: boolean, message: string }
+ */
+export async function deviceRegisterFcmToken(req: Request, res: Response): Promise<void> {
+  if (handleValidationErrors(req, res)) return;
+
+  const camion = req.camion as DeviceAuthPayload;
+  if (!camion || !camion.camion_id) {
+    res.status(401).json({ message: 'No autenticado.' });
+    return;
+  }
+
+  const { token, plataforma = 'android' } = req.body;
+
+  try {
+    await deviceAuthService.upsertFcmTokenCamion(camion.camion_id, token, plataforma);
+    console.log(`[DeviceAuth] FCM token registrado para camión ID ${camion.camion_id} (plataforma: ${plataforma})`);
+    res.status(200).json({ success: true, message: 'FCM Token registrado exitosamente.' });
+  } catch (err) {
+    handleServiceError(err, res);
+  }
+}
+
+/**
+ * POST /api/device/auth/test-push
+ * Envía una notificación FCM de prueba al camión autenticado utilizando su token en BD.
+ * Requiere deviceAuthMiddleware.
+ */
+export async function deviceTestFcmPush(req: Request, res: Response): Promise<void> {
+  const camion = req.camion as DeviceAuthPayload;
+  if (!camion || !camion.camion_id) {
+    res.status(401).json({ message: 'No autenticado.' });
+    return;
+  }
+
+  try {
+    const titulo = 'CleanGo — Prueba FCM Conductor';
+    const mensaje = 'Notificación de prueba enviada correctamente al dispositivo del camión.';
+    const resultado = await NotificationService.enviarFcmACamion(camion.camion_id, titulo, mensaje);
+
+    res.status(200).json({
+      success: true,
+      message: 'Notificación de prueba procesada.',
+      camion_id: camion.camion_id,
+      resultado,
+    });
   } catch (err) {
     handleServiceError(err, res);
   }

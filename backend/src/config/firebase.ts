@@ -41,5 +41,8 @@ export function initializeFirebaseAdmin(): void {
  * Devuelve la instancia de Messaging.
  */
 export function getMessaging() {
+  if (admin.apps.length === 0) {
+    throw new Error('Firebase Admin no inicializado. Revisa FIREBASE_* en el .env.');
+  }
   return admin.messaging();
 }
