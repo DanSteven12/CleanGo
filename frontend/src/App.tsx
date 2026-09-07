@@ -32,6 +32,7 @@ import { WelcomePage } from './pages/welcome/WelcomePage';
 import { NotificacionesPage } from './pages/notificaciones/NotificacionesPage';
 import { PrivacyPolicyPage } from './pages/privacy-policy/PrivacyPolicyPage';
 import { TermsAndConditionsPage } from './pages/terms-and-conditions/TermsAndConditionsPage';
+import { BlockingOverlay } from './components/BlockingOverlay';
 
 type Module = 'dashboard' | 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos' | 'notificaciones';
 
@@ -129,6 +130,9 @@ function App() {
             duration={3000}
             toastOptions={{ style: { fontFamily: 'inherit' } }}
           />
+
+          {/* Rate-limit blocking overlay — listens for 'block-login' event */}
+          <BlockingOverlay />
         </ConfirmProvider>
       </AuthProvider>
     </BrowserRouter>

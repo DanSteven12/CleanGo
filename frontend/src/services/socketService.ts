@@ -1,12 +1,16 @@
 import { io, Socket } from 'socket.io-client';
 
-const VITE_API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? undefined : 'http://localhost:5001');
+// En desarrollo, se usa '' para conectar al mismo origen (https://localhost:5173).
+// El proxy de Vite (ws: true) reenvía /socket.io → http://127.0.0.1:5001 internamente,
+// evitando Mixed Content al no apuntar directamente a una URL HTTP explícita.
+// En producción, VITE_API_URL apunta al backend real (ej: https://api.cleangomunicipal.com.mx).
+const SOCKET_URL: string = import.meta.env.VITE_API_URL ?? '';
 
 let socket: Socket | null = null;
 
 export const initSocket = (): Socket => {
   if (!socket) {
-    socket = io(VITE_API_URL, {
+    socket = io(SOCKET_URL, {
       withCredentials: true, // Importante para enviar cookies HttpOnly
       transports: ['websocket', 'polling'], // Fallback a polling si websocket falla
     });

@@ -15,6 +15,10 @@ export default defineConfig({
     },
   },
   server: {
+    https: {
+      cert: 'C:/laragon/etc/ssl/laragon.crt',
+      key:  'C:/laragon/etc/ssl/laragon.key',
+    },
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:5001',

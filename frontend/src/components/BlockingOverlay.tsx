@@ -17,10 +17,12 @@ export const BlockingOverlay: React.FC = () => {
       }
     }
 
-    // Listener for custom block event
+    // Listener for block-login event (dispatched by LoginPage on 429 Too Many Requests)
     const handleTriggerBlock = (e: Event) => {
-      const customEvent = e as CustomEvent<{ seconds: number }>;
-      const seconds = customEvent.detail?.seconds;
+      // LoginPage dispatches: new CustomEvent('block-login', { detail: err.retryAfter })
+      // where detail is a plain number (seconds to wait)
+      const customEvent = e as CustomEvent<number>;
+      const seconds = customEvent.detail;
       if (typeof seconds === 'number' && seconds > 0) {
         const unlockTime = Date.now() + seconds * 1000;
         localStorage.setItem(STORAGE_KEY, unlockTime.toString());
@@ -28,10 +30,10 @@ export const BlockingOverlay: React.FC = () => {
       }
     };
 
-    window.addEventListener('trigger-block', handleTriggerBlock);
+    window.addEventListener('block-login', handleTriggerBlock);
 
     return () => {
-      window.removeEventListener('trigger-block', handleTriggerBlock);
+      window.removeEventListener('block-login', handleTriggerBlock);
     };
   }, []);
 
