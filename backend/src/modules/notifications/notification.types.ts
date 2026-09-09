@@ -98,3 +98,30 @@ export interface NotificacionesResponse {
     thisWeek: number;
   };
 }
+
+/**
+ * Preferencias de notificaciones de un ciudadano,
+ * tal como se almacenan en la tabla `preferencias_notificaciones`.
+ */
+export interface PreferenciasNotificaciones {
+  /** ID del ciudadano. Clave primaria y FK a `usuarios`. */
+  usuario_id: number;
+  /** Si está en FALSE, no se envía ningún push FCM a este usuario. */
+  notificaciones_push_enabled: boolean;
+  /** Si está en FALSE, no se genera la alerta C2 (camión cerca). */
+  proximidad_enabled: boolean;
+  /** Si está en FALSE, no se genera la alerta C1 (retraso del camión). */
+  retraso_enabled: boolean;
+  /** Última actualización del registro. */
+  updated_at: Date;
+}
+
+/**
+ * DTO para actualizar preferencias de notificaciones.
+ * Todos los campos son opcionales; solo los presentes se actualizarán.
+ */
+export interface ActualizarPreferenciasDTO {
+  notificaciones_push_enabled?: boolean;
+  proximidad_enabled?: boolean;
+  retraso_enabled?: boolean;
+}

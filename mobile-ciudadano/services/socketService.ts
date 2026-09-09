@@ -1,7 +1,9 @@
 import { io, Socket } from 'socket.io-client';
 import * as SecureStorage from './secureStorage';
+import { getBackendBaseUrl } from './api';
 
-const SOCKET_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.75:5001/api').replace('/api', '');
+// SOCKET_URL se obtiene dinámicamente desde la misma fuente que Axios.
+// No se duplica la lógica de detección de IP aquí.
 
 let socket: Socket | null = null;
 
@@ -13,7 +15,7 @@ export function connectMobileSocket(token?: string): Socket {
     socket.disconnect();
   }
 
-  socket = io(SOCKET_URL, {
+  socket = io(getBackendBaseUrl(), {
     transports: ['websocket', 'polling'],
     reconnectionAttempts: 5,
     reconnectionDelay: 2000,

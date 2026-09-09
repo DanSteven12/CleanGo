@@ -85,6 +85,7 @@ function ProtectedNavigator() {
       <Stack.Screen name="perfil/mis-reportes" options={{ title: 'Mis Reportes' }} />
       <Stack.Screen name="perfil/mis-zonas" options={{ title: 'Mis Zonas' }} />
       <Stack.Screen name="perfil/notificaciones" options={{ title: 'Notificaciones' }} />
+      <Stack.Screen name="perfil/preferencias" options={{ title: 'Preferencias' }} />
     </Stack>
   );
 }
@@ -93,16 +94,20 @@ function ProtectedNavigator() {
 
 export default function RootLayout() {
   useEffect(() => {
+    // P3: Registrar el handler de mensajes en background/terminated.
+    registerBackgroundHandler();
+
     // P5: Activar listener de rotación silenciosa de token FCM.
     const unsubscribeTokenRefresh = onFcmTokenRefresh();
 
     // P4/P5: Manejar apertura de notificación desde estado TERMINADO.
     // getInitialNotification() devuelve el mensaje que abrió la app (o null).
     // Consumirlo evita el "Error: undefined" en React Native DevTools.
-    handleNotificationOpen();
+    const unsubscribeNotificationOpen = handleNotificationOpen();
 
     return () => {
       unsubscribeTokenRefresh();
+      unsubscribeNotificationOpen();
     };
   }, []);
 

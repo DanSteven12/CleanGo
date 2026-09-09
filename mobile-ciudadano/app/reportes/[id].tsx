@@ -9,6 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { getBackendBaseUrl } from '../../services/api';
 import { ArrowLeft, Clock, MapPin, CheckCircle2, AlertCircle, Settings } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { reportesService, ReporteCiudadano } from '../../services/reportesService';
@@ -26,7 +27,7 @@ const T = {
   closed: '#10B981',
 };
 
-const BACKEND_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.75:5001/api').replace('/api', '');
+const BACKEND_URL = getBackendBaseUrl();
 
 export default function ReporteDetailScreen() {
   const { id } = useLocalSearchParams();

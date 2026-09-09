@@ -387,11 +387,9 @@ export function PerfilScreen() {
             />
             <View style={styles.divider} />
             <MenuRow
-              icon={<Settings size={20} color={T.muted} strokeWidth={2} />}
+              icon={<Settings size={20} color={T.primary} strokeWidth={2} />}
               label="Preferencias"
-              showChevron={false}
-              disabled
-              badge="Próximamente"
+              onPress={() => router.push('/perfil/preferencias')}
             />
           </View>
 

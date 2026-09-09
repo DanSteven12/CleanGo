@@ -8,11 +8,13 @@ import { pool } from '../../db';
 import type { PoolConnection } from 'mysql2/promise';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import type {
+  ActualizarPreferenciasDTO,
   CrearNotificacionDTO,
   FiltrosNotificaciones,
   Notificacion,
   NotificacionCategoria,
   NotificacionesResponse,
+  PreferenciasNotificaciones,
 } from './notification.types';
 
 // ─── Inserción ────────────────────────────────────────────────────────────────
@@ -463,4 +465,132 @@ export async function getCamionIdByConductorId(conductor_id: number): Promise<nu
     [conductor_id]
   );
   return rows.length > 0 && rows[0].camion_id ? (rows[0].camion_id as number) : null;
+}
+
+// ─── Preferencias de Notificaciones ──────────────────────────────────────────
+
+/**
+ * Obtiene las preferencias de notificaciones de un ciudadano.
+ *
+ * Si el ciudadano todavía no tiene un registro en `preferencias_notificaciones`,
+ * lo crea con los valores por defecto (todos en TRUE) y devuelve esa fila nueva.
+ * Esto garantiza que cualquier ciudadano siempre tenga una configuración válida
+ * sin necesidad de que el proceso de registro la cree explícitamente.
+ *
+ * @param usuario_id - ID del ciudadano en la tabla `usuarios`.
+ * @returns Las preferencias completas del ciudadano.
+ */
+export async function getPreferenciasUsuario(
+  usuario_id: number
+): Promise<PreferenciasNotificaciones> {
+  // 1. Intentar obtener el registro existente
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT usuario_id,
+            notificaciones_push_enabled,
+            proximidad_enabled,
+            retraso_enabled,
+            updated_at
+     FROM preferencias_notificaciones
+     WHERE usuario_id = ?`,
+    [usuario_id]
+  );
+
+  if (rows.length > 0) {
+    const row = rows[0];
+    return {
+      usuario_id:                  row.usuario_id as number,
+      notificaciones_push_enabled: Boolean(row.notificaciones_push_enabled),
+      proximidad_enabled:          Boolean(row.proximidad_enabled),
+      retraso_enabled:             Boolean(row.retraso_enabled),
+      updated_at:                  row.updated_at as Date,
+    };
+  }
+
+  // 2. No existe — crear con valores por defecto (todos TRUE)
+  await pool.execute<ResultSetHeader>(
+    `INSERT INTO preferencias_notificaciones
+       (usuario_id, notificaciones_push_enabled, proximidad_enabled, retraso_enabled)
+     VALUES (?, TRUE, TRUE, TRUE)`,
+    [usuario_id]
+  );
+
+  // 3. Devolver la fila recién creada
+  const [newRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT usuario_id,
+            notificaciones_push_enabled,
+            proximidad_enabled,
+            retraso_enabled,
+            updated_at
+     FROM preferencias_notificaciones
+     WHERE usuario_id = ?`,
+    [usuario_id]
+  );
+
+  const newRow = newRows[0];
+  return {
+    usuario_id:                  newRow.usuario_id as number,
+    notificaciones_push_enabled: Boolean(newRow.notificaciones_push_enabled),
+    proximidad_enabled:          Boolean(newRow.proximidad_enabled),
+    retraso_enabled:             Boolean(newRow.retraso_enabled),
+    updated_at:                  newRow.updated_at as Date,
+  };
+}
+
+/**
+ * Crea o actualiza las preferencias de notificaciones de un ciudadano.
+ *
+ * Utiliza INSERT … ON DUPLICATE KEY UPDATE para garantizar atomicidad.
+ * La clave primaria de `preferencias_notificaciones` es `usuario_id`, por lo que:
+ *  - Si NO existe el registro → INSERT con los valores proporcionados y TRUE en los omitidos.
+ *  - Si YA existe el registro → UPDATE solo de los campos presentes en el DTO.
+ *
+ * Solo se modifican los campos explícitamente incluidos en `prefs`.
+ * Todos los valores se envían como parámetros (prepared statements), nunca concatenados.
+ *
+ * @param usuario_id - ID del ciudadano en la tabla `usuarios`.
+ * @param prefs      - Campos a actualizar (uno o varios; todos son opcionales).
+ * @returns Las preferencias completas tras la operación.
+ */
+export async function upsertPreferencias(
+  usuario_id: number,
+  prefs: ActualizarPreferenciasDTO
+): Promise<PreferenciasNotificaciones> {
+  // Resolver valores para el INSERT inicial (usa el valor recibido o TRUE como default)
+  const pushEnabled  = prefs.notificaciones_push_enabled ?? true;
+  const proxEnabled  = prefs.proximidad_enabled          ?? true;
+  const retrasoEnabled = prefs.retraso_enabled           ?? true;
+
+  // Construir la cláusula SET del ON DUPLICATE KEY UPDATE con solo los campos presentes
+  const updates: string[] = [];
+  const updateParams: (number | boolean)[] = [];
+
+  if (prefs.notificaciones_push_enabled !== undefined) {
+    updates.push('notificaciones_push_enabled = ?');
+    updateParams.push(prefs.notificaciones_push_enabled);
+  }
+  if (prefs.proximidad_enabled !== undefined) {
+    updates.push('proximidad_enabled = ?');
+    updateParams.push(prefs.proximidad_enabled);
+  }
+  if (prefs.retraso_enabled !== undefined) {
+    updates.push('retraso_enabled = ?');
+    updateParams.push(prefs.retraso_enabled);
+  }
+
+  if (updates.length === 0) {
+    // No hay nada que actualizar; devolver el estado actual (auto-creando si es necesario)
+    return getPreferenciasUsuario(usuario_id);
+  }
+
+  await pool.execute<ResultSetHeader>(
+    `INSERT INTO preferencias_notificaciones
+       (usuario_id, notificaciones_push_enabled, proximidad_enabled, retraso_enabled)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       ${updates.join(',\n       ')}`,
+    [usuario_id, pushEnabled, proxEnabled, retrasoEnabled, ...updateParams]
+  );
+
+  // Devolver el estado final completo
+  return getPreferenciasUsuario(usuario_id);
 }

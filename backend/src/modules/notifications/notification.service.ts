@@ -126,6 +126,17 @@ async function enviarFcmAUsuario(
   const tokens = await NotificationRepository.getFcmTokensByUsuarioId(usuario_id);
   if (tokens.length === 0) return;
 
+  // ── Verificar preferencia de push del usuario ────────────────────────────
+  // Se consulta después del guard de tokens para no hacer una query de
+  // preferencias cuando el usuario no tiene ningún dispositivo registrado.
+  // La notificación en BD y el evento Socket.IO ya se enviaron antes de
+  // llegar aquí; este return solo bloquea el push FCM.
+  const preferencias = await NotificationRepository.getPreferenciasUsuario(usuario_id);
+  if (!preferencias.notificaciones_push_enabled) {
+    console.log(`[FCM] Push omitido para usuario ${usuario_id} (notificaciones_push_enabled = false)`);
+    return;
+  }
+
   const envios = tokens.map(async (token) => {
     try {
       await messaging.send({

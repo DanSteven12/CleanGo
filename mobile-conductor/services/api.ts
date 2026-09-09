@@ -17,16 +17,94 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStorage from './secureStorage';
 import Constants from 'expo-constants';
 
-function getApiUrl(): string {
-  if (__DEV__) {
-    const hostUri = Constants.expoConfig?.hostUri;
-    if (hostUri) {
-      const ip = hostUri.split(':')[0];
+// ─── Detección dinámica de URL del backend ────────────────────────────────────
+
+/**
+ * Extrae el hostname/IP de una URI con cualquiera de estos formatos:
+ *   "192.168.1.75:8081"       → "192.168.1.75"
+ *   "exp://192.168.1.75:8081" → "192.168.1.75"
+ *   "http://192.168.1.75:8081" → "192.168.1.75"
+ */
+function extractHost(uri: string): string | null {
+  try {
+    // Normalizar URIs sin esquema para que URL() pueda procesarlas
+    const normalized = /^[a-z][a-z0-9+\-.]*:\/\//i.test(uri)
+      ? uri
+      : `http://${uri}`;
+    const { hostname } = new URL(normalized);
+    return hostname || null;
+  } catch {
+    // Fallback: quitar esquema y tomar la parte antes del primer ':'
+    const withoutScheme = uri.replace(/^[a-z][a-z0-9+\-.]*:\/\//i, '');
+    const host = withoutScheme.split(':')[0].trim();
+    return host || null;
+  }
+}
+
+/**
+ * Obtiene la URL base de la API del backend CleanGo.
+ *
+ * PRIORIDAD:
+ *
+ * En desarrollo (__DEV__ === true):
+ *   1. IP detectada automáticamente desde Expo Metro Bundler.
+ *      Soporta Expo Go, Dev Client y Metro. No usa localhost como fallback.
+ *   2. Si Metro no proporciona IP válida → Error explícito y diagnóstico.
+ *
+ * En producción (__DEV__ === false):
+ *   1. EXPO_PUBLIC_API_URL (variable de entorno de producción/staging).
+ *   2. Si no está definida → Error de configuración.
+ */
+export function getApiUrl(): string {
+  // ── PRODUCCIÓN ──────────────────────────────────────────────────────────────
+  if (!__DEV__) {
+    const prodUrl = process.env.EXPO_PUBLIC_API_URL;
+    if (!prodUrl) {
+      throw new Error(
+        '[CleanGo] EXPO_PUBLIC_API_URL no está definida para el entorno de producción. ' +
+          'Configura esta variable con la URL de la API de producción.',
+      );
+    }
+    return prodUrl;
+  }
+
+  // ── DESARROLLO LOCAL ────────────────────────────────────────────────────────
+  // Detección dinámica de la IP actual del host mediante Expo Metro.
+  const hostUri: string | undefined =
+    Constants.expoConfig?.hostUri ??
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ??
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (Constants as any).manifest?.debuggerHost;
+
+  if (hostUri) {
+    const ip = extractHost(hostUri);
+    if (ip) {
       return `http://${ip}:5001/api`;
     }
   }
-  return process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.75:5001/api';
+
+  // Sin fallback silencioso: en dispositivo físico, "localhost" apunta al propio celular.
+  throw new Error(
+    '[CleanGo Config] No se pudo obtener la IP del backend local desde Expo Metro. ' +
+      'Asegúrate de que Metro Bundler esté activo (yarn expo start) ' +
+      'y que el dispositivo esté conectado a la misma red Wi-Fi que la computadora.',
+  );
 }
+
+/**
+ * URL base del backend SIN el sufijo /api.
+ * Utilizada por Socket.IO y para construir URLs de recursos estáticos (/uploads/).
+ *
+ * Ejemplo:
+ *   getApiUrl()         → "http://192.168.0.22:5001/api"
+ *   getBackendBaseUrl() → "http://192.168.0.22:5001"
+ */
+export function getBackendBaseUrl(): string {
+  return getApiUrl().replace(/\/api\/?$/, '');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const api = axios.create({
   baseURL: getApiUrl(),

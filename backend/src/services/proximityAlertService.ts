@@ -20,6 +20,7 @@
 import { pool } from '../db';
 import { haversineMeters } from '../utils/geo';
 import { NotificationService } from '../modules/notifications';
+import * as NotificationRepository from '../modules/notifications/notification.repository';
 
 // ─── Configuración ────────────────────────────────────────────────────────────
 
@@ -119,7 +120,17 @@ export async function checkProximity(
 
       if (distanciaMetros > PROXIMITY_RADIUS_METERS) continue;
 
-      // ── 3. Intentar crear la notificación (deduplicación por BD) ─────────────
+      // ── 3. Consultar preferencias del usuario ───────────────────────────────
+      // Consultamos a BD si el usuario tiene las notificaciones C2 activadas.
+      const preferencias = await NotificationRepository.getPreferenciasUsuario(zona.usuario_id);
+      
+      if (!preferencias.proximidad_enabled) {
+        // Añadir al caché para no repetir la consulta SQL de preferencias en el próximo tick
+        alertasEnviadas.add(cacheKey);
+        continue;
+      }
+
+      // ── 4. Intentar crear la notificación (deduplicación por BD) ─────────────
       //
       // crearSiNoExiste() consulta la tabla `notificaciones` antes de insertar.
       // Si ya existe una con (recorrido_id, categoria='PROXIMIDAD', titulo=...),

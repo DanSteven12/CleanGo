@@ -31,6 +31,7 @@ import ciudadanoHorariosRouter from './routes/ciudadanoHorarios';
 import ciudadanoReportesRouter from './routes/ciudadanoReportes';
 import ciudadanoZonasRouter from './routes/ciudadanoZonas';
 import ciudadanoNotificacionesRouter from './routes/ciudadanoNotificaciones';
+import ciudadanoPreferenciasRouter from './routes/ciudadanoPreferencias';
 import camionesRouter from './routes/camiones';
 import conductoresRouter from './routes/conductores';
 import reportesRouter from './routes/reportes';
@@ -153,6 +154,7 @@ app.use('/api/ciudadano/horarios', ciudadanoHorariosRouter);
 app.use('/api/ciudadano/reportes', ciudadanoReportesRouter);
 app.use('/api/ciudadano/notificaciones', ciudadanoNotificacionesRouter);
 app.use('/api/ciudadano/zonas', ciudadanoZonasRouter);
+app.use('/api/ciudadano/preferencias', ciudadanoPreferenciasRouter);
 
 // ── Device: recorridos y notificaciones del camión autenticado (camion_id del JWT)
 app.use('/api/device/recorridos', deviceRecorridosRouter);

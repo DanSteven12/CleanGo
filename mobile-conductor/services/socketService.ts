@@ -1,19 +1,12 @@
 import { io, Socket } from 'socket.io-client';
 import Constants from 'expo-constants';
 import * as SecureStorage from './secureStorage';
+import { getBackendBaseUrl } from './api';
 
-function getSocketUrl(): string {
-  if (__DEV__) {
-    const hostUri = Constants.expoConfig?.hostUri;
-    if (hostUri) {
-      const ip = hostUri.split(':')[0];
-      return `http://${ip}:5001`;
-    }
-  }
-  return (process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.75:5001/api').replace('/api', '');
-}
+// SOCKET_URL se obtiene dinámicamente desde la misma fuente que Axios.
+// No se duplica la lógica de detección de IP aquí.
 
-const SOCKET_URL = getSocketUrl();
+const SOCKET_URL = getBackendBaseUrl();
 
 let socket: Socket | null = null;
 

@@ -13,6 +13,7 @@
 import { pool } from '../db';
 import { haversineMeters } from '../utils/geo';
 import { NotificationService } from '../modules/notifications';
+import * as NotificationRepository from '../modules/notifications/notification.repository';
 import * as NotificationMessages from '../constants/notificationMessages';
 import { getRouteGeometry } from './simulationService';
 
@@ -93,6 +94,15 @@ export async function notifyCitizensOfDelay(
       }
 
       if (afectada) {
+        // Consultar preferencias del usuario para la alerta de retraso
+        const preferencias = await NotificationRepository.getPreferenciasUsuario(zona.usuario_id);
+        
+        if (!preferencias.retraso_enabled) {
+          // Marcar como procesado localmente para evitar procesar otras zonas del mismo usuario
+          usuariosNotificados.add(zona.usuario_id);
+          continue;
+        }
+
         // Crear notificación persistente (BD se encarga de la deduplicación final ante reinicios)
         // NOTA: crearSiNoExiste usa `usuario_id` para garantizar que un usuario no reciba duplicados
         // y permitir que otros usuarios sí la reciban.
