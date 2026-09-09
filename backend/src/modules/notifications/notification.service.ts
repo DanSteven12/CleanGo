@@ -449,6 +449,31 @@ export async function marcarLeidaPorUsuario(
   return NotificationRepository.marcarNotificacionLeidaPorUsuario(id, usuario_id);
 }
 
+/**
+ * Marca como leídas TODAS las notificaciones de un usuario ciudadano.
+ */
+export async function marcarTodasLeidasPorUsuario(
+  usuario_id: number
+): Promise<number> {
+  if (!Number.isFinite(usuario_id) || usuario_id <= 0) {
+    throw new Error('NotificationService.marcarTodasLeidasPorUsuario: Parámetros inválidos.');
+  }
+  return NotificationRepository.marcarTodasNotificacionesLeidasPorUsuario(usuario_id);
+}
+
+/**
+ * Elimina una notificación asegurando pertenencia al usuario ciudadano.
+ */
+export async function eliminarPorUsuario(
+  id: number,
+  usuario_id: number
+): Promise<boolean> {
+  if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(usuario_id) || usuario_id <= 0) {
+    throw new Error('NotificationService.eliminarPorUsuario: Parámetros inválidos.');
+  }
+  return NotificationRepository.eliminarNotificacionPorUsuario(id, usuario_id);
+}
+
 // ─── Helper de contexto ───────────────────────────────────────────────────────
 
 /**

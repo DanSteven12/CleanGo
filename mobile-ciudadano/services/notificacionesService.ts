@@ -42,6 +42,30 @@ export async function marcarComoLeida(id: number): Promise<void> {
 }
 
 /**
+ * Marca todas las notificaciones del ciudadano como leídas
+ */
+export async function marcarTodasComoLeidas(): Promise<void> {
+  try {
+    await api.patch('/ciudadano/notificaciones/marcar-todas-leidas');
+  } catch (error) {
+    console.error('[notificacionesService] Error al marcar todas las notificaciones como leídas:', error);
+    throw error;
+  }
+}
+
+/**
+ * Elimina una notificación por su ID
+ */
+export async function eliminarNotificacion(id: number): Promise<void> {
+  try {
+    await api.delete(`/ciudadano/notificaciones/${id}`);
+  } catch (error) {
+    console.error(`[notificacionesService] Error al eliminar notificación ${id}:`, error);
+    throw error;
+  }
+}
+
+/**
  * Obtiene el número de notificaciones no leídas del ciudadano
  */
 export async function getUnreadCount(): Promise<number> {

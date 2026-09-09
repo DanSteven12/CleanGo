@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationsContext';
 import { recorridosService, CiudadanoRecorridoActivo } from '../services/recorridosService';
-import { MapPin } from 'lucide-react-native';
+import { MapPin, Bell } from 'lucide-react-native';
 import { GarbageTruckIcon } from '../components/mapa/GarbageTruckIcon';
 
 const T = {
@@ -27,6 +28,7 @@ const T = {
 
 export function InicioScreen() {
   const { user, logout, isAuthenticated } = useAuth();
+  const { unreadCount } = useNotifications();
   const router = useRouter();
 
   const [activos, setActivos] = useState<CiudadanoRecorridoActivo[]>([]);
@@ -109,13 +111,34 @@ export function InicioScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerTitleContainer}>
           <Text style={styles.greeting}>Hola, {user?.nombre}</Text>
           <Text style={styles.subtitle}>Sigue la ruta de tu camión en vivo</Text>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-          <Text style={styles.logoutText}>Salir</Text>
-        </TouchableOpacity>
+
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.bellBtn}
+            onPress={() => router.push('/perfil/notificaciones')}
+            activeOpacity={0.7}
+            accessibilityLabel="Notificaciones"
+            accessibilityRole="button"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Bell size={22} color={T.textH} strokeWidth={2} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+            <Text style={styles.logoutText}>Salir</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -145,6 +168,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: T.border,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  bellBtn: {
+    position: 'relative',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: T.destructive,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   greeting: {
     fontSize: 22,

@@ -312,50 +312,11 @@ export function PerfilScreen() {
           {/* SECCIÓN: Mi información */}
           <SectionTitle label="Mi información" />
           <View style={styles.card}>
-            {/* Nombre */}
-            <View style={styles.infoRow}>
-              <View style={[styles.infoIconBg, { backgroundColor: T.primaryLight }]}>
-                <User size={18} color={T.primary} strokeWidth={2} />
-              </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Nombre</Text>
-                <Text style={styles.infoValue}>{user?.nombre ?? '—'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            {/* Correo */}
-            <View style={styles.infoRow}>
-              <View style={[styles.infoIconBg, { backgroundColor: T.primaryLight }]}>
-                <Mail size={18} color={T.primary} strokeWidth={2} />
-              </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Correo electrónico</Text>
-                <Text style={styles.infoValue}>{user?.correo ?? '—'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            {/* Rol */}
-            <View style={styles.infoRow}>
-              <View style={[styles.infoIconBg, { backgroundColor: T.primaryLight }]}>
-                <Shield size={18} color={T.primary} strokeWidth={2} />
-              </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Tipo de cuenta</Text>
-                <Text style={styles.infoValue}>{user?.rol ?? '—'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Nota de solo lectura */}
-          <View style={styles.readonlyNote}>
-            <Info size={13} color={T.muted} />
-            <Text style={styles.readonlyNoteText}>
-              La edición de datos estará disponible próximamente.
-            </Text>
+            <MenuRow
+              icon={<User size={20} color={T.primary} strokeWidth={2} />}
+              label="Mis datos"
+              onPress={() => router.push('/perfil/mis-datos' as any)}
+            />
           </View>
 
           {/* SECCIÓN: Mis actividades */}

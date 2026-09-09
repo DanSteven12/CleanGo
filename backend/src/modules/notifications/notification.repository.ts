@@ -347,6 +347,36 @@ export async function marcarNotificacionLeidaPorUsuario(
   return result.affectedRows > 0;
 }
 
+/**
+ * Marca como leídas TODAS las notificaciones de un usuario ciudadano.
+ */
+export async function marcarTodasNotificacionesLeidasPorUsuario(
+  usuario_id: number
+): Promise<number> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE notificaciones
+     SET leida = TRUE, fecha_lectura = NOW()
+     WHERE usuario_id = ? AND leida = FALSE`,
+    [usuario_id]
+  );
+  return result.affectedRows;
+}
+
+/**
+ * Elimina una notificación perteneciente al usuario ciudadano indicado.
+ */
+export async function eliminarNotificacionPorUsuario(
+  id: number,
+  usuario_id: number
+): Promise<boolean> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `DELETE FROM notificaciones
+     WHERE id = ? AND usuario_id = ?`,
+    [id, usuario_id]
+  );
+  return result.affectedRows > 0;
+}
+
 // ─── Helpers de contexto ──────────────────────────────────────────────────────
 
 /**

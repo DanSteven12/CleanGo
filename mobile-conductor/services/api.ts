@@ -77,6 +77,10 @@ export function getApiUrl(): string {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (Constants as any).manifest?.debuggerHost;
 
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
   if (hostUri) {
     const ip = extractHost(hostUri);
     if (ip) {
@@ -84,12 +88,8 @@ export function getApiUrl(): string {
     }
   }
 
-  // Sin fallback silencioso: en dispositivo físico, "localhost" apunta al propio celular.
-  throw new Error(
-    '[CleanGo Config] No se pudo obtener la IP del backend local desde Expo Metro. ' +
-      'Asegúrate de que Metro Bundler esté activo (yarn expo start) ' +
-      'y que el dispositivo esté conectado a la misma red Wi-Fi que la computadora.',
-  );
+  // Fallback para desarrollo en emulador Android si hostUri no está disponible
+  return 'http://10.0.2.2:5001/api';
 }
 
 /**
