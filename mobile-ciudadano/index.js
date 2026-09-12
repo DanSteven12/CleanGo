@@ -1,11 +1,12 @@
 import '@expo/metro-runtime';
+import * as SplashScreen from 'expo-splash-screen';
 import { App } from 'expo-router/build/qualified-entry';
 import { renderRootComponent } from 'expo-router/build/renderRootComponent';
 import { registerBackgroundHandler } from './services/fcmService';
 
-// Registramos el handler de notificaciones en background de Firebase
-// en el root entry point absoluto para evitar el error:
-// "No task registered for key ReactNativeFirebaseMessagingHeadlessTask"
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Handler de notificaciones en background (entry point absoluto).
 registerBackgroundHandler();
 
 renderRootComponent(App);

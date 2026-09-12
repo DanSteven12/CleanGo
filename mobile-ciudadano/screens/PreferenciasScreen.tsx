@@ -19,17 +19,19 @@ import {
   Switch,
   ActivityIndicator,
   TouchableOpacity,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Bell, Truck, Clock, AlertTriangle } from 'lucide-react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   getPreferencias,
   updatePreferencias,
   PreferenciasNotificaciones,
 } from '../services/preferenciasService';
+import { AnimatedPressable } from '../components/ui';
+import { useAlert } from '../contexts/AlertContext';
 
 // ─── Design Tokens (idénticos al resto de la app) ─────────────────────────────
 
@@ -96,6 +98,7 @@ function PreferenceRow({
 
 export function PreferenciasScreen() {
   const router = useRouter();
+  const { showError } = useAlert();
 
   // Estado de la pantalla
   const [preferencias, setPreferencias] = useState<PreferenciasNotificaciones | null>(null);
@@ -154,7 +157,7 @@ export function PreferenciasScreen() {
       const msg =
         err?.response?.data?.error ||
         'No se pudo guardar el cambio. Inténtalo de nuevo.';
-      Alert.alert('Error al guardar', msg);
+      showError('Error al guardar', msg);
     } finally {
       setSaving((prev) => ({ ...prev, [key]: false }));
     }
@@ -177,15 +180,21 @@ export function PreferenciasScreen() {
         <View style={styles.center}>
           <AlertTriangle size={48} color={T.destructive} style={{ marginBottom: 16 }} />
           <Text style={styles.errorText}>{loadError || 'Error desconocido'}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={cargarPreferencias}>
+          <AnimatedPressable
+            style={styles.retryButton}
+            onPress={cargarPreferencias}
+            accessibilityRole="button"
+            accessibilityLabel="Reintentar cargar preferencias"
+          >
             <Text style={styles.retryButtonText}>Reintentar</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       );
     }
 
     return (
-      <ScrollView
+      <Animated.ScrollView
+        entering={FadeInDown.duration(380).springify().damping(20)}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -229,7 +238,7 @@ export function PreferenciasScreen() {
           Los cambios se aplican de inmediato. Las notificaciones desactivadas no aparecerán
           en tu dispositivo, pero quedarán registradas en el sistema.
         </Text>
-      </ScrollView>
+      </Animated.ScrollView>
     );
   };
 
@@ -237,13 +246,14 @@ export function PreferenciasScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.backButton}
           onPress={() => router.back()}
-          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          accessibilityRole="button"
+          accessibilityLabel="Regresar"
         >
-          <ArrowLeft size={24} color={T.textH} />
-        </TouchableOpacity>
+          <ArrowLeft size={20} color={T.textH} strokeWidth={2.2} />
+        </AnimatedPressable>
         <Text style={styles.headerTitle}>Preferencias</Text>
       </View>
 
@@ -271,7 +281,20 @@ const styles = StyleSheet.create({
     borderBottomColor: T.border,
   },
   backButton: {
-    marginRight: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginRight: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerTitle: {
     fontSize: 20,

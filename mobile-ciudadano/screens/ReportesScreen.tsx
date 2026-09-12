@@ -6,10 +6,13 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Plus, Clock, CheckCircle2, AlertCircle } from 'lucide-react-native';
+import { Plus, Clock, CheckCircle2, AlertCircle, Settings } from 'lucide-react-native';
 import { reportesService, ReporteCiudadano } from '../services/reportesService';
+import { AnimatedCard, AnimatedPressable } from '../components/ui';
 
 const T = {
   primary: '#1763A6',
@@ -24,8 +27,14 @@ const T = {
   closed: '#10B981',
 };
 
-export function ReportesScreen() {
+interface ReportesScreenProps {
+  isActive?: boolean;
+}
+
+export function ReportesScreen({ isActive = true }: ReportesScreenProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const fabBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) + 80 + 16;
   const [reportes, setReportes] = useState<ReporteCiudadano[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +54,10 @@ export function ReportesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchReportes();
-    }, [fetchReportes])
+      if (isActive) {
+        fetchReportes();
+      }
+    }, [isActive, fetchReportes])
   );
 
   const getStatusColor = (status: string) => {
@@ -61,7 +72,7 @@ export function ReportesScreen() {
   const getStatusIcon = (status: string, color: string) => {
     switch (status) {
       case 'Pendiente': return <Clock size={16} color={color} />;
-      case 'En proceso': return <ActivityIndicator size="small" color={color} />;
+      case 'En proceso': return <Settings size={16} color={color} />;
       case 'Cerrado': return <CheckCircle2 size={16} color={color} />;
       default: return <Clock size={16} color={color} />;
     }
@@ -76,14 +87,14 @@ export function ReportesScreen() {
     });
   };
 
-  const renderItem = ({ item }: { item: ReporteCiudadano }) => {
+  const renderItem = ({ item, index }: { item: ReporteCiudadano; index: number }) => {
     const statusColor = getStatusColor(item.estado);
 
     return (
-      <TouchableOpacity 
+      <AnimatedCard
+        index={index}
         style={styles.card}
         onPress={() => router.push(`/reportes/${item.id}` as any)}
-        activeOpacity={0.7}
       >
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>{item.tipo_reporte}</Text>
@@ -103,7 +114,7 @@ export function ReportesScreen() {
             <Text style={styles.locationText} numberOfLines={1}>📍 {item.direccion_referencia}</Text>
           )}
         </View>
-      </TouchableOpacity>
+      </AnimatedCard>
     );
   };
 
@@ -123,9 +134,9 @@ export function ReportesScreen() {
           <AlertCircle size={48} color={T.muted} style={{ marginBottom: 16 }} />
           <Text style={styles.emptyTitle}>¡Ups!</Text>
           <Text style={styles.emptyText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={fetchReportes}>
+          <AnimatedPressable style={styles.retryBtn} onPress={fetchReportes}>
             <Text style={styles.retryText}>Reintentar</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       );
     }
@@ -136,12 +147,12 @@ export function ReportesScreen() {
           <AlertCircle size={48} color={T.muted} style={{ marginBottom: 16 }} />
           <Text style={styles.emptyTitle}>Sin reportes</Text>
           <Text style={styles.emptyText}>Aún no tienes reportes ciudadanos. Cuando crees uno, aparecerá aquí.</Text>
-          <TouchableOpacity 
+          <AnimatedPressable 
             style={styles.createFirstBtn}
             onPress={() => router.push('/reportes/crear')}
           >
             <Text style={styles.createFirstBtnText}>Crear mi primer reporte</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       );
     }
@@ -160,19 +171,18 @@ export function ReportesScreen() {
         data={reportes}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: fabBottom + 76 }]}
         ListEmptyComponent={renderEmptyState}
         onRefresh={fetchReportes}
         refreshing={loading && reportes.length > 0}
       />
 
-      <TouchableOpacity 
-        style={styles.fab}
+      <AnimatedPressable 
+        style={[styles.fab, { bottom: fabBottom }]}
         onPress={() => router.push('/reportes/crear')}
-        activeOpacity={0.8}
       >
         <Plus size={24} color="#FFF" />
-      </TouchableOpacity>
+      </AnimatedPressable>
     </View>
   );
 }
@@ -201,6 +211,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 110,
     flexGrow: 1,
   },
   card: {
@@ -310,7 +321,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 96,
     right: 24,
     width: 60,
     height: 60,

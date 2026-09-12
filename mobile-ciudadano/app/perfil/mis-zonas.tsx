@@ -26,7 +26,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -38,6 +37,7 @@ import {
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAlert } from '../../contexts/AlertContext';
 import {
   ArrowLeft,
   MapPin,
@@ -50,7 +50,10 @@ import {
   MapPinned,
 } from 'lucide-react-native';
 import * as Location from 'expo-location';
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { zonasService, ZonaInteres } from '../../services/zonasService';
+import { obtenerUbicacionActual } from '../../services/locationService';
+import { AnimatedCard, AnimatedPressable } from '../../components/ui';
 
 // ─── Design Tokens (idénticos al resto de la app) ─────────────────────────────
 
@@ -84,16 +87,17 @@ function formatCoords(latitud: string, longitud: string): string {
 
 interface ZonaCardProps {
   item: ZonaInteres;
+  index?: number;
   onEdit: (zona: ZonaInteres) => void;
   onDelete: (zona: ZonaInteres) => void;
   onToggle: (zona: ZonaInteres) => void;
 }
 
-function ZonaCard({ item, onEdit, onDelete, onToggle }: ZonaCardProps) {
+function ZonaCard({ item, index = 0, onEdit, onDelete, onToggle }: ZonaCardProps) {
   const isActive = Boolean(item.activo);
 
   return (
-    <View style={[styles.card, !isActive && styles.cardInactive]}>
+    <AnimatedCard index={index} style={[styles.card, !isActive && styles.cardInactive]}>
       {/* Icono + Info */}
       <View style={styles.cardLeft}>
         <View style={[styles.cardIconBg, { backgroundColor: isActive ? '#EFF6FF' : '#F1F5F9' }]}>
@@ -128,7 +132,7 @@ function ZonaCard({ item, onEdit, onDelete, onToggle }: ZonaCardProps) {
           accessibilityLabel={isActive ? 'Desactivar zona' : 'Activar zona'}
         />
         {/* Editar alias */}
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.actionBtn}
           onPress={() => onEdit(item)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -136,9 +140,9 @@ function ZonaCard({ item, onEdit, onDelete, onToggle }: ZonaCardProps) {
           accessibilityLabel={`Editar alias de ${item.alias}`}
         >
           <Pencil size={18} color={T.primary} strokeWidth={2} />
-        </TouchableOpacity>
+        </AnimatedPressable>
         {/* Eliminar */}
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.actionBtn}
           onPress={() => onDelete(item)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -146,9 +150,9 @@ function ZonaCard({ item, onEdit, onDelete, onToggle }: ZonaCardProps) {
           accessibilityLabel={`Eliminar zona ${item.alias}`}
         >
           <Trash2 size={18} color={T.danger} strokeWidth={2} />
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
-    </View>
+    </AnimatedCard>
   );
 }
 
@@ -164,6 +168,7 @@ interface ZonaModalProps {
 }
 
 function ZonaModal({ visible, mode, zona, onClose, onSave, saving }: ZonaModalProps) {
+  const { showError, showWarning } = useAlert();
   const [alias, setAlias] = useState('');
   const [gettingLocation, setGettingLocation] = useState(false);
   const [locationLabel, setLocationLabel] = useState('');
@@ -181,19 +186,16 @@ function ZonaModal({ visible, mode, zona, onClose, onSave, saving }: ZonaModalPr
   const handleGetLocation = async () => {
     setGettingLocation(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Necesitamos acceso a tu ubicación para guardar esta zona.');
+      const res = await obtenerUbicacionActual();
+      if (res.error || !res.location) {
+        showWarning('Ubicación no disponible', res.error || 'No pudimos obtener tu ubicación. Intenta de nuevo.');
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const { latitude, longitude } = loc.coords;
+      const { latitude, longitude } = res.location.coords;
       setCoords({ lat: latitude, lng: longitude });
       setLocationLabel(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
     } catch {
-      Alert.alert('Error', 'No pudimos obtener tu ubicación. Intenta de nuevo.');
+      showError('Error', 'No pudimos obtener tu ubicación. Intenta de nuevo.');
     } finally {
       setGettingLocation(false);
     }
@@ -203,7 +205,7 @@ function ZonaModal({ visible, mode, zona, onClose, onSave, saving }: ZonaModalPr
     const trimmedAlias = alias.trim();
     if (mode === 'create') {
       if (!coords) {
-        Alert.alert('Ubicación requerida', 'Primero obtén tu ubicación GPS.');
+        showWarning('Ubicación requerida', 'Primero obtén tu ubicación GPS antes de guardar.');
         return;
       }
       onSave(trimmedAlias || 'Mi Domicilio', coords.lat, coords.lng);
@@ -267,11 +269,10 @@ function ZonaModal({ visible, mode, zona, onClose, onSave, saving }: ZonaModalPr
             {mode === 'create' && (
               <>
                 <Text style={styles.fieldLabel}>Ubicación GPS</Text>
-                <TouchableOpacity
+                <AnimatedPressable
                   style={[styles.gpsBtn, coords ? styles.gpsBtnSuccess : null]}
                   onPress={handleGetLocation}
                   disabled={gettingLocation}
-                  activeOpacity={0.8}
                   accessibilityRole="button"
                   accessibilityLabel="Obtener mi ubicación actual"
                 >
@@ -287,7 +288,7 @@ function ZonaModal({ visible, mode, zona, onClose, onSave, saving }: ZonaModalPr
                       ? '✓ Ubicación obtenida'
                       : 'Usar mi ubicación actual'}
                   </Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
                 {locationLabel ? (
                   <Text style={styles.coordsPreview}>📍 {locationLabel}</Text>
                 ) : null}
@@ -296,26 +297,28 @@ function ZonaModal({ visible, mode, zona, onClose, onSave, saving }: ZonaModalPr
 
             {/* Botones */}
             <View style={styles.modalButtons}>
-              <TouchableOpacity
+              <AnimatedPressable
                 style={styles.cancelBtn}
                 onPress={onClose}
                 disabled={saving}
-                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Cancelar"
               >
                 <Text style={styles.cancelBtnText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </AnimatedPressable>
+              <AnimatedPressable
                 style={[styles.saveBtn, saving && { opacity: 0.7 }]}
                 onPress={handleSave}
                 disabled={saving}
-                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Guardar zona"
               >
                 {saving ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
                   <Text style={styles.saveBtnText}>Guardar</Text>
                 )}
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
           </ScrollView>
         </View>
@@ -328,6 +331,7 @@ function ZonaModal({ visible, mode, zona, onClose, onSave, saving }: ZonaModalPr
 
 export default function MisZonasScreen() {
   const router = useRouter();
+  const { showError, showWarning, showConfirm } = useAlert();
 
   const [zonas, setZonas] = useState<ZonaInteres[]>([]);
   const [loading, setLoading] = useState(true);
@@ -374,7 +378,7 @@ export default function MisZonasScreen() {
 
   const handleOpenCreate = useCallback(() => {
     if (zonas.length >= MAX_ZONAS) {
-      Alert.alert(
+      showWarning(
         'Límite alcanzado',
         `Solo puedes registrar un máximo de ${MAX_ZONAS} zonas de interés.`
       );
@@ -383,7 +387,7 @@ export default function MisZonasScreen() {
     setModalMode('create');
     setSelectedZona(null);
     setModalVisible(true);
-  }, [zonas.length]);
+  }, [zonas.length, showWarning]);
 
   // ── Editar ────────────────────────────────────────────────────────────────
 
@@ -411,11 +415,11 @@ export default function MisZonasScreen() {
       setModalVisible(false);
     } catch (err: any) {
       const msg = err?.response?.data?.error || 'No se pudo guardar la zona. Intenta de nuevo.';
-      Alert.alert('Error', msg);
+      showError('Error al guardar', msg);
     } finally {
       setSaving(false);
     }
-  }, [modalMode, selectedZona]);
+  }, [modalMode, selectedZona, showError]);
 
   // ── Toggle activo ─────────────────────────────────────────────────────────
 
@@ -432,46 +436,43 @@ export default function MisZonasScreen() {
       setZonas((prev) =>
         prev.map((z) => (z.id === zona.id ? { ...z, activo: zona.activo } : z))
       );
-      Alert.alert('Error', 'No se pudo cambiar el estado de la zona.');
+      showError('Error', 'No se pudo cambiar el estado de la zona.');
     }
-  }, []);
+  }, [showError]);
 
   // ── Eliminar ──────────────────────────────────────────────────────────────
 
   const handleDelete = useCallback((zona: ZonaInteres) => {
-    Alert.alert(
-      'Eliminar zona',
-      `¿Estás seguro de que deseas eliminar "${zona.alias}"? Esta acción no se puede deshacer.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            // Eliminar localmente primero (optimistic update)
-            setZonas((prev) => prev.filter((z) => z.id !== zona.id));
-            try {
-              await zonasService.eliminarZona(zona.id);
-            } catch {
-              // Revertir si falla
-              setZonas((prev) => {
-                const alreadyIn = prev.find((z) => z.id === zona.id);
-                return alreadyIn ? prev : [...prev, zona];
-              });
-              Alert.alert('Error', 'No se pudo eliminar la zona. Intenta de nuevo.');
-            }
-          },
-        },
-      ]
-    );
-  }, []);
+    showConfirm({
+      title: 'Eliminar zona',
+      message: `¿Estás seguro de que deseas eliminar "${zona.alias}"? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      isDestructive: true,
+      onConfirm: async () => {
+        // Eliminar localmente primero (optimistic update)
+        setZonas((prev) => prev.filter((z) => z.id !== zona.id));
+        try {
+          await zonasService.eliminarZona(zona.id);
+        } catch {
+          // Revertir si falla
+          setZonas((prev) => {
+            const alreadyIn = prev.find((z) => z.id === zona.id);
+            return alreadyIn ? prev : [...prev, zona];
+          });
+          showError('Error', 'No se pudo eliminar la zona. Intenta de nuevo.');
+        }
+      },
+    });
+  }, [showConfirm, showError]);
 
   // ── Renderizar tarjeta ────────────────────────────────────────────────────
 
   const renderItem = useCallback(
-    ({ item }: { item: ZonaInteres }) => (
+    ({ item, index }: { item: ZonaInteres; index: number }) => (
       <ZonaCard
         item={item}
+        index={index}
         onEdit={handleOpenEdit}
         onDelete={handleDelete}
         onToggle={handleToggle}
@@ -502,14 +503,15 @@ export default function MisZonasScreen() {
           </View>
           <Text style={styles.emptyTitle}>¡Ups!</Text>
           <Text style={styles.emptyText}>{error}</Text>
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.retryBtn}
             onPress={() => fetchZonas()}
-            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Reintentar cargar zonas"
           >
             <RefreshCw size={16} color="#FFF" strokeWidth={2.5} />
             <Text style={styles.retryText}>Reintentar</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       );
     }
@@ -523,14 +525,15 @@ export default function MisZonasScreen() {
         <Text style={styles.emptyText}>
           Agrega tu domicilio u otras ubicaciones para recibir alertas cuando el camión se acerque.
         </Text>
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.createBtn}
           onPress={handleOpenCreate}
-          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Agregar mi primera zona"
         >
           <Plus size={18} color="#FFF" strokeWidth={2.5} />
           <Text style={styles.createBtnText}>Agregar mi primera zona</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
     );
   };
@@ -541,15 +544,14 @@ export default function MisZonasScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.backBtn}
           onPress={() => router.back()}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           accessibilityRole="button"
           accessibilityLabel="Volver al perfil"
         >
-          <ArrowLeft size={24} color={T.textH} strokeWidth={2} />
-        </TouchableOpacity>
+          <ArrowLeft size={20} color={T.textH} strokeWidth={2.2} />
+        </AnimatedPressable>
         <Text style={styles.headerTitle}>Mis Zonas</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -581,15 +583,14 @@ export default function MisZonasScreen() {
 
       {/* FAB — Agregar zona */}
       {!loading && !error && zonas.length < MAX_ZONAS && (
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.fab}
           onPress={handleOpenCreate}
-          activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Agregar nueva zona de interés"
         >
           <Plus size={24} color="#FFF" strokeWidth={2.5} />
-        </TouchableOpacity>
+        </AnimatedPressable>
       )}
 
       {/* Modal Crear/Editar */}
@@ -632,10 +633,17 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 40,
     height: 40,
-    borderRadius: 10,
-    backgroundColor: T.bgPage,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerTitle: {
     fontSize: 18,

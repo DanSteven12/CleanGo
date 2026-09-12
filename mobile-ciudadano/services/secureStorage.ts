@@ -16,6 +16,7 @@ const KEYS = {
   ACCESS_TOKEN: 'cg_citizen_access_token',
   REFRESH_TOKEN: 'cg_citizen_refresh_token',
   USER_DATA: 'cg_citizen_user_data',
+  LAST_ACTIVE: 'cg_citizen_last_active',
 } as const;
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
@@ -69,8 +70,42 @@ export async function clearUserData(): Promise<void> {
   await SecureStore.deleteItemAsync(KEYS.USER_DATA);
 }
 
+// ─── Last Active Timestamp (Inactividad / Timeout) ────────────────────────────
+
+export async function saveLastActiveTimestamp(timestamp: number = Date.now()): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(KEYS.LAST_ACTIVE, timestamp.toString());
+  } catch (err) {
+    console.warn('[SecureStorage] Error guardando lastActive:', err);
+  }
+}
+
+export async function getLastActiveTimestamp(): Promise<number | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(KEYS.LAST_ACTIVE);
+    if (!raw) return null;
+    const num = parseInt(raw, 10);
+    return Number.isNaN(num) ? null : num;
+  } catch (err) {
+    console.warn('[SecureStorage] Error leyendo lastActive:', err);
+    return null;
+  }
+}
+
+export async function clearLastActiveTimestamp(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(KEYS.LAST_ACTIVE);
+  } catch (err) {
+    console.warn('[SecureStorage] Error limpiando lastActive:', err);
+  }
+}
+
 // ─── Limpieza total de sesión ─────────────────────────────────────────────────
 
 export async function clearAllSession(): Promise<void> {
-  await Promise.all([clearTokens(), clearUserData()]);
+  await Promise.all([
+    clearTokens().catch(() => {}),
+    clearUserData().catch(() => {}),
+    clearLastActiveTimestamp().catch(() => {}),
+  ]);
 }

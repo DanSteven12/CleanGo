@@ -12,6 +12,19 @@ export interface ReporteCiudadano {
   fecha_reporte: string;
 }
 
+export interface CrearReporteData {
+  tipo_reporte: string;
+  latitud: number | string;
+  longitud: number | string;
+  descripcion?: string | null;
+  direccion_referencia?: string | null;
+  fotografia?: {
+    uri: string;
+    name: string;
+    type: string;
+  } | null;
+}
+
 export const reportesService = {
   getMisReportes: async (): Promise<ReporteCiudadano[]> => {
     const response = await api.get('/ciudadano/reportes');
@@ -23,17 +36,54 @@ export const reportesService = {
     return response.data;
   },
 
-  crearReporte: async (formData: FormData): Promise<{ message: string; reporteId: number; fotografiaUri: string | null }> => {
+  crearReporte: async (
+    data: FormData | CrearReporteData
+  ): Promise<{ message: string; reporteId: number; fotografiaUri: string | null }> => {
     try {
-      // En React Native, Axios no reconoce el FormData nativo como browser FormData
-      // y lo serializa como application/x-www-form-urlencoded.
-      // Solución: forzar el Content-Type (sin boundary — React Native lo añade solo)
-      // y usar transformRequest para que Axios no intente serializar el FormData.
+      if (data instanceof FormData) {
+        const response = await api.post('/ciudadano/reportes', data, {
+          timeout: 30000,
+        });
+        return response.data;
+      }
+
+      // Si no tiene fotografía, enviar como JSON directo (rápido y sin problemas de multipart)
+      if (!data.fotografia) {
+        const response = await api.post(
+          '/ciudadano/reportes',
+          {
+            tipo_reporte: data.tipo_reporte,
+            latitud: data.latitud,
+            longitud: data.longitud,
+            descripcion: data.descripcion || null,
+            direccion_referencia: data.direccion_referencia || null,
+          },
+          {
+            timeout: 30000,
+          }
+        );
+        return response.data;
+      }
+
+      // Si tiene fotografía, crear el FormData
+      const formData = new FormData();
+      formData.append('tipo_reporte', data.tipo_reporte);
+      formData.append('latitud', String(data.latitud));
+      formData.append('longitud', String(data.longitud));
+      if (data.descripcion) {
+        formData.append('descripcion', data.descripcion);
+      }
+      if (data.direccion_referencia) {
+        formData.append('direccion_referencia', data.direccion_referencia);
+      }
+      formData.append('fotografia', {
+        uri: data.fotografia.uri,
+        name: data.fotografia.name,
+        type: data.fotografia.type,
+      } as any);
+
       const response = await api.post('/ciudadano/reportes', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        transformRequest: [(data) => data],
+        timeout: 30000,
       });
       return response.data;
     } catch (err: any) {

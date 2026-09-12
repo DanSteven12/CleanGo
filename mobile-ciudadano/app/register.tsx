@@ -1,5 +1,5 @@
 // mobile-ciudadano/app/register.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,36 @@ export default function RegisterScreen() {
   // Estados de UI
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-dismiss inteligente para mensajes de error
+  useEffect(() => {
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+
+    if (errorMsg) {
+      const isFast =
+        errorMsg.includes('obligatorios') ||
+        errorMsg.includes('coinciden') ||
+        errorMsg.includes('caracteres') ||
+        errorMsg.includes('válido');
+      const duration = isFast ? 3500 : 5000;
+
+      errorTimerRef.current = setTimeout(() => {
+        setErrorMsg(null);
+        errorTimerRef.current = null;
+      }, duration);
+    }
+
+    return () => {
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
+      }
+    };
+  }, [errorMsg]);
 
   // Validación rápida frontend para la contraseña (UX)
   const isPasswordValid = (pwd: string) => {
@@ -61,8 +91,17 @@ export default function RegisterScreen() {
     setErrorMsg(null);
 
     // 2. Validaciones básicas frontend
-    if (!nombre || !email || !password || !confirmPassword) {
+    const trimmedNombre = nombre.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedNombre || !trimmedEmail || !password || !confirmPassword) {
       setErrorMsg('Todos los campos son obligatorios.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrorMsg('Por favor ingresa un correo electrónico válido.');
       return;
     }
 
@@ -79,7 +118,7 @@ export default function RegisterScreen() {
     // 3. Llamada a la API
     setIsLoading(true);
     try {
-      await registerCiudadano(nombre, email, password, confirmPassword);
+      await registerCiudadano(trimmedNombre, trimmedEmail, password, confirmPassword);
       router.replace('/login');
     } catch (error) {
       if (error instanceof ApiError) {
@@ -133,7 +172,10 @@ export default function RegisterScreen() {
               label="Nombre completo"
               placeholder="Ej. Juan Pérez"
               value={nombre}
-              onChangeText={setNombre}
+              onChangeText={(text) => {
+                setNombre(text);
+                if (errorMsg) setErrorMsg(null);
+              }}
               autoCapitalize="words"
               editable={!isLoading}
               icon={<User color={T.text} size={20} />}
@@ -143,7 +185,10 @@ export default function RegisterScreen() {
               label="Correo electrónico"
               placeholder="tu@correo.com"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (errorMsg) setErrorMsg(null);
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -155,7 +200,10 @@ export default function RegisterScreen() {
               label="Contraseña"
               placeholder="••••••••"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (errorMsg) setErrorMsg(null);
+              }}
               autoCapitalize="none"
               editable={!isLoading}
               isPassword
@@ -173,7 +221,10 @@ export default function RegisterScreen() {
               label="Confirmar contraseña"
               placeholder="••••••••"
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (errorMsg) setErrorMsg(null);
+              }}
               autoCapitalize="none"
               editable={!isLoading}
               isPassword

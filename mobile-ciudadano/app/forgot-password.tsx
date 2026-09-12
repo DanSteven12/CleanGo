@@ -1,5 +1,5 @@
 // mobile-ciudadano/app/forgot-password.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -38,10 +38,42 @@ export default function ForgotPasswordScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+
+    if (errorMsg) {
+      const isFast = errorMsg.includes('ingresa') || errorMsg.includes('válido');
+      const duration = isFast ? 3500 : 5000;
+
+      errorTimerRef.current = setTimeout(() => {
+        setErrorMsg('');
+        errorTimerRef.current = null;
+      }, duration);
+    }
+
+    return () => {
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
+      }
+    };
+  }, [errorMsg]);
 
   const handleRequest = async () => {
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
       setErrorMsg('Por favor, ingresa tu correo electrónico.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrorMsg('Por favor ingresa un correo electrónico válido.');
       return;
     }
 
@@ -50,7 +82,7 @@ export default function ForgotPasswordScreen() {
     setSuccessMsg('');
 
     try {
-      const res = await requestPasswordReset(email.trim());
+      const res = await requestPasswordReset(trimmedEmail);
       if (res) {
         setSuccessMsg(res.message);
       }
@@ -68,8 +100,15 @@ export default function ForgotPasswordScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} disabled={isLoading}>
-          <ArrowLeft size={24} color={T.textH} />
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          disabled={isLoading}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Regresar"
+        >
+          <ArrowLeft size={20} color={T.textH} strokeWidth={2.2} />
         </TouchableOpacity>
       </View>
 
@@ -150,8 +189,19 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backButton: {
-    padding: 8,
-    marginLeft: -8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   keyboardView: {
     flex: 1,

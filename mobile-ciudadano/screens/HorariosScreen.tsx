@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Search, MapPin, CalendarClock } from 'lucide-react-native';
+import axios from 'axios';
 import { horariosService, RutaSearchResult } from '../services/horariosService';
+import { AnimatedCard, AnimatedPressable } from '../components/ui';
 
 const T = {
   primary: '#1763A6',
@@ -47,20 +49,56 @@ export function HorariosScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const activeQueryRef = useRef<string>('');
+
   const search = useCallback(async (q: string) => {
-    if (q.trim().length < 2) {
+    const trimmed = q.trim();
+    activeQueryRef.current = trimmed;
+
+    // Cancelar la petición anterior en vuelo si existe
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    if (trimmed.length < 2) {
       setResults([]);
+      setLoading(false);
+      setError(null);
       return;
     }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
     setError(null);
+
     try {
-      const data = await horariosService.searchRutas(q);
-      setResults(data);
-    } catch (err) {
-      setError('Error al conectar. Verifica tu conexión.');
+      const data = await horariosService.searchRutas(trimmed, controller.signal);
+      // Validar que la respuesta corresponda a la última búsqueda activa
+      if (activeQueryRef.current === trimmed && !controller.signal.aborted) {
+        setResults(data);
+        setError(null);
+      }
+    } catch (err: any) {
+      // Ignorar cancelaciones deliberadas
+      if (
+        axios.isCancel(err) ||
+        err?.name === 'CanceledError' ||
+        err?.name === 'AbortError' ||
+        err?.code === 'ERR_CANCELED' ||
+        controller.signal.aborted
+      ) {
+        return;
+      }
+      if (activeQueryRef.current === trimmed) {
+        setError('Error al conectar. Verifica tu conexión.');
+      }
     } finally {
-      setLoading(false);
+      if (activeQueryRef.current === trimmed && !controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -68,8 +106,20 @@ export function HorariosScreen() {
     if (debouncedQuery.trim().length >= 2) {
       search(debouncedQuery);
     } else {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      activeQueryRef.current = '';
       setResults([]);
+      setLoading(false);
+      setError(null);
     }
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [debouncedQuery, search]);
 
   const handleSelectRuta = (rutaId: number) => {
@@ -91,9 +141,9 @@ export function HorariosScreen() {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyTitle}>¡Ups!</Text>
           <Text style={styles.emptyText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => search(debouncedQuery)}>
+          <AnimatedPressable style={styles.retryBtn} onPress={() => search(debouncedQuery)}>
             <Text style={styles.retryText}>Reintentar</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       );
     }
@@ -149,11 +199,11 @@ export function HorariosScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmptyState}
-        renderItem={({ item }) => (
-          <TouchableOpacity 
+        renderItem={({ item, index }) => (
+          <AnimatedCard 
+            index={index}
             style={styles.resultCard}
             onPress={() => handleSelectRuta(item.id)}
-            activeOpacity={0.7}
           >
             <View style={styles.resultIconBg}>
               <MapPin size={24} color={T.primary} />
@@ -164,7 +214,7 @@ export function HorariosScreen() {
                 <Text style={styles.resultDesc} numberOfLines={2}>{item.descripcion}</Text>
               )}
             </View>
-          </TouchableOpacity>
+          </AnimatedCard>
         )}
       />
     </KeyboardAvoidingView>
@@ -215,6 +265,7 @@ const styles = StyleSheet.create({
   listContent: {
     flexGrow: 1,
     padding: 20,
+    paddingBottom: 110,
   },
   resultCard: {
     flexDirection: 'row',

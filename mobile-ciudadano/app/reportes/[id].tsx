@@ -12,7 +12,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getBackendBaseUrl } from '../../services/api';
 import { ArrowLeft, Clock, MapPin, CheckCircle2, AlertCircle, Settings } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { reportesService, ReporteCiudadano } from '../../services/reportesService';
+import { AnimatedPressable } from '../../components/ui';
 
 const T = {
   primary: '#1763A6',
@@ -99,9 +101,14 @@ export default function ReporteDetailScreen() {
         <AlertCircle size={48} color={T.muted} style={{ marginBottom: 16 }} />
         <Text style={styles.errorTitle}>¡Ups!</Text>
         <Text style={styles.errorText}>{error || 'Reporte no encontrado'}</Text>
-        <TouchableOpacity style={styles.backBtnError} onPress={() => router.back()}>
+        <AnimatedPressable
+          style={styles.backBtnError}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Text style={styles.backBtnText}>Volver</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
       </SafeAreaView>
     );
   }
@@ -114,14 +121,22 @@ export default function ReporteDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <ArrowLeft size={24} color={T.textH} />
-        </TouchableOpacity>
+        <AnimatedPressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Regresar"
+        >
+          <ArrowLeft size={20} color={T.textH} strokeWidth={2.2} />
+        </AnimatedPressable>
         <Text style={styles.headerTitle}>Detalle del Reporte</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <Animated.ScrollView
+        entering={FadeInDown.duration(380).springify().damping(20)}
+        contentContainerStyle={styles.scrollContent}
+      >
         
         <View style={styles.mainCard}>
           <Text style={styles.reportType}>{reporte.tipo_reporte}</Text>
@@ -174,7 +189,7 @@ export default function ReporteDetailScreen() {
           </View>
         )}
 
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }
@@ -201,8 +216,19 @@ const styles = StyleSheet.create({
     borderBottomColor: T.border,
   },
   backBtn: {
-    padding: 8,
-    marginLeft: -8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerTitle: {
     fontSize: 18,

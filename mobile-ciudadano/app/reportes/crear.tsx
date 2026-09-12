@@ -10,13 +10,16 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Camera, MapPin, X, ArrowLeft, Upload, MapPinned, AlertCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { reportesService } from '../../services/reportesService';
+import { obtenerUbicacionActual } from '../../services/locationService';
+import { AnimatedPressable } from '../../components/ui';
+import { useAlert } from '../../contexts/AlertContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const T = {
@@ -40,6 +43,7 @@ const TIPOS_REPORTE = [
 
 export default function CrearReporteScreen() {
   const router = useRouter();
+  const { showSuccess, showError, showWarning } = useAlert();
   
   const [tipo, setTipo] = useState<string | null>(null);
   const [descripcion, setDescripcion] = useState('');
@@ -55,14 +59,17 @@ export default function CrearReporteScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu cámara para tomar la foto.');
+      showWarning(
+        'Permiso denegado',
+        'Necesitamos acceso a tu cámara para capturar la foto de evidencia.'
+      );
       return;
     }
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.7,
+      quality: 0.6,
     });
 
     if (!result.canceled) {
@@ -73,14 +80,17 @@ export default function CrearReporteScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería para seleccionar la foto.');
+      showWarning(
+        'Permiso denegado',
+        'Necesitamos acceso a tu galería para seleccionar la fotografía.'
+      );
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.7,
+      quality: 0.6,
     });
 
     if (!result.canceled) {
@@ -92,68 +102,90 @@ export default function CrearReporteScreen() {
     setIsGettingLocation(true);
     setLocationError(null);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationError('Permiso de ubicación denegado.');
-        return;
+      const result = await obtenerUbicacionActual();
+      if (result.error || !result.location) {
+        setLocationError(result.error || 'Error al obtener la ubicación.');
+      } else {
+        setLocation(result.location);
+        setLocationError(null);
       }
-
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setLocation(loc);
-    } catch (err) {
-      setLocationError('Error al obtener la ubicación.');
+    } catch (err: any) {
+      setLocationError(err?.message || 'Error al obtener la ubicación.');
     } finally {
       setIsGettingLocation(false);
     }
   };
 
   const handleSubmit = async () => {
-
     if (!tipo) {
-      Alert.alert('Error', 'Selecciona un tipo de reporte.');
+      showWarning(
+        'Tipo de reporte requerido',
+        'Por favor selecciona un tipo de problema antes de enviar el reporte.'
+      );
       return;
     }
     if (!location) {
-      Alert.alert('Ubicación requerida', 'Por favor, obtén tu ubicación antes de enviar el reporte.');
+      showWarning(
+        'Ubicación requerida',
+        'Por favor obtén tu ubicación GPS actual antes de enviar el reporte.'
+      );
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append('tipo_reporte', tipo);
-      formData.append('latitud', location.coords.latitude.toString());
-      formData.append('longitud', location.coords.longitude.toString());
-      
-      if (descripcion) {
-        formData.append('descripcion', descripcion);
-      }
-
-      if (direccionReferencia) {
-        formData.append('direccion_referencia', direccionReferencia);
-      }
+      let fotografiaData = null;
 
       if (imageUri) {
-        const filename = imageUri.split('/').pop() || 'photo.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image`;
-        
-        formData.append('fotografia', {
+        const rawFilename = imageUri.split('/').pop() || `reporte_${Date.now()}.jpg`;
+        const extensionMatch = /\.(\w+)$/.exec(rawFilename);
+        const rawExt = extensionMatch ? extensionMatch[1].toLowerCase() : 'jpg';
+
+        let mimeType = 'image/jpeg';
+        let finalExtension = 'jpg';
+
+        if (rawExt === 'png') {
+          mimeType = 'image/png';
+          finalExtension = 'png';
+        } else if (rawExt === 'webp') {
+          mimeType = 'image/webp';
+          finalExtension = 'webp';
+        } else {
+          mimeType = 'image/jpeg';
+          finalExtension = 'jpg';
+        }
+
+        const baseName = rawFilename.replace(/\.[^/.]+$/, '') || 'fotografia';
+        const safeFilename = `${baseName}.${finalExtension}`;
+
+        fotografiaData = {
           uri: imageUri,
-          name: filename,
-          type,
-        } as any);
+          name: safeFilename,
+          type: mimeType,
+        };
       }
 
-      await reportesService.crearReporte(formData);
-      
-      Alert.alert('¡Reporte enviado!', 'Tu reporte ha sido recibido correctamente.', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      await reportesService.crearReporte({
+        tipo_reporte: tipo,
+        latitud: location.coords.latitude,
+        longitud: location.coords.longitude,
+        descripcion: descripcion.trim() || undefined,
+        direccion_referencia: direccionReferencia.trim() || undefined,
+        fotografia: fotografiaData,
+      });
+
+      showSuccess(
+        '¡Reporte enviado!',
+        'Tu reporte ha sido recibido correctamente. El equipo municipal dará seguimiento a tu solicitud.',
+        () => router.back(),
+        { confirmText: 'Aceptar' }
+      );
     } catch (err: any) {
-      Alert.alert('Error', 'Ocurrió un problema al enviar el reporte. Intenta de nuevo.');
+      const errorMsg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        'Ocurrió un problema al enviar el reporte. Intenta de nuevo.';
+      showError('Error al enviar', errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -162,9 +194,14 @@ export default function CrearReporteScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <ArrowLeft size={24} color={T.textH} />
-        </TouchableOpacity>
+        <AnimatedPressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Regresar"
+        >
+          <ArrowLeft size={20} color={T.textH} strokeWidth={2.2} />
+        </AnimatedPressable>
         <Text style={styles.headerTitle}>Nuevo Reporte</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -181,20 +218,19 @@ export default function CrearReporteScreen() {
             <Text style={styles.sectionTitle}>1. ¿Qué problema deseas reportar? *</Text>
             <View style={styles.typesGrid}>
               {TIPOS_REPORTE.map((t) => (
-                <TouchableOpacity
+                <AnimatedPressable
                   key={t.id}
                   style={[
                     styles.typeCard,
                     tipo === t.id && styles.typeCardActive
                   ]}
                   onPress={() => setTipo(t.id)}
-                  activeOpacity={0.7}
                 >
                   <Text style={styles.typeIcon}>{t.icon}</Text>
                   <Text style={[styles.typeLabel, tipo === t.id && styles.typeLabelActive]}>
                     {t.label}
                   </Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               ))}
             </View>
           </View>
@@ -212,23 +248,23 @@ export default function CrearReporteScreen() {
             ) : imageUri ? (
               <View style={styles.imageContainer}>
                 <Image source={{ uri: imageUri }} style={styles.previewImage} />
-                <TouchableOpacity 
+                <AnimatedPressable 
                   style={styles.removeImageBtn}
                   onPress={() => setImageUri(null)}
                 >
                   <X size={20} color="#FFF" />
-                </TouchableOpacity>
+                </AnimatedPressable>
               </View>
             ) : (
               <View style={styles.photoButtons}>
-                <TouchableOpacity style={styles.photoBtn} onPress={takePhoto}>
+                <AnimatedPressable style={styles.photoBtn} onPress={takePhoto}>
                   <Camera size={24} color={T.primary} />
                   <Text style={styles.photoBtnText}>Tomar Foto</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.photoBtn} onPress={pickImage}>
+                </AnimatedPressable>
+                <AnimatedPressable style={styles.photoBtn} onPress={pickImage}>
                   <Upload size={24} color={T.primary} />
                   <Text style={styles.photoBtnText}>Galería</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               </View>
             )}
           </View>
@@ -238,14 +274,17 @@ export default function CrearReporteScreen() {
             <Text style={styles.sectionTitle}>3. Ubicación del problema *</Text>
             <View style={styles.locationContainer}>
               {location ? (
-                <View style={styles.locationSuccess}>
+                <Animated.View
+                  entering={FadeInDown.duration(250)}
+                  style={styles.locationSuccess}
+                >
                   <MapPin size={24} color={T.success} />
                   <Text style={styles.locationText}>
                     Ubicación obtenida ({location.coords.latitude.toFixed(4)}, {location.coords.longitude.toFixed(4)})
                   </Text>
-                </View>
+                </Animated.View>
               ) : (
-                <TouchableOpacity 
+                <AnimatedPressable 
                   style={[styles.locationBtn, locationError ? styles.locationBtnError : null]} 
                   onPress={getLocation}
                   disabled={isGettingLocation}
@@ -258,7 +297,7 @@ export default function CrearReporteScreen() {
                   <Text style={[styles.locationBtnText, locationError ? {color: T.danger} : null]}>
                     {locationError || 'Obtener mi ubicación actual'}
                   </Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               )}
             </View>
           </View>
@@ -295,7 +334,7 @@ export default function CrearReporteScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity 
+          <AnimatedPressable 
             style={[
               styles.submitBtn, 
               (!tipo || !location || isSubmitting) && styles.submitBtnDisabled
@@ -308,7 +347,7 @@ export default function CrearReporteScreen() {
             ) : (
               <Text style={styles.submitBtnText}>Enviar Reporte</Text>
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -328,10 +367,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: T.border,
+    backgroundColor: T.bgCard,
   },
   backBtn: {
-    padding: 8,
-    marginLeft: -8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerTitle: {
     fontSize: 18,

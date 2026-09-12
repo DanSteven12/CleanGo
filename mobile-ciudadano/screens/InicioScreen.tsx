@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   FlatList,
-  RefreshControl
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,6 +14,12 @@ import { useNotifications } from '../contexts/NotificationsContext';
 import { recorridosService, CiudadanoRecorridoActivo } from '../services/recorridosService';
 import { MapPin, Bell } from 'lucide-react-native';
 import { GarbageTruckIcon } from '../components/mapa/GarbageTruckIcon';
+import {
+  AnimatedCard,
+  AnimatedPressable,
+  PulsingBeacon,
+  CleanGoOrbitRadar,
+} from '../components/ui';
 
 const T = {
   primary: '#1763A6',
@@ -26,8 +32,12 @@ const T = {
   success: '#16A34A',
 };
 
-export function InicioScreen() {
-  const { user, logout, isAuthenticated } = useAuth();
+interface InicioScreenProps {
+  isActive?: boolean;
+}
+
+export function InicioScreen({ isActive = true }: InicioScreenProps) {
+  const { user, isAuthenticated } = useAuth();
   const { unreadCount } = useNotifications();
   const router = useRouter();
 
@@ -40,7 +50,7 @@ export function InicioScreen() {
       const data = await recorridosService.getRecorridosActivos();
       setActivos(data);
     } catch (err) {
-      console.error('Error fetching recorridos activos:', err);
+      console.log('[InicioScreen] Error obteniendo recorridos activos:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -48,12 +58,12 @@ export function InicioScreen() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && isActive) {
       fetchActivos();
       const interval = setInterval(fetchActivos, 30000);
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, fetchActivos]);
+  }, [isAuthenticated, isActive, fetchActivos]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -71,20 +81,22 @@ export function InicioScreen() {
     }
     return (
       <View style={styles.emptyContainer}>
-        <View style={{ marginBottom: 16 }}>
-          <GarbageTruckIcon size={88} />
+        <View style={styles.radarWrapper}>
+          <CleanGoOrbitRadar size={290} />
         </View>
         <Text style={styles.emptyTitle}>No hay recorridos activos</Text>
-        <Text style={styles.emptyText}>En este momento no hay camiones de recolección realizando su ruta.</Text>
+        <Text style={styles.emptyText}>
+          En este momento no hay camiones de recolección realizando su ruta.
+        </Text>
       </View>
     );
   };
 
-  const renderItem = ({ item }: { item: CiudadanoRecorridoActivo }) => (
-    <TouchableOpacity
+  const renderItem = ({ item, index }: { item: CiudadanoRecorridoActivo; index: number }) => (
+    <AnimatedCard
+      index={index}
       style={styles.card}
       onPress={() => router.push(`/mapa/${item.recorrido_id}` as any)}
-      activeOpacity={0.7}
     >
       <View style={styles.cardHeader}>
         <View style={styles.routeBadge}>
@@ -92,35 +104,37 @@ export function InicioScreen() {
           <Text style={styles.routeBadgeText}>{item.ruta_nombre}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: '#DCFCE7' }]}>
+          <PulsingBeacon color={T.success} size={6} pulseScale={2} style={{ marginRight: 6 }} />
           <Text style={[styles.statusText, { color: T.success }]}>En Camino</Text>
         </View>
       </View>
 
       <View style={styles.cardBody}>
         <View style={styles.truckRow}>
-          <GarbageTruckIcon size={44} />
+          <GarbageTruckIcon size={44} showPulse={false} />
           <Text style={styles.truckText}>Camión No. {item.numero_economico}</Text>
         </View>
         <Text style={styles.coloniasText} numberOfLines={2}>
           {item.colonias || 'Todas las colonias asignadas a la ruta'}
         </Text>
       </View>
-    </TouchableOpacity>
+    </AnimatedCard>
   );
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.greeting}>Hola, {user?.nombre}</Text>
+          <Text style={styles.greeting}>
+            {user?.nombre?.trim() ? `Hola, ${user.nombre.trim()}` : 'Hola'}
+          </Text>
           <Text style={styles.subtitle}>Sigue la ruta de tu camión en vivo</Text>
         </View>
 
         <View style={styles.headerActions}>
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.bellBtn}
             onPress={() => router.push('/perfil/notificaciones')}
-            activeOpacity={0.7}
             accessibilityLabel="Notificaciones"
             accessibilityRole="button"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -133,11 +147,7 @@ export function InicioScreen() {
                 </Text>
               </View>
             )}
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-            <Text style={styles.logoutText}>Salir</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       </View>
 
@@ -176,7 +186,6 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
   bellBtn: {
     position: 'relative',
@@ -217,19 +226,9 @@ const styles = StyleSheet.create({
     color: T.text,
     marginTop: 4,
   },
-  logoutBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 6,
-  },
-  logoutText: {
-    color: T.text,
-    fontWeight: '600',
-    fontSize: 14,
-  },
   listContent: {
     padding: 20,
+    paddingBottom: 100,
     flexGrow: 1,
   },
   card: {
@@ -292,23 +291,31 @@ const styles = StyleSheet.create({
     color: T.text,
     lineHeight: 20,
   },
+  radarWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 80,
+    paddingTop: 30,
+    paddingBottom: 40,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
     color: T.textH,
     marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
   emptyText: {
-    fontSize: 15,
+    fontSize: 14.5,
     color: T.text,
     textAlign: 'center',
-    maxWidth: '80%',
+    maxWidth: '85%',
     lineHeight: 22,
   },
 });

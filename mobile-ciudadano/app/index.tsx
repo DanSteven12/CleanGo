@@ -21,13 +21,25 @@ export default function HomeScreen() {
   const [visitedTabs, setVisitedTabs] = useState<Set<TabName>>(() => new Set(['inicio']));
 
   const handleTabPress = useCallback((tab: TabName) => {
-    setVisitedTabs(prev => {
-      if (prev.has(tab)) return prev;
-      const next = new Set(prev);
-      next.add(tab);
-      return next;
-    });
     setActiveTab(tab);
+    const mountTab = () => {
+      setVisitedTabs(prev => {
+        if (prev.has(tab)) return prev;
+        const next = new Set(prev);
+        next.add(tab);
+        return next;
+      });
+    };
+    const ric = (
+      globalThis as typeof globalThis & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      }
+    ).requestIdleCallback;
+    if (typeof ric === 'function') {
+      ric(mountTab, { timeout: 250 });
+    } else {
+      requestAnimationFrame(mountTab);
+    }
   }, []);
 
   if (isLoading) {
@@ -46,7 +58,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.content}>
         <View style={[styles.tabContent, activeTab !== 'inicio' && styles.hidden]}>
-          <InicioScreen />
+          <InicioScreen isActive={activeTab === 'inicio'} />
         </View>
         {visitedTabs.has('horarios') && (
           <View style={[styles.tabContent, activeTab !== 'horarios' && styles.hidden]}>
@@ -55,7 +67,7 @@ export default function HomeScreen() {
         )}
         {visitedTabs.has('reportes') && (
           <View style={[styles.tabContent, activeTab !== 'reportes' && styles.hidden]}>
-            <ReportesScreen />
+            <ReportesScreen isActive={activeTab === 'reportes'} />
           </View>
         )}
         {visitedTabs.has('perfil') && (

@@ -149,6 +149,8 @@ async function enviarFcmAUsuario(
           priority: 'high',
           notification: {
             channelId: 'default',
+            icon: 'notification_icon',
+            color: '#1763A6',
           },
         },
       });
@@ -212,7 +214,8 @@ export async function enviarFcmACamion(
           priority: 'high',
           notification: {
             channelId: 'default',
-            sound: 'default',
+            icon: 'notification_icon',
+            color: '#1763A6',
           },
         },
       });

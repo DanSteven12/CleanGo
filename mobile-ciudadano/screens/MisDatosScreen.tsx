@@ -24,7 +24,9 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, User, Mail, Shield } from 'lucide-react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../contexts/AuthContext';
+import { AnimatedPressable } from '../components/ui';
 
 // ─── Design Tokens (idénticos al resto de la app) ─────────────────────────────
 
@@ -69,17 +71,19 @@ export function MisDatosScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.backButton}
           onPress={() => router.back()}
-          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          accessibilityRole="button"
+          accessibilityLabel="Regresar"
         >
-          <ArrowLeft size={24} color={T.textH} />
-        </TouchableOpacity>
+          <ArrowLeft size={20} color={T.textH} strokeWidth={2.2} />
+        </AnimatedPressable>
         <Text style={styles.headerTitle}>Mis datos</Text>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
+        entering={FadeInDown.duration(380).springify().damping(20)}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -115,7 +119,7 @@ export function MisDatosScreen() {
           Esta información es de solo lectura. Para modificar tus datos
           de cuenta, comunícate con el administrador del sistema.
         </Text>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }
@@ -139,7 +143,20 @@ const styles = StyleSheet.create({
     borderBottomColor: T.border,
   },
   backButton: {
-    marginRight: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginRight: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerTitle: {
     fontSize: 20,

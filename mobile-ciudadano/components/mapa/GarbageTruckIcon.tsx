@@ -1,5 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
 export const TRUCK_NAVY = '#1B2744';
 export const TRUCK_GREEN = '#74C044';
@@ -8,6 +16,7 @@ export const TRUCK_CIRCLE = '#C6E6A6';
 
 type GarbageTruckIconProps = {
   size?: number;
+  showPulse?: boolean;
 };
 
 /**
@@ -15,9 +24,48 @@ type GarbageTruckIconProps = {
  * En el mapa: rotation = heading - 90, igual que la web,
  * para que rumbo 0° (Norte) deje la cabina apuntando arriba.
  */
-export const GarbageTruckIcon = ({ size = 64 }: GarbageTruckIconProps) => {
+export const GarbageTruckIcon = ({ size = 64, showPulse = true }: GarbageTruckIconProps) => {
+  const pulseScale = useSharedValue(1);
+  const pulseOpacity = useSharedValue(0.6);
+
+  useEffect(() => {
+    if (showPulse) {
+      pulseScale.value = withRepeat(
+        withTiming(1.32, { duration: 1800, easing: Easing.out(Easing.ease) }),
+        -1,
+        false
+      );
+      pulseOpacity.value = withRepeat(
+        withTiming(0, { duration: 1800, easing: Easing.out(Easing.ease) }),
+        -1,
+        false
+      );
+    }
+  }, [showPulse, pulseScale, pulseOpacity]);
+
+  const animatedPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+    opacity: pulseOpacity.value,
+  }));
+
   return (
-    <Svg width={size} height={size} viewBox="0 0 128 128" fill="none">
+    <View style={[styles.wrapper, { width: size, height: size }]}>
+      {showPulse && (
+        <Animated.View
+          style={[
+            styles.pulseRing,
+            {
+              width: size * 0.95,
+              height: size * 0.95,
+              borderRadius: (size * 0.95) / 2,
+              borderColor: TRUCK_GREEN,
+              backgroundColor: 'rgba(116, 192, 68, 0.15)',
+            },
+            animatedPulseStyle,
+          ]}
+        />
+      )}
+      <Svg width={size} height={size} viewBox="0 0 128 128" fill="none">
       <Circle cx={64} cy={64} r={60} fill="#FFFFFF" />
       <Circle cx={64} cy={64} r={52} fill={TRUCK_CIRCLE} />
       <Circle cx={64} cy={64} r={52} stroke={TRUCK_GREEN_DARK} strokeWidth={3.2} fill="none" />
@@ -95,6 +143,19 @@ export const GarbageTruckIcon = ({ size = 64 }: GarbageTruckIconProps) => {
       <Circle cx={44} cy={86} r={4.2} fill="#FFFFFF" />
       <Circle cx={90} cy={86} r={10} fill={TRUCK_NAVY} />
       <Circle cx={90} cy={86} r={4.2} fill="#FFFFFF" />
-    </Svg>
+      </Svg>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  wrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  pulseRing: {
+    position: 'absolute',
+    borderWidth: 2,
+  },
+});

@@ -36,7 +36,7 @@ export const recorridosService = {
       const response = await api.get('/ciudadano/recorridos/activos');
       return response.data.data;
     } catch (error) {
-      console.error('[recorridosService] Error en getRecorridosActivos:', error);
+      console.warn('[recorridosService] Error en getRecorridosActivos:', error);
       throw error;
     }
   },
@@ -49,7 +49,7 @@ export const recorridosService = {
       const response = await api.get(`/ciudadano/recorridos/${recorridoId}`);
       return response.data;
     } catch (error) {
-      console.error(`[recorridosService] Error en getRecorridoDetalle(${recorridoId}):`, error);
+      console.warn(`[recorridosService] Error en getRecorridoDetalle(${recorridoId}):`, error);
       throw error;
     }
   }

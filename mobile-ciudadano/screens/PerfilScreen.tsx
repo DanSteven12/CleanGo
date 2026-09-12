@@ -9,34 +9,31 @@
  * No realiza ninguna petición innecesaria a /me ni almacena
  * información sensible adicional.
  */
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Animated,
-  Alert,
   Platform,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   User,
   Mail,
   Shield,
-  FileText,
   Bell,
   MapPin,
   LogOut,
   ChevronRight,
   Settings,
-  Info,
 } from 'lucide-react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../contexts/AuthContext';
-import { getUnreadCount } from '../services/notificacionesService';
 import { useNotifications } from '../contexts/NotificationsContext';
+import { LogoutModal } from '../components/LogoutModal';
+import { AnimatedPressable } from '../components/ui';
 
 // ─── Design Tokens (idénticos al resto de la app) ─────────────────────────────
 
@@ -90,72 +87,47 @@ function MenuRow({
   badgeBg,
   destructive = false,
 }: MenuRowProps) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    if (disabled) return;
-    Animated.spring(scaleAnim, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 2,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 4,
-    }).start();
-  };
-
   const labelColor = destructive ? T.destructive : disabled ? T.muted : T.textH;
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        style={[styles.menuRow, disabled && styles.menuRowDisabled]}
-        onPress={disabled ? undefined : onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={disabled ? 1 : 0.7}
-        disabled={disabled}
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityState={{ disabled }}
-      >
-        <View style={[
-          styles.menuRowIcon,
-          destructive && { backgroundColor: T.destructiveBg },
-          disabled && { backgroundColor: T.bgPage },
-        ]}>
-          {icon}
-        </View>
+    <AnimatedPressable
+      style={[styles.menuRow, disabled && styles.menuRowDisabled]}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
+      scaleTo={0.98}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+    >
+      <View style={[
+        styles.menuRowIcon,
+        destructive && { backgroundColor: T.destructiveBg },
+        disabled && { backgroundColor: T.bgPage },
+      ]}>
+        {icon}
+      </View>
 
-        <Text style={[styles.menuRowLabel, { color: labelColor }]}>{label}</Text>
+      <Text style={[styles.menuRowLabel, { color: labelColor }]}>{label}</Text>
 
-        <View style={styles.menuRowRight}>
-          {badge ? (
-            <View style={[
-              styles.badge,
-              {
-                backgroundColor: badgeBg ?? T.comingSoonBg,
-                borderColor: badgeColor ?? T.comingSoonBorder,
-              },
-            ]}>
-              <Text style={[styles.badgeText, { color: badgeColor ?? T.comingSoonText }]}>
-                {badge}
-              </Text>
-            </View>
-          ) : null}
-          {showChevron && !disabled && (
-            <ChevronRight size={18} color={T.muted} strokeWidth={2} />
-          )}
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
+      <View style={styles.menuRowRight}>
+        {badge ? (
+          <View style={[
+            styles.badge,
+            {
+              backgroundColor: badgeBg ?? T.comingSoonBg,
+              borderColor: badgeColor ?? T.comingSoonBorder,
+            },
+          ]}>
+            <Text style={[styles.badgeText, { color: badgeColor ?? T.comingSoonText }]}>
+              {badge}
+            </Text>
+          </View>
+        ) : null}
+        {showChevron && !disabled && (
+          <ChevronRight size={18} color={T.muted} strokeWidth={2} />
+        )}
+      </View>
+    </AnimatedPressable>
   );
 }
 
@@ -175,48 +147,8 @@ export function PerfilScreen() {
   const insets = useSafeAreaInsets();
   const { unreadCount } = useNotifications();
 
-  // ── Animaciones de entrada ───────────────────────────────────────────────────
-  const headerAnim = useRef(new Animated.Value(0)).current;
-  const contentAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(headerAnim, {
-        toValue: 1,
-        duration: 380,
-        useNativeDriver: true,
-      }),
-      Animated.timing(contentAnim, {
-        toValue: 1,
-        duration: 320,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [headerAnim, contentAnim]);
-
-  const headerStyle = {
-    opacity: headerAnim,
-    transform: [
-      {
-        translateY: headerAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [-20, 0],
-        }),
-      },
-    ],
-  };
-
-  const contentStyle = {
-    opacity: contentAnim,
-    transform: [
-      {
-        translateY: contentAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [16, 0],
-        }),
-      },
-    ],
-  };
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // ── Avatar con iniciales ─────────────────────────────────────────────────────
 
@@ -230,36 +162,18 @@ export function PerfilScreen() {
   // ── Logout ───────────────────────────────────────────────────────────────────
 
   const handleLogout = useCallback(() => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Quieres cerrar tu sesión?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Cerrar sesión',
-          style: 'destructive',
-          onPress: () => {
-            // Reutiliza el flujo existente de AuthContext:
-            // 1. Limpia estado en memoria
-            // 2. Revoca sesión en backend
-            // 3. Limpia SecureStore
-            // 4. Navega a /login
-            logout();
-          },
-        },
-      ],
-      { cancelable: true }
-    );
+    setShowLogoutModal(true);
+  }, []);
+
+  const handleConfirmLogout = useCallback(async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
+    }
   }, [logout]);
-
-  // ── Navegación a Mis Reportes ────────────────────────────────────────────────
-
-  const handleMisReportes = useCallback(() => {
-    router.push('/perfil/mis-reportes' as any);
-  }, [router]);
 
   // ── Navegación a Mis Zonas ───────────────────────────────────────────────────
 
@@ -278,13 +192,16 @@ export function PerfilScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: bottomPadding + 24 },
+          { paddingBottom: bottomPadding + 110 },
         ]}
         showsVerticalScrollIndicator={false}
         bounces
       >
         {/* ── Encabezado del Perfil ─────────────────────────────────────────── */}
-        <Animated.View style={[styles.headerCard, headerStyle]}>
+        <Animated.View
+          style={styles.headerCard}
+          entering={FadeInDown.duration(400).springify().damping(20).stiffness(200)}
+        >
           {/* Avatar circular con iniciales */}
           <View style={styles.avatarContainer}>
             <View style={styles.avatarCircle}>
@@ -307,7 +224,9 @@ export function PerfilScreen() {
         </Animated.View>
 
         {/* ── Contenido principal ──────────────────────────────────────────── */}
-        <Animated.View style={contentStyle}>
+        <Animated.View
+          entering={FadeInDown.duration(400).delay(80).springify().damping(20).stiffness(200)}
+        >
 
           {/* SECCIÓN: Mi información */}
           <SectionTitle label="Mi información" />
@@ -316,16 +235,6 @@ export function PerfilScreen() {
               icon={<User size={20} color={T.primary} strokeWidth={2} />}
               label="Mis datos"
               onPress={() => router.push('/perfil/mis-datos' as any)}
-            />
-          </View>
-
-          {/* SECCIÓN: Mis actividades */}
-          <SectionTitle label="Mis actividades" />
-          <View style={styles.card}>
-            <MenuRow
-              icon={<FileText size={20} color={T.primary} strokeWidth={2} />}
-              label="Mis reportes"
-              onPress={handleMisReportes}
             />
           </View>
 
@@ -371,6 +280,15 @@ export function PerfilScreen() {
 
         </Animated.View>
       </ScrollView>
+
+      <LogoutModal
+        visible={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+        userName={user?.nombre}
+        userEmail={user?.correo}
+        isLoading={isLoggingOut}
+      />
     </View>
   );
 }
@@ -387,6 +305,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 0,
+    paddingBottom: 110,
   },
 
   // ── Header card ─────────────────────────────────────────────────────────────

@@ -22,16 +22,23 @@ export const horariosService = {
   /**
    * Busca rutas por colonia/barrio.
    */
-  async searchRutas(query: string): Promise<RutaSearchResult[]> {
+  async searchRutas(query: string, signal?: AbortSignal): Promise<RutaSearchResult[]> {
     if (!query || query.trim().length < 2) return [];
     
     try {
       const response = await api.get<{ data: RutaSearchResult[] }>(
-        `/ciudadano/horarios/buscar?q=${encodeURIComponent(query)}`
+        `/ciudadano/horarios/buscar?q=${encodeURIComponent(query)}`,
+        { signal }
       );
       return response.data.data;
     } catch (error) {
-      console.error('[horariosService] Error en searchRutas:', error);
+      if (
+        (error as any)?.name !== 'CanceledError' &&
+        (error as any)?.name !== 'AbortError' &&
+        (error as any)?.code !== 'ERR_CANCELED'
+      ) {
+        console.error('[horariosService] Error en searchRutas:', error);
+      }
       throw error;
     }
   },

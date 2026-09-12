@@ -24,7 +24,7 @@ export async function getNotificaciones(): Promise<Notificacion[]> {
     const response = await api.get('/ciudadano/notificaciones');
     return response.data;
   } catch (error) {
-    console.error('[notificacionesService] Error al obtener notificaciones:', error);
+    console.log('[notificacionesService] Error al obtener notificaciones:', error);
     throw error;
   }
 }
@@ -36,7 +36,7 @@ export async function marcarComoLeida(id: number): Promise<void> {
   try {
     await api.patch(`/ciudadano/notificaciones/${id}/leida`);
   } catch (error) {
-    console.error(`[notificacionesService] Error al marcar notificación ${id} como leída:`, error);
+    console.log(`[notificacionesService] Error al marcar notificación ${id} como leída:`, error);
     throw error;
   }
 }
@@ -48,7 +48,7 @@ export async function marcarTodasComoLeidas(): Promise<void> {
   try {
     await api.patch('/ciudadano/notificaciones/marcar-todas-leidas');
   } catch (error) {
-    console.error('[notificacionesService] Error al marcar todas las notificaciones como leídas:', error);
+    console.log('[notificacionesService] Error al marcar todas las notificaciones como leídas:', error);
     throw error;
   }
 }
@@ -60,7 +60,7 @@ export async function eliminarNotificacion(id: number): Promise<void> {
   try {
     await api.delete(`/ciudadano/notificaciones/${id}`);
   } catch (error) {
-    console.error(`[notificacionesService] Error al eliminar notificación ${id}:`, error);
+    console.log(`[notificacionesService] Error al eliminar notificación ${id}:`, error);
     throw error;
   }
 }
@@ -72,8 +72,7 @@ export async function getUnreadCount(): Promise<number> {
   try {
     const response = await api.get('/ciudadano/notificaciones/unread');
     return response.data.unreadCount;
-  } catch (error) {
-    console.error('[notificacionesService] Error al obtener conteo de no leídas:', error);
+  } catch {
     return 0; // Si falla, retorna 0 para no romper la UI
   }
 }

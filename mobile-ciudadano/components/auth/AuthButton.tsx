@@ -1,38 +1,42 @@
 import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, StyleSheet, TouchableOpacityProps } from 'react-native';
+import { Text, ActivityIndicator, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { AnimatedPressable } from '../ui/AnimatedPressable';
 
 const T = {
   primary: '#1763A6',
   primaryHover: '#13528A',
 };
 
-interface AuthButtonProps extends TouchableOpacityProps {
+interface AuthButtonProps {
   label: string;
+  onPress?: () => void;
   isLoading?: boolean;
   variant?: 'primary' | 'outline';
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const AuthButton: React.FC<AuthButtonProps> = ({
   label,
+  onPress,
   isLoading = false,
   variant = 'primary',
   style,
   disabled,
-  ...props
 }) => {
   const isOutline = variant === 'outline';
 
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       style={[
         styles.button,
         isOutline ? styles.buttonOutline : styles.buttonPrimary,
         (isLoading || disabled) && styles.buttonDisabled,
         style,
       ]}
+      onPress={onPress}
       disabled={isLoading || disabled}
-      activeOpacity={0.8}
-      {...props}
+      scaleTo={0.97}
     >
       {isLoading ? (
         <ActivityIndicator color={isOutline ? T.primary : '#FFFFFF'} />
@@ -46,7 +50,7 @@ export const AuthButton: React.FC<AuthButtonProps> = ({
           {label}
         </Text>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 };
 

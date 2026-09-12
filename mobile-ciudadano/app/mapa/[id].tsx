@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter, Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, Region } from 'react-native-maps';
@@ -8,10 +8,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useRouteSimulation, Checkpoint } from '../../hooks/useRouteSimulation';
 import { NavigationArrow } from '../../components/mapa/NavigationArrow';
 import { GarbageTruckIcon } from '../../components/mapa/GarbageTruckIcon';
-import { TurnInstructionCard } from '../../components/mapa/TurnInstructionCard';
-import { CheckpointCompletedCard } from '../../components/mapa/CheckpointCompletedCard';
 import { useRecorridoMapCache } from '../../contexts/RecorridoMapCache';
 import { ArrowLeft, MapPin, CheckCircle2 } from 'lucide-react-native';
+import { useAlert } from '../../contexts/AlertContext';
 
 const T = {
   primary: '#1763A6',
@@ -174,6 +173,7 @@ export default function CiudadanoMapScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { showError } = useAlert();
   const mapRef = useRef<MapView | null>(null);
 
   const cache = useRecorridoMapCache();
@@ -216,15 +216,15 @@ export default function CiudadanoMapScreen() {
       setRecorridoData(data);
     } catch (error: any) {
       console.warn(`[Mapa] No se pudo obtener el recorrido ${id}:`, error?.message);
-      Alert.alert(
+      showError(
         'Recorrido no encontrado',
         'Este recorrido ya no está disponible o no existe.',
-        [{ text: 'Volver', onPress: () => router.replace('/') }]
+        () => router.replace('/')
       );
     } finally {
       setIsLoading(false);
     }
-  }, [id, isAuthenticated, router, cache.setFromApi, hasCachedData]);
+  }, [id, isAuthenticated, router, cache.setFromApi, hasCachedData, showError]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -534,8 +534,10 @@ export default function CiudadanoMapScreen() {
             onPress={() => router.back()}
             style={styles.backButton}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Regresar"
           >
-            <ArrowLeft size={24} color={T.textH} />
+            <ArrowLeft size={20} color={T.textH} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={styles.headerTitles}>
             <Text style={styles.routeTitle}>{recorridoData.ruta_nombre}</Text>
@@ -751,8 +753,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backButton: {
-    padding: 8,
-    marginRight: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerTitles: {
     flex: 1,

@@ -15,13 +15,38 @@ import {
   setBackgroundMessageHandler,
   getInitialNotification,
   onNotificationOpenedApp,
+  registerDeviceForRemoteMessages,
   AuthorizationStatus,
-  RemoteMessage
+  type RemoteMessage,
 } from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { registerFcmTokenInBackend } from './authService';
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+if (Platform.OS === 'android') {
+  Notifications.setNotificationChannelAsync('default', {
+    name: 'Avisos CleanGo',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#1763A6',
+    enableLights: true,
+    enableVibrate: true,
+    showBadge: true,
+  }).catch(() => {});
+}
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
+
+export type { RemoteMessage };
 
 export type FcmPermissionStatus = 'granted' | 'denied' | 'undetermined';
 
@@ -53,6 +78,9 @@ export async function getFcmToken(): Promise<FcmTokenResult> {
 
   try {
     const messagingInstance = getMessaging();
+
+    await Notifications.requestPermissionsAsync().catch(() => undefined);
+    await registerDeviceForRemoteMessages(messagingInstance).catch(() => undefined);
 
     // 1. Solicitar permiso
     const authStatus = await requestPermission(messagingInstance);
@@ -95,30 +123,72 @@ export async function getFcmToken(): Promise<FcmTokenResult> {
  * @param onRefresh Callback opcional con el nuevo token
  */
 export function onFcmTokenRefresh(onRefresh?: (token: string) => void): () => void {
-  const messagingInstance = getMessaging();
-  return onTokenRefresh(messagingInstance, (token: string) => {
-    console.log('[FCM] Token renovado por Firebase. Re-registrando en backend...');
-    // P5: Actualizar en backend silenciosamente
-    registerFcmTokenInBackend(token, 'android').catch(() => {});
-    onRefresh?.(token);
-  });
+  if (Platform.OS !== 'android') return () => {};
+
+  try {
+    const messagingInstance = getMessaging();
+    return onTokenRefresh(messagingInstance, (token: string) => {
+      console.log('[FCM] Token renovado por Firebase. Re-registrando en backend...');
+      // P5: Actualizar en backend silenciosamente
+      registerFcmTokenInBackend(token, 'android').catch(() => {});
+      onRefresh?.(token);
+    });
+  } catch (err: any) {
+    console.warn('[FCM] Error al registrar onFcmTokenRefresh:', err?.message || err);
+    return () => {};
+  }
+}
+
+const foregroundCallbacks = new Set<(message: RemoteMessage) => void>();
+let unsubscribeForegroundNative: (() => void) | null = null;
+
+function ensureForegroundListener(): void {
+  if (Platform.OS !== 'android' || unsubscribeForegroundNative) return;
+
+  try {
+    const messagingInstance = getMessaging();
+    unsubscribeForegroundNative = onMessage(messagingInstance, async (message: RemoteMessage) => {
+      console.log('[FCM] Mensaje recibido en foreground (ID):', message.messageId);
+
+      const title =
+        message.notification?.title ||
+        (typeof message.data?.titulo === 'string' ? message.data.titulo : 'Nueva notificación');
+      const body =
+        message.notification?.body ||
+        (typeof message.data?.mensaje === 'string' ? message.data.mensaje : '');
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          data: message.data,
+          sound: true,
+          color: '#1763A6',
+        },
+        trigger: null,
+      }).catch(() => undefined);
+
+      foregroundCallbacks.forEach((cb) => cb(message));
+    });
+  } catch (err: any) {
+    console.warn('[FCM] Error al registrar onForegroundMessage:', err?.message || err);
+  }
 }
 
 /**
  * Registra un listener para recibir mensajes cuando la app está en FOREGROUND (abierta en pantalla).
- * Firebase no muestra banners nativos en foreground, por lo que el mensaje se entrega silenciosamente.
+ * Además de ejecutar el callback, dispara un banner emergente nativo mediante Expo Notifications.
  *
  * @param callback Función a ejecutar con el payload del mensaje
  * @returns Función para limpiar el listener (unsubscribe)
  */
 export function onForegroundMessage(callback: (message: RemoteMessage) => void): () => void {
   if (Platform.OS !== 'android') return () => {};
-  
-  const messagingInstance = getMessaging();
-  return onMessage(messagingInstance, async (message: RemoteMessage) => {
-    console.log('[FCM] Mensaje recibido en foreground (ID):', message.messageId);
-    callback(message);
-  });
+  ensureForegroundListener();
+  foregroundCallbacks.add(callback);
+  return () => {
+    foregroundCallbacks.delete(callback);
+  };
 }
 
 /**
@@ -129,11 +199,14 @@ export function onForegroundMessage(callback: (message: RemoteMessage) => void):
 export function registerBackgroundHandler(): void {
   if (Platform.OS !== 'android') return;
 
-  const messagingInstance = getMessaging();
-  setBackgroundMessageHandler(messagingInstance, async (message: RemoteMessage) => {
-    console.log('[FCM] Mensaje recibido en background/terminated (ID):', message.messageId);
-    // Android gestiona la visualización automáticamente si el payload trae 'notification'.
-  });
+  try {
+    const messagingInstance = getMessaging();
+    setBackgroundMessageHandler(messagingInstance, async (message: RemoteMessage) => {
+      console.log('[FCM] Mensaje recibido en background/terminated (ID):', message.messageId);
+    });
+  } catch (err: any) {
+    console.warn('[FCM] Error al registrar registerBackgroundHandler:', err?.message || err);
+  }
 }
 
 /**
@@ -143,33 +216,30 @@ export function registerBackgroundHandler(): void {
  *  - App TERMINADA: la notificación que abrió la app (getInitialNotification)
  *  - App en BACKGROUND: listener continuo de toques en notificaciones (onNotificationOpenedApp)
  *
- * Consumir estos eventos evita el "Error: undefined" en React Native DevTools
- * y es el punto de extensión para navegar a pantallas específicas en el futuro.
- *
  * @returns Función de limpieza para el listener de background.
  */
 export function handleNotificationOpen(): () => void {
   if (Platform.OS !== 'android') return () => {};
 
-  const messagingInstance = getMessaging();
+  try {
+    const messagingInstance = getMessaging();
 
-  // Caso 1: App abierta desde estado TERMINADO al tocar la notificación
-  getInitialNotification(messagingInstance)
-    .then((message: RemoteMessage | null) => {
-      if (message) {
-        console.log('[FCM] App abierta desde notificación (terminated). ID:', message.messageId);
-        // Aquí se puede navegar a una pantalla específica en el futuro.
-      }
-    })
-    .catch((err) => {
-      console.log('[FCM] getInitialNotification error:', err);
+    getInitialNotification(messagingInstance)
+      .then((message: RemoteMessage | null) => {
+        if (message) {
+          console.log('[FCM] App abierta desde notificación (terminated). ID:', message.messageId);
+        }
+      })
+      .catch((err: any) => {
+        console.log('[FCM] getInitialNotification error:', err);
+      });
+
+    return onNotificationOpenedApp(messagingInstance, (message: RemoteMessage) => {
+      console.log('[FCM] App abierta desde notificación (background). ID:', message.messageId);
     });
-
-  // Caso 2: App en BACKGROUND, usuario toca la notificación
-  const unsubscribe = onNotificationOpenedApp(messagingInstance, (message: RemoteMessage) => {
-    console.log('[FCM] App abierta desde notificación (background). ID:', message.messageId);
-    // Aquí se puede navegar a una pantalla específica en el futuro.
-  });
-
-  return unsubscribe;
+  } catch (err: any) {
+    console.warn('[FCM] Error al registrar handleNotificationOpen:', err?.message || err);
+    return () => {};
+  }
 }
+

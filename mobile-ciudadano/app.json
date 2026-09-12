@@ -6,13 +6,27 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobilecuidadano",
-    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F4F7FA",
+    "userInterfaceStyle": "light",
+    "androidStatusBar": {
+      "backgroundColor": "#F4F7FA",
+      "barStyle": "dark-content"
+    },
     "android": {
       "package": "com.cleango.mobilecuidadano",
       "usesCleartextTraffic": true,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#1763A6",
-        "foregroundImage": "./assets/images/icon.png"
+        "backgroundColor": "#C2DFA2",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "config": {
@@ -30,11 +44,20 @@
       "expo-router",
       "expo-secure-store",
       "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#1763A6",
+          "defaultChannel": "default"
+        }
+      ],
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
-          "image": "./assets/images/icon.png",
+          "backgroundColor": "#F4F7FA",
+          "image": "./assets/images/cleango-icon.png",
           "resizeMode": "contain"
         }
       ],

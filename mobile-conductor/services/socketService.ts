@@ -1,21 +1,20 @@
 import { io, Socket } from 'socket.io-client';
-import Constants from 'expo-constants';
 import * as SecureStorage from './secureStorage';
 import { getBackendBaseUrl } from './api';
-
-// SOCKET_URL se obtiene dinámicamente desde la misma fuente que Axios.
-// No se duplica la lógica de detección de IP aquí.
-
-const SOCKET_URL = getBackendBaseUrl();
 
 let socket: Socket | null = null;
 
 export function getMobileSocket(): Socket {
   if (!socket) {
-    socket = io(SOCKET_URL, {
+    const backendUrl = getBackendBaseUrl();
+
+    socket = io(backendUrl, {
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 3000,
+      reconnectionDelayMax: 10000,
+      timeout: 8000,
       auth: (cb) => {
         (async () => {
           try {
@@ -29,15 +28,19 @@ export function getMobileSocket(): Socket {
     });
 
     socket.on('connect', () => {
-      console.log('[Mobile Socket] Conectado al backend:', socket?.id);
+      console.log(`[Mobile Socket] Conectado exitosamente (${backendUrl}):`, socket?.id);
     });
 
     socket.on('connect_error', (err) => {
-      console.error('[Mobile Socket] Error de conexión:', err.message);
+      console.log('[Mobile Socket] Esperando reconexión:', err.message);
     });
 
     socket.on('disconnect', (reason) => {
-      console.warn('[Mobile Socket] Desconectado:', reason);
+      if (reason === 'io client disconnect') {
+        console.log('[Mobile Socket] Desconectado por el cliente.');
+      } else {
+        console.log('[Mobile Socket] Desconectado, reintentando automáticamente...');
+      }
     });
   }
   return socket;

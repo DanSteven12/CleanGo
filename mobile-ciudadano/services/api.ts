@@ -58,7 +58,30 @@ function extractHost(uri: string): string | null {
  *   1. EXPO_PUBLIC_API_URL (variable de entorno de producción/staging).
  *   2. Si no está definida → Error de configuración.
  */
+export function getLanHost(): string {
+  const hostUri: string | undefined =
+    Constants.expoConfig?.hostUri ??
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ??
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (Constants as any).manifest?.debuggerHost;
+
+  if (hostUri) {
+    const ip = extractHost(hostUri);
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '10.0.2.2') {
+      return ip;
+    }
+  }
+  return '192.168.100.20';
+}
+
+let _activeBaseUrl: string | null = null;
+
 export function getApiUrl(): string {
+  if (_activeBaseUrl) {
+    return _activeBaseUrl;
+  }
+
   // ── PRODUCCIÓN ──────────────────────────────────────────────────────────────
   if (!__DEV__) {
     const prodUrl = process.env.EXPO_PUBLIC_API_URL;
@@ -71,28 +94,13 @@ export function getApiUrl(): string {
     return prodUrl;
   }
 
-  // ── DESARROLLO LOCAL ────────────────────────────────────────────────────────
-  // Detección dinámica de la IP actual del host mediante Expo Metro.
-  const hostUri: string | undefined =
-    Constants.expoConfig?.hostUri ??
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ??
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (Constants as any).manifest?.debuggerHost;
-
+  // ── DESARROLLO LOCAL: IP de Red Wi-Fi detectada dinámicamente ─────────────
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  if (hostUri) {
-    const ip = extractHost(hostUri);
-    if (ip) {
-      return `http://${ip}:5001/api`;
-    }
-  }
-
-  // Fallback para desarrollo en emulador Android si hostUri no está disponible
-  return 'http://10.0.2.2:5001/api';
+  const lanIp = getLanHost();
+  return `http://${lanIp}:5001/api`;
 }
 
 /**
@@ -122,9 +130,9 @@ const api = axios.create({
  * Registrado por AuthContext. Se llama cuando el refresh falla y la sesión expira.
  * Permite a AuthContext limpiar el estado y navegar al Login sin dependencias circulares.
  */
-let _onSessionExpired: (() => void) | null = null;
+let _onSessionExpired: ((reason?: string) => void) | null = null;
 
-export function setSessionExpiredCallback(cb: () => void): void {
+export function setSessionExpiredCallback(cb: (reason?: string) => void): void {
   _onSessionExpired = cb;
 }
 
@@ -161,12 +169,26 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// ─── Response interceptor — refresh automático ante 401 ──────────────────────
+// ─── Response interceptor — fallback bidireccional Wi-Fi / USB y refresh 401 ─
 
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+      _fallbackTried?: boolean;
+    };
+
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    // En desarrollo: simplificado, sin fallback automático agresivo
+    if (__DEV__ && !error.response && !originalRequest._fallbackTried) {
+      // Opcional: Podríamos reintentar 1 vez en la misma IP para errores transitorios
+      originalRequest._fallbackTried = true;
+      console.warn(`[API] Error de red en ${originalRequest.baseURL}.`);
+    }
 
     // Solo intentar refresh si es 401 y no es ya un endpoint de auth
     if (
@@ -201,7 +223,7 @@ api.interceptors.response.use(
         const refreshResponse = await axios.post(
           `${api.defaults.baseURL}/mobile/auth/refresh`,
           { refreshToken },
-          { headers: { 'Content-Type': 'application/json' } }
+          { headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
         );
 
         const { accessToken: newAccessToken, refreshToken: newRefreshToken } = refreshResponse.data;
@@ -218,13 +240,29 @@ api.interceptors.response.use(
         notifyRefreshSubscribers(newAccessToken);
 
         return api(originalRequest);
-      } catch (refreshError) {
-        // El refresh falló — limpiar sesión y notificar a AuthContext
-        await SecureStorage.clearAllSession();
+      } catch (refreshError: any) {
         _refreshSubscribers = [];
 
-        if (_onSessionExpired) {
-          _onSessionExpired();
+        // Distinguir entre sesión realmente invalidada en servidor (401/403/422) vs error de red/timeout
+        const isAuthError =
+          refreshError?.response?.status === 401 ||
+          refreshError?.response?.status === 403 ||
+          refreshError?.response?.status === 422;
+
+        if (isAuthError) {
+          // El backend rechazó el refresh token explícitamente — limpiar sesión y notificar a AuthContext
+          await SecureStorage.clearAllSession();
+
+          if (_onSessionExpired) {
+            const reason =
+              refreshError?.response?.data?.message ||
+              'Por seguridad, tu sesión se cerró después de un período de inactividad. Inicia sesión nuevamente para continuar.';
+            _onSessionExpired(reason);
+          }
+        } else {
+          // Error transitorio de red o timeout durante el intento de refresh:
+          // NO borrar SecureStore ni forzar logout.
+          console.log('[API] Error de red al intentar refresh de token:', refreshError?.message);
         }
 
         return Promise.reject(refreshError);

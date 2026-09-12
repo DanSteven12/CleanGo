@@ -139,8 +139,14 @@ export default function HorarioDetalleScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-          <ArrowLeft size={24} color={T.textH} />
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Regresar"
+        >
+          <ArrowLeft size={20} color={T.textH} strokeWidth={2.2} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Horario de recolección</Text>
         <View style={{ width: 40 }} />
@@ -160,14 +166,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    height: 56,
+    paddingVertical: 12,
     backgroundColor: T.bgCard,
     borderBottomWidth: 1,
     borderBottomColor: T.border,
   },
   headerBtn: {
-    padding: 8,
-    marginLeft: -8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerTitle: {
     fontSize: 18,

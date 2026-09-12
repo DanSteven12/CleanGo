@@ -1,5 +1,5 @@
 // mobile-ciudadano/app/login.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/authService';
+import { getApiUrl } from '../services/api';
 import { LegalLinks } from '../components/legal/LegalLinks';
 import { AuthHeader } from '../components/auth/AuthHeader';
 import { AuthInput } from '../components/auth/AuthInput';
 import { AuthButton } from '../components/auth/AuthButton';
-import { Mail, Lock } from 'lucide-react-native';
+import { Mail, Lock, X } from 'lucide-react-native';
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
 // ─── Design Tokens ───────────────
 const T = {
@@ -40,7 +42,7 @@ const T = {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, sessionExpiredReason, clearSessionExpiredReason } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -48,7 +50,63 @@ export default function LoginScreen() {
   const [blockTime, setBlockTime] = useState<number | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
 
-  // Contador regresivo de bloqueo
+  // Referencias para temporizadores de auto-cierre de alertas
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-dismiss inteligente para mensajes de error
+  useEffect(() => {
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+
+    if (errorMsg) {
+      // Errores locales de formato/vacío desaparecen rápido (3.5s), errores de auth/servidor (5s)
+      const isFast =
+        errorMsg.includes('Por favor ingresa') ||
+        errorMsg.includes('formato') ||
+        errorMsg.includes('obligatorios') ||
+        errorMsg.includes('válido');
+      const duration = isFast ? 3500 : 5000;
+
+      errorTimerRef.current = setTimeout(() => {
+        setErrorMsg(null);
+        errorTimerRef.current = null;
+      }, duration);
+    }
+
+    return () => {
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
+      }
+    };
+  }, [errorMsg]);
+
+  // Auto-dismiss para aviso de sesión expirada (7.5s de lectura cómoda)
+  useEffect(() => {
+    if (sessionTimerRef.current) {
+      clearTimeout(sessionTimerRef.current);
+      sessionTimerRef.current = null;
+    }
+
+    if (sessionExpiredReason) {
+      sessionTimerRef.current = setTimeout(() => {
+        clearSessionExpiredReason();
+        sessionTimerRef.current = null;
+      }, 7500);
+    }
+
+    return () => {
+      if (sessionTimerRef.current) {
+        clearTimeout(sessionTimerRef.current);
+        sessionTimerRef.current = null;
+      }
+    };
+  }, [sessionExpiredReason, clearSessionExpiredReason]);
+
+  // Contador regresivo de bloqueo total
   useEffect(() => {
     if (blockTime === null || blockTime <= 0) return;
     const id = setInterval(() => {
@@ -69,8 +127,15 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
       setErrorMsg('Por favor ingresa correo y contraseña.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrorMsg('Por favor ingresa un correo electrónico válido.');
       return;
     }
 
@@ -78,7 +143,7 @@ export default function LoginScreen() {
     setErrorMsg(null);
 
     try {
-      await login(email, password);
+      await login(trimmedEmail, password);
       // La navegación a Home se maneja automáticamente en _layout.tsx
       // al cambiar el estado de isAuthenticated
     } catch (error: any) {
@@ -93,7 +158,9 @@ export default function LoginScreen() {
           setErrorMsg(error.message);
         }
       } else {
-        setErrorMsg('Error al conectar con el servidor.');
+        const targetUrl = getApiUrl();
+        console.error('[Login] Error de red al conectar con:', targetUrl, error?.message);
+        setErrorMsg(`Error al conectar con el servidor (${targetUrl}).`);
       }
     } finally {
       setIsLoading(false);
@@ -126,18 +193,52 @@ export default function LoginScreen() {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.formContainer}>
+          <Animated.View
+            style={styles.formContainer}
+            entering={FadeInDown.duration(400).springify().damping(20).stiffness(200)}
+          >
             <AuthHeader
               title="CleanGo"
               subtitle="Inicia sesión para continuar"
             />
 
+            {/* ── Banner: Sesión finalizada por multisesión / expiración ── */}
+            {sessionExpiredReason && (
+              <Animated.View
+                entering={FadeInDown.duration(250)}
+                exiting={FadeOutUp.duration(200)}
+                style={[styles.banner, styles.bannerWarning, { marginBottom: 20 }]}
+              >
+                <Text style={styles.bannerIcon}>⚠️</Text>
+                <View style={styles.bannerBody}>
+                  <Text style={[styles.bannerTitle, styles.bannerTitleAmber]}>
+                    Sesión finalizada
+                  </Text>
+                  <Text style={[styles.bannerText, styles.bannerTextAmber]}>
+                    {sessionExpiredReason}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={clearSessionExpiredReason}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cerrar aviso"
+                >
+                  <X size={16} color={T.warningText} />
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+
             {/* ── Warning: intentos restantes ──────────────────────────── */}
             {remaining !== null && remaining > 0 && (
-              <View style={[
-                styles.banner,
-                remaining <= 2 ? styles.bannerDestructive : styles.bannerWarning,
-              ]}>
+              <Animated.View
+                entering={FadeInDown.duration(250)}
+                exiting={FadeOutUp.duration(200)}
+                style={[
+                  styles.banner,
+                  remaining <= 2 ? styles.bannerDestructive : styles.bannerWarning,
+                ]}
+              >
                 <Text style={styles.bannerIcon}>⚠️</Text>
                 <View style={styles.bannerBody}>
                   <Text style={[styles.bannerTitle, remaining <= 2 ? styles.bannerTitleRed : styles.bannerTitleAmber]}>
@@ -149,23 +250,31 @@ export default function LoginScreen() {
                       : `Te quedan ${remaining} intentos antes de que el acceso sea bloqueado.`}
                   </Text>
                 </View>
-              </View>
+              </Animated.View>
             )}
 
             {errorMsg && (
-              <View style={[styles.banner, styles.bannerDestructive, { marginBottom: 20 }]}>
+              <Animated.View
+                entering={FadeInDown.duration(250)}
+                exiting={FadeOutUp.duration(200)}
+                style={[styles.banner, styles.bannerDestructive, { marginBottom: 20 }]}
+              >
                 <Text style={styles.bannerIcon}>⛔</Text>
                 <View style={styles.bannerBody}>
                   <Text style={[styles.bannerText, styles.bannerTextRed]}>{errorMsg}</Text>
                 </View>
-              </View>
+              </Animated.View>
             )}
 
             <AuthInput
               label="Correo electrónico"
               placeholder="tu@correo.com"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (sessionExpiredReason) clearSessionExpiredReason();
+                if (errorMsg) setErrorMsg(null);
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -178,7 +287,11 @@ export default function LoginScreen() {
                 label="Contraseña"
                 placeholder="••••••••"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (sessionExpiredReason) clearSessionExpiredReason();
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 autoCapitalize="none"
                 editable={!isLoading && !isBlocked}
                 isPassword
@@ -208,7 +321,7 @@ export default function LoginScreen() {
                 <Text style={styles.footerLink}> Regístrate</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

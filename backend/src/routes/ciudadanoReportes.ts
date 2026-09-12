@@ -82,6 +82,10 @@ router.get('/:id', async (req: any, res) => {
 // POST /api/ciudadano/reportes
 // Crear un nuevo reporte
 router.post('/', (req: any, res: any, next: any) => {
+  // Si la petición viene como JSON (reporte sin foto), continuar directo
+  if (!req.is('multipart/form-data')) {
+    return next();
+  }
   // Manejo de la subida con multer
   uploadReporteFotografia.single('fotografia')(req, res, (err) => {
     if (err) {

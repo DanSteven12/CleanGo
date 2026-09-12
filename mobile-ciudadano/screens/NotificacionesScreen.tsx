@@ -38,6 +38,8 @@ import {
 } from '../services/notificacionesService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotifications } from '../contexts/NotificationsContext';
+import AnimatedReanimated, { FadeInDown, FadeOutRight, LinearTransition } from 'react-native-reanimated';
+import { AnimatedPressable } from '../components/ui';
 
 const T = {
   primary: '#1763A6',
@@ -109,12 +111,14 @@ function getIconBackground(categoria: string) {
 // ─── Item Tarjeta de Notificación con Swipe ──────────────────────────────
 function NotificationCardItem({
   item,
+  index = 0,
   onPressCard,
   onMarcarLeida,
   onDelete,
   onOpenItemMenu,
 }: {
   item: Notificacion;
+  index?: number;
   onPressCard: (id: number, yaLeida: boolean) => void;
   onMarcarLeida: (id: number) => void;
   onDelete: (item: Notificacion) => void;
@@ -159,18 +163,23 @@ function NotificationCardItem({
   };
 
   return (
-    <Swipeable
-      ref={swipeableRef}
-      renderRightActions={renderRightActions}
-      friction={2}
-      overshootRight={false}
-      containerStyle={styles.swipeableContainer}
+    <AnimatedReanimated.View
+      entering={FadeInDown.duration(350).delay(Math.min(index * 45, 300))}
+      exiting={FadeOutRight.duration(200)}
+      layout={LinearTransition.springify()}
     >
-      <TouchableOpacity
-        style={[styles.card, isUnread && styles.cardUnread]}
-        activeOpacity={0.9}
-        onPress={() => onPressCard(item.id, !isUnread)}
+      <Swipeable
+        ref={swipeableRef}
+        renderRightActions={renderRightActions}
+        friction={2}
+        overshootRight={false}
+        containerStyle={styles.swipeableContainer}
       >
+        <TouchableOpacity
+          style={[styles.card, isUnread && styles.cardUnread]}
+          activeOpacity={0.9}
+          onPress={() => onPressCard(item.id, !isUnread)}
+        >
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderLeft}>
             <View
@@ -240,6 +249,7 @@ function NotificationCardItem({
         )}
       </TouchableOpacity>
     </Swipeable>
+    </AnimatedReanimated.View>
   );
 }
 
@@ -255,7 +265,7 @@ export function NotificacionesScreen() {
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [selectedItemForMenu, setSelectedItemForMenu] = useState<Notificacion | null>(null);
 
-  const { newNotification, clearNewNotification, decrementUnreadCount } = useNotifications();
+  const { newNotification, clearNewNotification, decrementUnreadCount, setUnreadCount } = useNotifications();
 
   useEffect(() => {
     if (newNotification) {
@@ -272,7 +282,11 @@ export function NotificacionesScreen() {
     setError(null);
     try {
       const data = await getNotificaciones();
-      setNotificaciones(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setNotificaciones(list);
+      // Sincronizar conteo global atómicamente con el estado real recibido
+      const unread = list.filter((n) => n.leida === 0).length;
+      setUnreadCount(unread);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar las notificaciones');
       setNotificaciones([]);
@@ -319,7 +333,7 @@ export function NotificacionesScreen() {
     try {
       await marcarComoLeida(id);
     } catch (err) {
-      // Revertir ante fallo
+      // Revertir ante fallo: recarga lista y re-sincroniza contador
       loadData();
     }
   };
@@ -329,15 +343,14 @@ export function NotificacionesScreen() {
     const sinLeerCount = notificaciones.filter((n) => n.leida === 0).length;
     if (sinLeerCount === 0) return;
 
-    // Actualización optimista
+    // Actualización optimista atómica (sin bucles de decremento individual)
     setNotificaciones((prev) => prev.map((n) => ({ ...n, leida: 1 })));
-    for (let i = 0; i < sinLeerCount; i++) {
-      decrementUnreadCount();
-    }
+    setUnreadCount(0);
 
     try {
       await marcarTodasComoLeidas();
     } catch (err) {
+      // Revertir ante fallo: recarga lista y re-sincroniza contador
       loadData();
     }
   };
@@ -355,6 +368,7 @@ export function NotificacionesScreen() {
     try {
       await eliminarNotificacion(item.id);
     } catch (err) {
+      // Revertir ante fallo: recarga lista y re-sincroniza contador
       loadData();
     }
   };
@@ -379,22 +393,24 @@ export function NotificacionesScreen() {
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         {/* ── Header ── */}
         <View style={styles.header}>
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.backButton}
             onPress={() => router.back()}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            accessibilityRole="button"
+            accessibilityLabel="Regresar"
           >
-            <ArrowLeft size={24} color={T.textH} />
-          </TouchableOpacity>
+            <ArrowLeft size={20} color={T.textH} strokeWidth={2.2} />
+          </AnimatedPressable>
           <Text style={styles.headerTitle}>Notificaciones</Text>
 
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.headerMoreButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Más opciones"
             onPress={() => setIsHeaderMenuOpen(true)}
           >
-            <MoreVertical size={24} color={T.textH} />
-          </TouchableOpacity>
+            <MoreVertical size={20} color={T.textH} strokeWidth={2.2} />
+          </AnimatedPressable>
         </View>
 
         {/* ── Content ── */}
@@ -406,17 +422,18 @@ export function NotificacionesScreen() {
           <View style={styles.center}>
             <AlertTriangle size={48} color={T.destructive} style={{ marginBottom: 16 }} />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={() => loadData()}>
+            <AnimatedPressable style={styles.retryButton} onPress={() => loadData()}>
               <Text style={styles.retryButtonText}>Reintentar</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
         ) : (
           <FlatList
             data={notificaciones}
             keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
+            renderItem={({ item, index }) => (
               <NotificationCardItem
                 item={item}
+                index={index}
                 onPressCard={(id, yaLeida) => {
                   if (!yaLeida) handleMarcarLeida(id);
                 }}
@@ -539,7 +556,20 @@ const styles = StyleSheet.create({
     borderBottomColor: T.border,
   },
   backButton: {
-    paddingRight: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginRight: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerTitle: {
     flex: 1,
@@ -548,7 +578,19 @@ const styles = StyleSheet.create({
     color: T.textH,
   },
   headerMoreButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
 
   // List

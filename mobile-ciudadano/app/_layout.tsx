@@ -2,87 +2,83 @@
 /**
  * Layout raíz de la app móvil de Ciudadanos.
  *
- * Responsabilidades:
- *  1. Envuelve toda la app con AuthProvider y SafeAreaProvider
- *  2. Implementa navegación protegida basada en el estado de autenticación:
- *       - Sin sesión  → redirige a /login
- *       - Con sesión  → muestra las pantallas protegidas (index)
- *  3. Mantiene el Splash Screen nativo hasta resolver el arranque
- *     (evita el flash de pantalla equivocada)
- *  4. Registra las pantallas en el Stack de Expo Router
+ * El Stack de Expo Router debe existir desde el primer frame.
+ * Si se oculta el splash nativo sin navigator montado, Android muestra
+ * el fondo de la Activity (negro).
  */
 import 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
-import { View, StyleSheet, LogBox } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import React, { Component, useCallback, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
+import { View, StyleSheet, LogBox, Animated } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SystemUI from 'expo-system-ui';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { RecorridoMapCacheProvider } from '../contexts/RecorridoMapCache';
-import { NotificationsProvider } from '../contexts/NotificationsContext';
+import { NotificationsProvider, useNotifications } from '../contexts/NotificationsContext';
+import { AlertProvider } from '../contexts/AlertContext';
 import { registerBackgroundHandler, onFcmTokenRefresh, handleNotificationOpen } from '../services/fcmService';
+import { AnimatedSplashScreen } from '../components/splash/AnimatedSplashScreen';
+import { CleanGoToast } from '../components/ui/CleanGoToast';
 
-// Prevenir que el Splash Screen se oculte automáticamente
 SplashScreen.preventAutoHideAsync().catch((err) => {
   console.log('[Splash] preventAutoHideAsync error:', err);
 });
 
-// Ignorar advertencias espurias de Dev Client con Firebase Messaging
+SystemUI.setBackgroundColorAsync('#F4F7FA').catch(() => {});
+
 LogBox.ignoreLogs(['Error: undefined', 'undefined']);
+LogBox.ignoreAllLogs(true);
 
-// ─── Componente de navegación protegida ───────────────────────────────────────
+class SplashErrorBoundary extends Component<{ children: ReactNode; onError: () => void }, { hasError: boolean }> {
+  state = { hasError: false };
 
-/**
- * Encargado de redirigir basándose en el estado de autenticación.
- * Separado del layout para poder usar useAuth() dentro del Provider.
- */
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.log('[Splash] render error:', error?.message, info?.componentStack);
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
+
 function ProtectedNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
-    if (isLoading) return; // Esperar a que termine la restauración de sesión
+    if (isLoading) return;
 
-    // Ocultar el Splash Screen una vez resuelto el estado de autenticación
-    SplashScreen.hideAsync().catch(() => {});
-
-    // Check if the current route is in a public area where unauthenticated users can be
-    const inPublicScreen = segments[0] === 'login' || segments[0] === 'register' || segments[0] === 'forgot-password' || segments[0] === 'reset-password';
+    const inPublicScreen =
+      segments[0] === 'login' ||
+      segments[0] === 'register' ||
+      segments[0] === 'forgot-password' ||
+      segments[0] === 'reset-password';
 
     if (!isAuthenticated && !inPublicScreen) {
-      // Sin sesión — redirigir a login
       router.replace('/login');
     } else if (isAuthenticated && inPublicScreen) {
-      // Con sesión — redirigir a pantalla principal
       router.replace('/');
     }
   }, [isAuthenticated, isLoading, segments, router]);
 
-  // Mantener el fondo del splash mientras se resuelve la sesión
-  // (el splash nativo cubre esta vista hasta hideAsync).
-  if (isLoading) {
-    return <View style={styles.loadingContainer} />;
-  }
-
   return (
-    <Stack
-      screenOptions={{ headerShown: false }}
-      initialRouteName={isAuthenticated ? 'index' : 'login'}
-    >
-      {/* Pantallas públicas */}
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="login" options={{ gestureEnabled: false }} />
       <Stack.Screen name="register" options={{ gestureEnabled: false, title: 'Registro' }} />
       <Stack.Screen name="forgot-password" options={{ gestureEnabled: false, title: 'Recuperar Contraseña' }} />
       <Stack.Screen name="reset-password" options={{ gestureEnabled: false, title: 'Restablecer Contraseña' }} />
-
-      {/* Pantalla principal — protegida */}
       <Stack.Screen name="index" />
-
-      {/* Pantallas protegidas - detalle */}
       <Stack.Screen name="mapa/[id]" />
       <Stack.Screen name="horarios/[id]" />
-      <Stack.Screen name="perfil/mis-reportes" options={{ title: 'Mis Reportes' }} />
       <Stack.Screen name="perfil/mis-zonas" options={{ title: 'Mis Zonas' }} />
       <Stack.Screen name="perfil/notificaciones" options={{ title: 'Notificaciones' }} />
       <Stack.Screen name="perfil/preferencias" options={{ title: 'Preferencias' }} />
@@ -90,19 +86,90 @@ function ProtectedNavigator() {
   );
 }
 
-// ─── Root Layout ──────────────────────────────────────────────────────────────
+function GlobalToastHost() {
+  const { activeToast, dismissToast } = useNotifications();
+  const router = useRouter();
+
+  const handleToastPress = useCallback(() => {
+    if (!activeToast) return;
+
+    if (activeToast.onPress) {
+      activeToast.onPress();
+      return;
+    }
+
+    const cat = (activeToast.categoria || '').toUpperCase();
+    if (activeToast.recorrido_id) {
+      router.push(`/mapa/${activeToast.recorrido_id}` as any);
+    } else if (cat === 'PROXIMIDAD' || cat === 'RECORRIDO' || cat === 'RETRASO') {
+      router.push('/' as any);
+    } else if (cat === 'REPORTE') {
+      router.push('/reportes' as any);
+    } else {
+      router.push('/perfil/notificaciones' as any);
+    }
+  }, [activeToast, router]);
+
+  if (!activeToast) return null;
+
+  return (
+    <CleanGoToast
+      toast={{
+        ...activeToast,
+        onPress: handleToastPress,
+      }}
+      onDismiss={dismissToast}
+    />
+  );
+}
+
+function AppShell() {
+  const [splashFinished, setSplashFinished] = useState(false);
+  const [nativeHidden, setNativeHidden] = useState(false);
+  const overlayOpacity = useRef(new Animated.Value(1)).current;
+
+  const hideNativeSplash = useCallback(() => {
+    if (nativeHidden) return;
+    setNativeHidden(true);
+    SplashScreen.hideAsync().catch(() => {});
+  }, [nativeHidden]);
+
+  const handleSplashEnd = useCallback(() => {
+    Animated.timing(overlayOpacity, {
+      toValue: 0,
+      duration: 350,
+      useNativeDriver: true,
+    }).start(() => {
+      setSplashFinished(true);
+    });
+  }, [overlayOpacity]);
+
+  const handleSplashError = useCallback(() => {
+    SplashScreen.hideAsync().catch(() => {});
+    setSplashFinished(true);
+  }, []);
+
+  const showAnimatedSplash = !splashFinished;
+
+  return (
+    <View style={styles.root}>
+      <ProtectedNavigator />
+      <GlobalToastHost />
+      {showAnimatedSplash && (
+        <Animated.View style={[styles.splashOverlay, { opacity: overlayOpacity }]} pointerEvents="auto">
+          <SplashErrorBoundary onError={handleSplashError}>
+            <AnimatedSplashScreen onReady={hideNativeSplash} onAnimationEnd={handleSplashEnd} />
+          </SplashErrorBoundary>
+        </Animated.View>
+      )}
+    </View>
+  );
+}
 
 export default function RootLayout() {
   useEffect(() => {
-    // P3: Registrar el handler de mensajes en background/terminated.
     registerBackgroundHandler();
-
-    // P5: Activar listener de rotación silenciosa de token FCM.
     const unsubscribeTokenRefresh = onFcmTokenRefresh();
-
-    // P4/P5: Manejar apertura de notificación desde estado TERMINADO.
-    // getInitialNotification() devuelve el mensaje que abrió la app (o null).
-    // Consumirlo evita el "Error: undefined" en React Native DevTools.
     const unsubscribeNotificationOpen = handleNotificationOpen();
 
     return () => {
@@ -112,21 +179,35 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <NotificationsProvider>
-          <RecorridoMapCacheProvider>
-            <ProtectedNavigator />
-          </RecorridoMapCacheProvider>
-        </NotificationsProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider style={styles.root}>
+        <AuthProvider>
+          <NotificationsProvider>
+            <RecorridoMapCacheProvider>
+              <AlertProvider>
+                <AppShell />
+              </AlertProvider>
+            </RecorridoMapCacheProvider>
+          </NotificationsProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
+  root: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F4F7FA',
+  },
+  splashOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+    elevation: 999,
+    backgroundColor: '#F4F7FA',
   },
 });

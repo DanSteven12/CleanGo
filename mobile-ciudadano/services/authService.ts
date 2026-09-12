@@ -159,7 +159,7 @@ export async function refreshCiudadanoToken(
   const response = await axios.post<MobileRefreshResponse>(
     `${api.defaults.baseURL}/mobile/auth/refresh`,
     { refreshToken },
-    { headers: { 'Content-Type': 'application/json' } }
+    { headers: { 'Content-Type': 'application/json' }, timeout: 5000 }
   );
   return response.data;
 }

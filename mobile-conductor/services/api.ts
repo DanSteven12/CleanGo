@@ -55,7 +55,30 @@ function extractHost(uri: string): string | null {
  *   1. EXPO_PUBLIC_API_URL (variable de entorno de producción/staging).
  *   2. Si no está definida → Error de configuración.
  */
+export function getLanHost(): string {
+  const hostUri: string | undefined =
+    Constants.expoConfig?.hostUri ??
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ??
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (Constants as any).manifest?.debuggerHost;
+
+  if (hostUri) {
+    const ip = extractHost(hostUri);
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '10.0.2.2') {
+      return ip;
+    }
+  }
+  return '192.168.100.20';
+}
+
+let _activeBaseUrl: string | null = null;
+
 export function getApiUrl(): string {
+  if (_activeBaseUrl) {
+    return _activeBaseUrl;
+  }
+
   // ── PRODUCCIÓN ──────────────────────────────────────────────────────────────
   if (!__DEV__) {
     const prodUrl = process.env.EXPO_PUBLIC_API_URL;
@@ -68,28 +91,13 @@ export function getApiUrl(): string {
     return prodUrl;
   }
 
-  // ── DESARROLLO LOCAL ────────────────────────────────────────────────────────
-  // Detección dinámica de la IP actual del host mediante Expo Metro.
-  const hostUri: string | undefined =
-    Constants.expoConfig?.hostUri ??
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ??
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (Constants as any).manifest?.debuggerHost;
-
+  // ── DESARROLLO LOCAL: IP de Red Wi-Fi detectada dinámicamente ─────────────
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  if (hostUri) {
-    const ip = extractHost(hostUri);
-    if (ip) {
-      return `http://${ip}:5001/api`;
-    }
-  }
-
-  // Fallback para desarrollo en emulador Android si hostUri no está disponible
-  return 'http://10.0.2.2:5001/api';
+  const lanIp = getLanHost();
+  return `http://${lanIp}:5001/api`;
 }
 
 /**
@@ -156,12 +164,53 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// ─── Response interceptor — refresh automático ante 401 ──────────────────────
+// ─── Response interceptor — fallback bidireccional Wi-Fi / USB y refresh 401 ─
 
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+      _fallbackTried?: boolean;
+    };
+
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    // En desarrollo: fallback bidireccional inteligente si la conexión falla (Network Error)
+    if (__DEV__ && !error.response && !originalRequest._fallbackTried && originalRequest.baseURL) {
+      originalRequest._fallbackTried = true;
+      const isCurrentlyLocalhost =
+        originalRequest.baseURL.includes('localhost') || originalRequest.baseURL.includes('127.0.0.1');
+
+      if (isCurrentlyLocalhost) {
+        // Falló localhost (desconectó cable USB o nunca estuvo conectado) -> Conmutar a IP Wi-Fi
+        const lanUrl = `http://${getLanHost()}:5001/api`;
+        _activeBaseUrl = lanUrl;
+        api.defaults.baseURL = lanUrl;
+        originalRequest.baseURL = lanUrl;
+        console.log(`[API] Desconexión USB. Conmutando a Wi-Fi (${lanUrl})...`);
+        return api(originalRequest);
+      } else {
+        // Falló Wi-Fi -> Probar USB (localhost) SOLO como fallback provisional
+        const lanUrl = originalRequest.baseURL;
+        const usbUrl = 'http://localhost:5001/api';
+        originalRequest.baseURL = usbUrl;
+        try {
+          const res = await api(originalRequest);
+          _activeBaseUrl = usbUrl;
+          api.defaults.baseURL = usbUrl;
+          console.log(`[API] Conmutado exitosamente a USB (${usbUrl}).`);
+          return res;
+        } catch (usbError) {
+          // Si USB también falló (no hay cable conectado), preservar la IP Wi-Fi
+          _activeBaseUrl = lanUrl;
+          api.defaults.baseURL = lanUrl;
+          return Promise.reject(usbError);
+        }
+      }
+    }
 
     // Solo intentar refresh si es 401 y no es ya el endpoint de refresh/login
     if (

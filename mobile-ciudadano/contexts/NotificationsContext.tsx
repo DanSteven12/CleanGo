@@ -11,20 +11,55 @@ import { getMobileSocket } from '../services/socketService';
 import { getUnreadCount, Notificacion } from '../services/notificacionesService';
 import { useAuth } from './AuthContext';
 import { onForegroundMessage } from '../services/fcmService';
+import { ToastPayload } from '../components/ui/CleanGoToast';
 
 interface NotificationsContextValue {
   unreadCount: number;
   newNotification: Notificacion | null;
+  activeToast: ToastPayload | null;
+  showToast: (toast: ToastPayload) => void;
+  dismissToast: () => void;
   decrementUnreadCount: () => void;
   clearNewNotification: () => void;
+  refreshUnreadCount: () => Promise<void>;
+  setUnreadCount: (count: number | ((prev: number) => number)) => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
-  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [unreadCount, setUnreadCountState] = useState<number>(0);
   const [newNotification, setNewNotification] = useState<Notificacion | null>(null);
+  const [activeToast, setActiveToast] = useState<ToastPayload | null>(null);
+
+  const showToast = useCallback((toast: ToastPayload) => {
+    setActiveToast(toast);
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    setActiveToast(null);
+  }, []);
+
+  const setUnreadCount = useCallback((value: number | ((prev: number) => number)) => {
+    setUnreadCountState((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      return Math.max(0, next);
+    });
+  }, []);
+
+  const refreshUnreadCount = useCallback(async () => {
+    if (!isAuthenticated) {
+      setUnreadCountState(0);
+      return;
+    }
+    try {
+      const count = await getUnreadCount();
+      setUnreadCountState(Math.max(0, count));
+    } catch {
+      // Sesión expirada o red no disponible: silenciar para no generar warning
+    }
+  }, [isAuthenticated]);
 
   // Cargar el conteo inicial cuando se autentica
   useEffect(() => {
@@ -32,12 +67,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     if (isAuthenticated) {
       getUnreadCount()
         .then((count) => {
-          if (isMounted) setUnreadCount(count);
+          if (isMounted) setUnreadCountState(Math.max(0, count));
         })
-        .catch((err) => console.warn('Error obteniendo conteo de notificaciones:', err));
+        .catch(() => {});
     } else {
-      setUnreadCount(0);
+      setUnreadCountState(0);
       setNewNotification(null);
+      setActiveToast(null);
     }
     return () => {
       isMounted = false;
@@ -50,13 +86,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
-        // La app volvió al frente. Hacemos un ping REST.
-        // Esto tiene el beneficio dual de sincronizar el contador global
-        // y, si el token había expirado en background, dispara el interceptor de Axios
-        // para refrescarlo silenciosamente, lo cual reparará las futuras reconexiones del Socket.
         getUnreadCount()
-          .then((count) => setUnreadCount(count))
-          .catch((err) => console.warn('Error sincronizando conteo on app resume:', err));
+          .then((count) => setUnreadCountState(Math.max(0, count)))
+          .catch(() => {});
       }
     });
 
@@ -73,27 +105,32 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     if (!socket) return;
 
     const handleNotificacionNueva = (notificacion: Notificacion) => {
-      setUnreadCount((prev) => prev + 1);
+      setUnreadCountState((prev) => prev + 1);
       setNewNotification(notificacion);
+      setActiveToast({
+        id: notificacion.id,
+        titulo: notificacion.titulo,
+        mensaje: notificacion.mensaje,
+        categoria: notificacion.categoria || 'AVISO',
+        recorrido_id: notificacion.recorrido_id,
+        fecha: notificacion.created_at || new Date().toISOString(),
+      });
     };
 
     const handleReconnect = () => {
-      // Re-sincronizar el contador por si llegaron notificaciones mientras estaba desconectado
       getUnreadCount()
-        .then((count) => setUnreadCount(count))
-        .catch((err) => console.warn('Error re-sincronizando conteo:', err));
+        .then((count) => setUnreadCountState(Math.max(0, count)))
+        .catch(() => {});
     };
 
     socket.on('notificacion_nueva', handleNotificacionNueva);
     socket.on('connect', handleReconnect);
 
     // Etapa P4: Registrar listener de FCM en foreground
-    // Si llega un mensaje push mientras la app está abierta, sincronizamos el contador vía REST
-    // en lugar de sumar 1 a ciegas, para evitar duplicar el incremento si Socket.IO también avisó.
-    const unsubscribeFCM = onForegroundMessage((message) => {
+    const unsubscribeFCM = onForegroundMessage((_message) => {
       getUnreadCount()
-        .then((count) => setUnreadCount(count))
-        .catch((err) => console.warn('Error sincronizando conteo (FCM Foreground):', err));
+        .then((count) => setUnreadCountState(Math.max(0, count)))
+        .catch(() => {});
     });
 
     return () => {
@@ -104,7 +141,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   const decrementUnreadCount = useCallback(() => {
-    setUnreadCount((prev) => Math.max(0, prev - 1));
+    setUnreadCountState((prev) => Math.max(0, prev - 1));
   }, []);
 
   const clearNewNotification = useCallback(() => {
@@ -116,8 +153,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       value={{
         unreadCount,
         newNotification,
+        activeToast,
+        showToast,
+        dismissToast,
         decrementUnreadCount,
         clearNewNotification,
+        refreshUnreadCount,
+        setUnreadCount,
       }}
     >
       {children}
