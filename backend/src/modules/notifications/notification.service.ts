@@ -475,6 +475,30 @@ export async function marcarLeidaPorUsuario(
 }
 
 /**
+ * Marca como leídas TODAS las notificaciones del sistema (administrador).
+ */
+export async function marcarTodasLeidas(): Promise<number> {
+  return NotificationRepository.marcarTodasNotificacionesLeidas();
+}
+
+/**
+ * Elimina una notificación por su ID (administrador).
+ */
+export async function eliminar(id: number): Promise<boolean> {
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error('NotificationService.eliminar: ID inválido.');
+  }
+  return NotificationRepository.eliminarNotificacion(id);
+}
+
+/**
+ * Elimina todas las notificaciones leídas (limpieza de bandeja).
+ */
+export async function eliminarLeidas(): Promise<number> {
+  return NotificationRepository.eliminarNotificacionesLeidas();
+}
+
+/**
  * Marca como leídas TODAS las notificaciones de un usuario ciudadano.
  */
 export async function marcarTodasLeidasPorUsuario(

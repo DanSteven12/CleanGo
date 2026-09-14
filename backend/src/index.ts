@@ -183,6 +183,7 @@ import { resumeActiveSimulations } from './services/simulationService';
 import { ensureHistoricalSnapshotSchema } from './utils/historyMigration';
 import { ensureFcmTokensCamionesSchema } from './utils/fcmCamionesMigration';
 import { ensureRutasIndexes } from './utils/rutasIndexMigration';
+import { ensureSearchIndexes } from './utils/searchIndexMigration';
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);
@@ -190,6 +191,7 @@ const server = app.listen(PORT, () => {
   void ensureHistoricalSnapshotSchema();
   void ensureFcmTokensCamionesSchema();
   void ensureRutasIndexes();
+  void ensureSearchIndexes();
 });
 
 // Initialize Socket.IO and resume any active simulations

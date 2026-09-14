@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
-import { Truck, MapPin, Timer, User, TrendingUp } from 'lucide-react';
+import { Truck, MapPin, Timer, User, TrendingUp, Radio, Navigation, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLiveMapData } from '../../hooks/useLiveMapData';
 import { LiveMapSimulation } from '../../components/routes/LiveMapSimulation';
@@ -39,12 +39,67 @@ export const LiveMapPage: React.FC = () => {
         >
 
           {isLoading ? (
-            <p style={{ color: 'var(--text)', fontSize: '0.875rem' }}>Cargando recorridos activos...</p>
-          ) : activeRecorridos.length === 0 ? (
-            <div className="empty-state">
-              <span className="empty-state-icon">✅</span>
-              <p>No hay recorridos pendientes ni en progreso.</p>
+            <div className="flex items-center justify-center p-12 text-center text-sm text-[var(--text)]">
+              <Loader2 size={20} className="animate-spin text-[var(--primary)] mr-2" />
+              Cargando recorridos activos...
             </div>
+          ) : activeRecorridos.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.35 }}
+              className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--panel-bg)] p-8 sm:p-12 text-center shadow-sm flex flex-col items-center justify-center my-2"
+            >
+              {/* Radial gradient glow in background */}
+              <div 
+                className="pointer-events-none absolute inset-0 opacity-40 dark:opacity-20"
+                style={{
+                  background: 'radial-gradient(circle at 50% 35%, rgba(23, 99, 166, 0.14) 0%, transparent 65%)'
+                }}
+              />
+
+              {/* Status pill badge */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[oklch(0.76_0.17_135_/_0.12)] border border-[oklch(0.76_0.17_135_/_0.3)] text-xs font-semibold text-[oklch(0.38_0.12_145)] dark:text-[oklch(0.76_0.17_135)] mb-6 select-none shadow-xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#388C35] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#388C35]" />
+                </span>
+                <span>GPS & Telemetría en Espera</span>
+              </div>
+
+              {/* Icon / Radar Visual Illustration */}
+              <div className="relative mb-5">
+                {/* Outer animated halo ring */}
+                <motion.div 
+                  className="absolute -inset-3.5 rounded-3xl border border-[var(--primary)]/20 pointer-events-none"
+                  animate={{ scale: [1, 1.08, 1], opacity: [0.25, 0.65, 0.25] }}
+                  transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <div className="w-18 h-18 rounded-2xl bg-gradient-to-br from-[#1763A6]/12 to-[#90BF49]/12 border border-[#1763A6]/30 flex items-center justify-center text-[#1763A6] shadow-sm relative z-10">
+                  <Radio size={32} className="animate-pulse text-[var(--primary)]" />
+                </div>
+              </div>
+
+              {/* Title & Description */}
+              <h3 className="font-display text-xl font-bold text-[var(--text-h)] mb-2 tracking-tight">
+                No hay recorridos en curso
+              </h3>
+              <p className="text-sm text-[var(--text)] max-w-md mb-6 leading-relaxed">
+                Todas las rutas están al día. Cuando un conductor inicie un recorrido asignado desde la aplicación móvil, se transmitirá su ubicación GPS y avance de checkpoints en tiempo real.
+              </p>
+
+              {/* Telemetry metadata cards row */}
+              <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-[var(--muted-foreground)] border-t border-[var(--border)]/70 pt-5 w-full max-w-lg">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--muted)]/50 border border-[var(--border)]/60 font-medium">
+                  <Navigation size={13} className="text-[var(--primary)]" />
+                  <span>Sincronización WebSocket activa</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--muted)]/50 border border-[var(--border)]/60 font-medium">
+                  <Truck size={13} className="text-[#388C35]" />
+                  <span>Flota municipal conectada</span>
+                </div>
+              </div>
+            </motion.div>
           ) : (
             <section ref={mapContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '0.5rem' }}>
 

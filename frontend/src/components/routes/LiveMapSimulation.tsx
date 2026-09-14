@@ -70,34 +70,7 @@ const getHeadingFromGeometry = (
   return 0;
 };
 
-/**
- * Índice del punto más cercano en `path` a `pos`, con ventana de búsqueda.
- * Monotónico: no retrocede más allá de `back` posiciones.
- */
-function findClosestPointIndex(
-  path: { lat: number; lng: number }[],
-  pos: { lat: number; lng: number },
-  startIndex: number,
-  back = 10,
-  forward = 150
-): number {
-  if (path.length === 0) return 0;
-  const lo = Math.max(0, startIndex - back);
-  const hi = Math.min(path.length - 1, startIndex + forward);
-  let minDist = Infinity;
-  let bestIndex = startIndex;
-  for (let i = lo; i <= hi; i++) {
-    const p = path[i];
-    const dx = p.lat - pos.lat;
-    const dy = p.lng - pos.lng;
-    const dist = dx * dx + dy * dy;
-    if (dist < minDist) {
-      minDist = dist;
-      bestIndex = i;
-    }
-  }
-  return bestIndex;
-}
+
 
 // ─── Constante de tick (debe coincidir con TICK_RATE_MS del backend) ──────────
 const TICK_MS = 1000;

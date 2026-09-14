@@ -459,6 +459,39 @@ export async function marcarTodasNotificacionesLeidasPorUsuario(
 }
 
 /**
+ * Marca como leídas TODAS las notificaciones no leídas en el sistema.
+ */
+export async function marcarTodasNotificacionesLeidas(): Promise<number> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE notificaciones
+     SET leida = TRUE, fecha_lectura = NOW()
+     WHERE leida = FALSE`
+  );
+  return result.affectedRows;
+}
+
+/**
+ * Elimina una notificación por su ID (función de administrador).
+ */
+export async function eliminarNotificacion(id: number): Promise<boolean> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `DELETE FROM notificaciones WHERE id = ?`,
+    [id]
+  );
+  return result.affectedRows > 0;
+}
+
+/**
+ * Elimina todas las notificaciones marcadas como leídas (función de limpieza).
+ */
+export async function eliminarNotificacionesLeidas(): Promise<number> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `DELETE FROM notificaciones WHERE leida = TRUE`
+  );
+  return result.affectedRows;
+}
+
+/**
  * Elimina una notificación perteneciente al usuario ciudadano indicado.
  */
 export async function eliminarNotificacionPorUsuario(

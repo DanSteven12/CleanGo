@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useNotificaciones } from '../../hooks/useNotificaciones';
+import { useConfirm } from '../../hooks/useConfirm';
+import { triggerRichToast } from '../../hooks/useRichToast';
 import { crearAvisoManual } from '../../services/notificacionesService';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { Select } from '../../components/ui/select';
 import {
   Bell,
   FileWarning,
@@ -16,8 +19,15 @@ import {
   Send,
   Megaphone,
   Check,
+  CheckCheck,
+  Trash2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  SlidersHorizontal,
+  Layers,
+  Sparkles,
+  RotateCcw,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { NotificacionCategoria, Notificacion, NotificacionDestinatario, NotificacionTipo } from '../../types/notificaciones';
@@ -80,6 +90,7 @@ const EmptyState: React.FC = () => (
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 const BandejaTab: React.FC = () => {
+  const confirm = useConfirm();
   const { 
     notificaciones, 
     totalRegistros, 
@@ -89,7 +100,10 @@ const BandejaTab: React.FC = () => {
     filtros, 
     actualizarFiltro, 
     cambiarPagina, 
-    marcarLeida 
+    marcarLeida,
+    marcarTodasLeidas,
+    eliminarNotif,
+    limpiarLeidas,
   } = useNotificaciones();
   
   const [openingId, setOpeningId] = useState<number | null>(null);
@@ -101,6 +115,61 @@ const BandejaTab: React.FC = () => {
     setOpeningId(null);
   };
 
+  const handleDeleteNotificacion = async (e: React.MouseEvent, notif: Notificacion) => {
+    e.stopPropagation();
+    const accepted = await confirm({
+      title: 'Eliminar notificación',
+      message: (
+        <div className="flex flex-col gap-2 text-left">
+          <p className="text-sm text-slate-300">
+            ¿Estás seguro de que deseas eliminar esta notificación?
+          </p>
+          <div className="p-3 bg-slate-800/80 rounded-lg text-sm border border-slate-700/80 mt-1">
+            <p className="font-semibold text-white">{notif.titulo}</p>
+            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{notif.mensaje}</p>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            Esta acción solo la removerá de tu lista y no afectará registros ni reportes vinculados.
+          </p>
+        </div>
+      ),
+      variant: 'danger',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+    });
+
+    if (accepted) {
+      await eliminarNotif(notif.id);
+    }
+  };
+
+  const hasReadNotifications = notificaciones.some((n) => n.leida) || (totalRegistros > summary.unread);
+
+  const handleLimpiarLeidas = async () => {
+    const accepted = await confirm({
+      title: 'Limpiar notificaciones leídas',
+      message: (
+        <div className="flex flex-col gap-2 text-left">
+          <p className="text-sm text-slate-300">
+            ¿Deseas eliminar todas las notificaciones que ya han sido leídas?
+          </p>
+          <p className="text-xs text-slate-400">
+            Las notificaciones pendientes (no leídas) se conservarán en tu bandeja para que no pierdas ningún evento pendiente.
+          </p>
+        </div>
+      ),
+      variant: 'warning',
+      confirmText: 'Limpiar leídas',
+      cancelText: 'Cancelar',
+    });
+
+    if (accepted) {
+      await limpiarLeidas();
+    }
+  };
+
+  const hasActiveFilters = filtros.leida !== undefined || (!!filtros.categoria && filtros.categoria !== 'ALL') || (!!filtros.tipo && filtros.tipo !== 'ALL');
+
   const limit = filtros.limit || 10;
   const currentPage = filtros.page || 1;
   const totalPages = Math.ceil(totalRegistros / limit) || 1;
@@ -109,46 +178,100 @@ const BandejaTab: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4 mt-4">
-      {/* ── Summary ── */}
-      <div className="flex items-center gap-2 px-1 text-sm text-[var(--muted-foreground)] font-medium">
-        <span>{summary.unread} sin leer</span>
-        <span>&middot;</span>
-        <span>{summary.thisWeek} esta semana</span>
+      {/* ── Summary & Actions Bar ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-[var(--foreground)]">
+            {summary.unread} sin leer
+          </span>
+          <span className="text-xs text-[var(--muted-foreground)]">·</span>
+          <span className="text-xs text-[var(--muted-foreground)]">
+            {summary.thisWeek} esta semana
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {hasReadNotifications && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLimpiarLeidas}
+              className="flex items-center gap-1.5 text-xs font-semibold h-8 text-rose-500 border-rose-500/30 hover:bg-rose-500/10 hover:border-rose-500/50 transition-colors"
+            >
+              <Trash2 size={14} />
+              Limpiar leídas
+            </Button>
+          )}
+
+          {summary.unread > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={marcarTodasLeidas}
+              className="flex items-center gap-1.5 text-xs font-semibold h-8 text-[var(--primary)] border-[var(--primary)]/30 hover:bg-[var(--primary)]/10 transition-colors"
+            >
+              <CheckCheck size={15} />
+              Marcar todas como leídas
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* ── Filter Bar ── */}
-      <div className="flex flex-wrap gap-3 bg-[var(--card)] p-3 rounded-lg border border-[var(--border)] shadow-sm">
-        <select
+      <div className="flex flex-wrap items-center gap-3 bg-[var(--card)]/90 backdrop-blur-xs p-3.5 rounded-xl border border-[var(--border)] shadow-xs transition-all">
+        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] px-1 mr-0.5 select-none">
+          <SlidersHorizontal size={14} className="text-[var(--primary)]" />
+          <span>Filtros:</span>
+        </div>
+
+        <Select
           value={filtros.leida === undefined ? 'ALL' : String(filtros.leida)}
           onChange={(e) => actualizarFiltro({ leida: e.target.value === 'ALL' ? 'ALL' : e.target.value === 'true' })}
-          className="h-9 px-3 py-1 text-sm rounded-md border border-[var(--input)] bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ring)]"
+          icon={<CheckCircle2 size={15} />}
+          isFiltered={filtros.leida !== undefined}
+          containerClassName="min-w-[170px]"
         >
           <option value="ALL">Todos los estados</option>
           <option value="false">No leídas</option>
           <option value="true">Leídas</option>
-        </select>
+        </Select>
         
-        <select
+        <Select
           value={filtros.categoria || 'ALL'}
           onChange={(e) => actualizarFiltro({ categoria: e.target.value as NotificacionCategoria | 'ALL' })}
-          className="h-9 px-3 py-1 text-sm rounded-md border border-[var(--input)] bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ring)]"
+          icon={<Layers size={15} />}
+          isFiltered={!!filtros.categoria && filtros.categoria !== 'ALL'}
+          containerClassName="min-w-[185px]"
         >
           <option value="ALL">Todas las categorías</option>
-          <option value="REPORTE">Reporte</option>
-          <option value="RECORRIDO">Recorrido</option>
-          <option value="RUTA">Ruta</option>
-          <option value="AVISO">Aviso</option>
-        </select>
+          <option value="REPORTE">Reportes</option>
+          <option value="RECORRIDO">Recorridos</option>
+          <option value="RUTA">Rutas</option>
+          <option value="AVISO">Avisos</option>
+        </Select>
 
-        <select
+        <Select
           value={filtros.tipo || 'ALL'}
           onChange={(e) => actualizarFiltro({ tipo: e.target.value as NotificacionTipo | 'ALL' })}
-          className="h-9 px-3 py-1 text-sm rounded-md border border-[var(--input)] bg-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ring)]"
+          icon={<Sparkles size={15} />}
+          isFiltered={!!filtros.tipo && filtros.tipo !== 'ALL'}
+          containerClassName="min-w-[170px]"
         >
           <option value="ALL">Todos los tipos</option>
           <option value="AUTOMATICA">Automáticas</option>
           <option value="MANUAL">Manuales</option>
-        </select>
+        </Select>
+
+        {hasActiveFilters && (
+          <button
+            onClick={() => actualizarFiltro({ leida: 'ALL', categoria: 'ALL', tipo: 'ALL' })}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--destructive)] hover:bg-[var(--destructive)]/10 transition-colors ml-auto cursor-pointer"
+            title="Restablecer filtros"
+          >
+            <RotateCcw size={13} />
+            <span>Restablecer</span>
+          </button>
+        )}
       </div>
 
       {error ? (
@@ -222,17 +345,31 @@ const BandejaTab: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Unread indicator / action */}
-                <div className="flex flex-col justify-center pl-2">
+                {/* Status + Actions */}
+                <div className="flex items-center gap-2 pl-2 flex-shrink-0">
                   {!notif.leida ? (
                     openingId === notif.id ? (
                       <Loader2 size={16} className="text-[#1763A6] animate-spin" />
                     ) : (
-                      <Circle size={10} className="fill-[#1763A6] text-[#1763A6]" />
+                      <span title="No leída" className="flex items-center">
+                        <Circle size={10} className="fill-[#1763A6] text-[#1763A6]" />
+                      </span>
                     )
                   ) : (
-                    <CheckCircle2 size={16} className="text-[#9CA3AF] dark:text-slate-500" />
+                    <span title="Leída" className="flex items-center">
+                      <CheckCircle2 size={16} className="text-[#9CA3AF] dark:text-slate-500" />
+                    </span>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteNotificacion(e, notif)}
+                    title="Eliminar notificación"
+                    className="p-1.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                    aria-label="Eliminar notificación"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               </Card>
             </motion.div>
@@ -308,6 +445,12 @@ const AvisosManualesTab: React.FC = () => {
         tipo: 'MANUAL',
       });
       setSuccess(true);
+      triggerRichToast({
+        tipo: 'CAMION',
+        titulo: 'Aviso publicado exitosamente',
+        mensaje: `Se ha enviado el aviso "${tituloTrim}" a ${destinatario.toLowerCase()}.`,
+        ruta: '/notificaciones',
+      });
       setTitulo('');
       setMensaje('');
       setDestinatario('CIUDADANOS');
@@ -380,22 +523,18 @@ const AvisosManualesTab: React.FC = () => {
           </div>
 
           {/* Destinatario */}
-          <div className="flex flex-col gap-2">
-            <label htmlFor="destinatario" className="text-sm font-medium text-[var(--foreground)]">
-              Destinatario
-            </label>
-            <select
-              id="destinatario"
-              value={destinatario}
-              onChange={(e) => setDestinatario(e.target.value as NotificacionDestinatario)}
-              disabled={isSubmitting}
-              className="flex h-10 w-full rounded-md border border-[var(--input)] bg-[var(--background)] px-3 py-2 text-sm ring-offset-[var(--background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="CIUDADANOS">Solo Ciudadanos</option>
-              <option value="CONDUCTORES">Solo Conductores</option>
-              <option value="AMBOS">Ciudadanos y Conductores</option>
-            </select>
-          </div>
+          <Select
+            id="destinatario"
+            label="Destinatario"
+            value={destinatario}
+            onChange={(e) => setDestinatario(e.target.value as NotificacionDestinatario)}
+            disabled={isSubmitting}
+            icon={<Users size={16} />}
+          >
+            <option value="CIUDADANOS">Solo Ciudadanos</option>
+            <option value="CONDUCTORES">Solo Conductores</option>
+            <option value="AMBOS">Ciudadanos y Conductores</option>
+          </Select>
 
           {/* Submit */}
           <div className="flex justify-end mt-4">

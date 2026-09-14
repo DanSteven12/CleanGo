@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Loader2, Check, X, Eye } from 'lucide-react';
+import { Plus, Pencil, Loader2, Check, X, Eye, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -223,8 +223,11 @@ export const AssignmentsPage: React.FC = () => {
           </motion.div>
         ) : asignaciones.length === 0 ? (
           <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="empty-state">
-            <span className="empty-state-icon">📋</span>
-            <p>No hay asignaciones registradas.<br />Crea la primera usando el botón de arriba.</p>
+            <div className="w-14 h-14 rounded-2xl bg-[var(--primary)]/10 border border-[var(--primary)]/25 flex items-center justify-center text-[var(--primary)] mb-1">
+              <ClipboardList size={26} />
+            </div>
+            <p className="font-semibold text-base text-[var(--text-h)]">No hay asignaciones registradas</p>
+            <p className="text-xs text-[var(--muted-foreground)]">Crea la primera asignación de ruta usando el botón de arriba.</p>
           </motion.div>
         ) : (
           <motion.div key="table" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="assignments-table-wrapper">

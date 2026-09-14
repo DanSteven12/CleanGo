@@ -27,9 +27,21 @@ router.get('/usuario/:id', NotificationController.getByUsuario);
 // Notificaciones de un conductor específico.
 router.get('/conductor/:id', NotificationController.getByConductor);
 
+// ── PATCH /api/notificaciones/marcar-todas-leidas ───────────────────────────
+// Marca todas las notificaciones como leídas.
+router.patch('/marcar-todas-leidas', NotificationController.markAllAsRead);
+
 // ── PATCH /api/notificaciones/:id/leida ─────────────────────────────────────
 // Marca una notificación individual como leída.
 router.patch('/:id/leida', NotificationController.markAsRead);
+
+// ── DELETE /api/notificaciones/limpiar-leidas ───────────────────────────────
+// Elimina todas las notificaciones leídas.
+router.delete('/limpiar-leidas', NotificationController.removeRead);
+
+// ── DELETE /api/notificaciones/:id ──────────────────────────────────────────
+// Elimina una notificación por su ID.
+router.delete('/:id', NotificationController.remove);
 
 // ── GET /api/notificaciones/test-dump ───────────────────────────────────────
 // Test DB access directly from the running backend.

@@ -127,6 +127,25 @@ export async function getByConductor(req: Request, res: Response): Promise<void>
   }
 }
 
+// ─── PATCH /api/notificaciones/marcar-todas-leidas ─────────────────────────
+
+/**
+ * Marca como leídas TODAS las notificaciones del sistema.
+ */
+export async function markAllAsRead(_req: Request, res: Response): Promise<void> {
+  try {
+    const modificadas = await NotificationService.marcarTodasLeidas();
+    res.json({
+      success: true,
+      message: 'Todas las notificaciones fueron marcadas como leídas.',
+      modificadas,
+    });
+  } catch (error) {
+    console.error('[NotificationController] PATCH /notificaciones/marcar-todas-leidas:', error);
+    res.status(500).json({ error: 'Error interno al marcar las notificaciones como leídas.' });
+  }
+}
+
 // ─── PATCH /api/notificaciones/:id/leida ──────────────────────────────────────
 
 /**
@@ -157,3 +176,51 @@ export async function markAsRead(req: Request, res: Response): Promise<void> {
     res.status(500).json({ error: 'Error interno al actualizar la notificación.' });
   }
 }
+
+// ─── DELETE /api/notificaciones/limpiar-leidas ────────────────────────────────
+
+/**
+ * Elimina todas las notificaciones marcadas como leídas.
+ */
+export async function removeRead(_req: Request, res: Response): Promise<void> {
+  try {
+    const eliminadas = await NotificationService.eliminarLeidas();
+    res.json({
+      success: true,
+      message: 'Notificaciones leídas eliminadas correctamente.',
+      eliminadas,
+    });
+  } catch (error) {
+    console.error('[NotificationController] DELETE /notificaciones/limpiar-leidas:', error);
+    res.status(500).json({ error: 'Error interno al limpiar las notificaciones leídas.' });
+  }
+}
+
+// ─── DELETE /api/notificaciones/:id ───────────────────────────────────────────
+
+/**
+ * Elimina una notificación por su ID.
+ */
+export async function remove(req: Request, res: Response): Promise<void> {
+  const id = Number(req.params.id);
+
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ error: 'ID de notificación inválido.' });
+    return;
+  }
+
+  try {
+    const eliminada = await NotificationService.eliminar(id);
+
+    if (!eliminada) {
+      res.status(404).json({ error: 'Notificación no encontrada.' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Notificación eliminada correctamente.' });
+  } catch (error) {
+    console.error(`[NotificationController] DELETE /notificaciones/${id}:`, error);
+    res.status(500).json({ error: 'Error interno al eliminar la notificación.' });
+  }
+}
+

@@ -33,6 +33,7 @@ import { NotificacionesPage } from './pages/notificaciones/NotificacionesPage';
 import { PrivacyPolicyPage } from './pages/privacy-policy/PrivacyPolicyPage';
 import { TermsAndConditionsPage } from './pages/terms-and-conditions/TermsAndConditionsPage';
 import { BlockingOverlay } from './components/BlockingOverlay';
+import { RichToastProvider } from './components/ui/RichToastProvider';
 
 type Module = 'dashboard' | 'gestion-rutas' | 'asignacion-rutas' | 'mapa-vivo' | 'historial-recorridos' | 'calendario' | 'usuarios' | 'camiones' | 'conductores' | 'reportes-ciudadanos' | 'notificaciones';
 
@@ -133,6 +134,10 @@ function App() {
 
           {/* Rate-limit blocking overlay — listens for 'block-login' event */}
           <BlockingOverlay />
+
+          {/* Rich Toast — real-time floating notifications via Socket.IO.
+              Coexists with Sonner's <Toaster>; does NOT replace it. */}
+          <RichToastProvider />
         </ConfirmProvider>
       </AuthProvider>
     </BrowserRouter>

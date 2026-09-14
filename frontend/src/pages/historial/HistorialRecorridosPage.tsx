@@ -1,6 +1,6 @@
-// frontend/src/pages/historial/HistorialRecorridosPage.tsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, MapPin, Truck, User, Search, RotateCcw } from 'lucide-react';
 import type {
   CheckpointDetalle,
   HistorialPaginado,
@@ -11,6 +11,8 @@ import '../../assets/styles/assignments.css';
 import '../../assets/styles/historial.css';
 import { Header } from '../../components/layout/Header';
 import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
+import { Input } from '../../components/ui/input';
+import { Select } from '../../components/ui/select';
 
 // ─── Interfaces locales ───────────────────────────────────────────────────────
 
@@ -346,58 +348,73 @@ export const HistorialRecorridosPage: React.FC = () => {
 
       {/* ─── Barra de filtros ─── */}
       <div className="historial-filters-card">
+        <Input
+          id="filtro-fecha-inicio"
+          label="Fecha inicio"
+          type="date"
+          value={fechaInicio}
+          max={fechaFin || undefined}
+          onChange={e => setFechaInicio(e.target.value)}
+          leftIcon={<Calendar size={15} />}
+          containerClassName="min-w-[150px] flex-1"
+        />
 
-        <div className="historial-filter-group">
-          <label htmlFor="filtro-fecha-inicio">Fecha inicio</label>
-          <input
-            id="filtro-fecha-inicio"
-            type="date"
-            value={fechaInicio}
-            max={fechaFin || undefined}
-            onChange={e => setFechaInicio(e.target.value)}
-          />
-        </div>
+        <Input
+          id="filtro-fecha-fin"
+          label="Fecha fin"
+          type="date"
+          value={fechaFin}
+          min={fechaInicio || undefined}
+          onChange={e => setFechaFin(e.target.value)}
+          leftIcon={<Calendar size={15} />}
+          containerClassName="min-w-[150px] flex-1"
+        />
 
-        <div className="historial-filter-group">
-          <label htmlFor="filtro-fecha-fin">Fecha fin</label>
-          <input
-            id="filtro-fecha-fin"
-            type="date"
-            value={fechaFin}
-            min={fechaInicio || undefined}
-            onChange={e => setFechaFin(e.target.value)}
-          />
-        </div>
+        <Select
+          id="filtro-ruta"
+          label="Ruta"
+          value={rutaId}
+          onChange={e => setRutaId(e.target.value)}
+          icon={<MapPin size={15} />}
+          isFiltered={!!rutaId}
+          containerClassName="min-w-[160px] flex-1"
+        >
+          <option value="">Todas las rutas</option>
+          {catalogo.rutas.map(r => (
+            <option key={r.id} value={r.id}>{r.nombre}</option>
+          ))}
+        </Select>
 
-        <div className="historial-filter-group">
-          <label htmlFor="filtro-ruta">Ruta</label>
-          <select id="filtro-ruta" value={rutaId} onChange={e => setRutaId(e.target.value)}>
-            <option value="">Todas las rutas</option>
-            {catalogo.rutas.map(r => (
-              <option key={r.id} value={r.id}>{r.nombre}</option>
-            ))}
-          </select>
-        </div>
+        <Select
+          id="filtro-unidad"
+          label="Unidad"
+          value={camionId}
+          onChange={e => setCamionId(e.target.value)}
+          icon={<Truck size={15} />}
+          isFiltered={!!camionId}
+          containerClassName="min-w-[160px] flex-1"
+        >
+          <option value="">Todas las unidades</option>
+          {catalogo.camiones.map(c => (
+            <option key={c.id} value={c.id}>{c.numero_economico} — {c.placa}</option>
+          ))}
+        </Select>
 
-        <div className="historial-filter-group">
-          <label htmlFor="filtro-unidad">Unidad</label>
-          <select id="filtro-unidad" value={camionId} onChange={e => setCamionId(e.target.value)}>
-            <option value="">Todas las unidades</option>
-            {catalogo.camiones.map(c => (
-              <option key={c.id} value={c.id}>{c.numero_economico} — {c.placa}</option>
-            ))}
-          </select>
-        </div>
+        <Select
+          id="filtro-conductor"
+          label="Conductor"
+          value={conductorId}
+          onChange={e => setConductorId(e.target.value)}
+          icon={<User size={15} />}
+          isFiltered={!!conductorId}
+          containerClassName="min-w-[160px] flex-1"
+        >
+          <option value="">Todos los conductores</option>
+          {catalogo.conductores.map(d => (
+            <option key={d.id} value={d.id}>{d.nombre_completo}</option>
+          ))}
+        </Select>
 
-        <div className="historial-filter-group">
-          <label htmlFor="filtro-conductor">Conductor</label>
-          <select id="filtro-conductor" value={conductorId} onChange={e => setConductorId(e.target.value)}>
-            <option value="">Todos los conductores</option>
-            {catalogo.conductores.map(d => (
-              <option key={d.id} value={d.id}>{d.nombre_completo}</option>
-            ))}
-          </select>
-        </div>
         <div className="historial-filter-actions">
           <button
             id="btn-buscar-historial"
@@ -405,16 +422,28 @@ export const HistorialRecorridosPage: React.FC = () => {
             onClick={handleBuscar}
             disabled={isLoading}
           >
-            {isLoading
-              ? <><span className="historial-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Buscando…</>
-              : <>🔍 Buscar</>}
+            {isLoading ? (
+              <>
+                <span className="historial-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                <span>Buscando…</span>
+              </>
+            ) : (
+              <>
+                <Search size={15} />
+                <span>Buscar</span>
+              </>
+            )}
           </button>
           <button
             id="btn-limpiar-historial"
             className="historial-btn-limpiar"
             onClick={handleLimpiar}
             disabled={isLoading}
-          >✕ Limpiar</button>
+            title="Limpiar filtros"
+          >
+            <RotateCcw size={14} />
+            <span>Limpiar</span>
+          </button>
         </div>
       </div>
 

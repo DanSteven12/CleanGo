@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -15,12 +15,16 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   hint?: string;
   options?: SelectOption[];
   placeholder?: string;
+  icon?: React.ReactNode;
+  isFiltered?: boolean;
+  containerClassName?: string;
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   (
     {
       className,
+      containerClassName,
       label,
       error,
       hint,
@@ -28,83 +32,89 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       disabled,
       options,
       placeholder,
+      icon,
+      isFiltered,
       children,
+      onFocus,
+      onBlur,
       ...props
     },
     ref
   ) => {
+    const [isFocused, setIsFocused] = useState(false);
     const selectId = id ?? (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
 
     return (
-      <div className={cn('flex flex-col gap-[0.375rem]', className)}>
+      <div className={cn('flex flex-col gap-1.5', containerClassName)}>
         {label && (
           <label
             htmlFor={selectId}
-            style={{
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              color: 'var(--text)',
-              letterSpacing: '0.01em',
-            }}
+            className="text-[0.72rem] font-bold uppercase tracking-wider text-[var(--muted-foreground)] select-none flex items-center gap-1.5"
           >
             {label}
+            {isFiltered && (
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse" />
+            )}
           </label>
         )}
 
-        {/* Wrapper for select + chevron icon */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        {/* Wrapper for select + optional left icon + chevron icon */}
+        <div className="relative group flex items-center">
+          {icon && (
+            <div
+              className={cn(
+                'absolute left-3 pointer-events-none transition-colors duration-200 z-10 flex items-center justify-center',
+                isFocused
+                  ? 'text-[var(--primary)]'
+                  : isFiltered
+                  ? 'text-[var(--primary)]'
+                  : 'text-[var(--muted-foreground)] group-hover:text-[var(--foreground)]'
+              )}
+            >
+              {icon}
+            </div>
+          )}
+
           <select
             ref={ref}
             id={selectId}
             disabled={disabled}
-            style={{
-              height: '40px',
-              padding: '0 2.25rem 0 0.75rem',
-              border: `1px solid ${error ? 'oklch(0.58 0.22 25)' : 'var(--panel-border)'}`,
-              borderRadius: '0.5rem',
-              background: disabled ? 'var(--muted)' : 'var(--panel-bg)',
-              color: 'var(--text-h)',
-              fontSize: '0.875rem',
-              fontFamily: 'inherit',
-              outline: 'none',
-              opacity: disabled ? 0.55 : 1,
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-              width: '100%',
-              boxSizing: 'border-box',
-              appearance: 'none',
-              WebkitAppearance: 'none',
-            }}
+            className={cn(
+              'w-full h-10 text-sm font-medium rounded-xl appearance-none cursor-pointer outline-none transition-all duration-200',
+              'bg-[var(--card)] text-[var(--foreground)]',
+              'border border-[var(--border)] shadow-xs',
+              'group-hover:border-[var(--primary)]/50 group-hover:shadow-[0_2px_10px_-2px_rgba(23,99,166,0.12)]',
+              'focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:shadow-[0_0_15px_rgba(23,99,166,0.18)]',
+              disabled && 'opacity-50 cursor-not-allowed bg-[var(--muted)]',
+              error && 'border-[var(--destructive)] focus:ring-[var(--destructive)]/20',
+              isFiltered && !error && 'border-[var(--primary)]/60 bg-[var(--primary)]/[0.03]',
+              icon ? 'pl-9 pr-9' : 'pl-3.5 pr-9',
+              className
+            )}
             onFocus={(e) => {
-              if (!disabled) {
-                e.target.style.borderColor = error
-                  ? 'oklch(0.58 0.22 25)'
-                  : '#1763A6';
-                e.target.style.boxShadow = error
-                  ? '0 0 0 3px oklch(0.58 0.22 25 / 0.15)'
-                  : '0 0 0 3px oklch(0.52 0.14 250 / 0.15)';
-              }
-              props.onFocus?.(e);
+              setIsFocused(true);
+              onFocus?.(e);
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = error
-                ? 'oklch(0.58 0.22 25)'
-                : 'var(--panel-border)';
-              e.target.style.boxShadow = 'none';
-              props.onBlur?.(e);
+              setIsFocused(false);
+              onBlur?.(e);
             }}
             {...props}
           >
             {/* Placeholder option */}
             {placeholder && (
-              <option value="" disabled>
+              <option value="" disabled className="text-[var(--muted-foreground)] bg-[var(--card)]">
                 {placeholder}
               </option>
             )}
 
             {/* Options from prop array */}
             {options?.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <option
+                key={opt.value}
+                value={opt.value}
+                className="bg-[var(--card)] text-[var(--foreground)] py-1.5"
+              >
                 {opt.label}
               </option>
             ))}
@@ -113,41 +123,30 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             {!options && children}
           </select>
 
-          {/* Custom chevron icon */}
-          <ChevronDown
-            size={15}
-            style={{
-              position: 'absolute',
-              right: '0.625rem',
-              pointerEvents: 'none',
-              color: disabled ? 'var(--muted-foreground)' : 'oklch(0.52 0.03 250)',
-              flexShrink: 0,
-            }}
-          />
+          {/* Custom chevron icon with smooth rotation on focus */}
+          <div
+            className={cn(
+              'absolute right-3 pointer-events-none transition-transform duration-200 flex items-center justify-center',
+              isFocused
+                ? 'rotate-180 text-[var(--primary)]'
+                : 'text-[var(--muted-foreground)] group-hover:text-[var(--foreground)]'
+            )}
+          >
+            <ChevronDown size={15} />
+          </div>
         </div>
 
         {error && (
           <span
             role="alert"
-            style={{
-              fontSize: '0.75rem',
-              color: 'oklch(0.42 0.18 25)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.3rem',
-            }}
+            className="text-xs text-[var(--destructive)] flex items-center gap-1 font-medium"
           >
             {error}
           </span>
         )}
 
         {hint && !error && (
-          <span
-            style={{
-              fontSize: '0.75rem',
-              color: 'var(--muted-foreground)',
-            }}
-          >
+          <span className="text-xs text-[var(--muted-foreground)]">
             {hint}
           </span>
         )}

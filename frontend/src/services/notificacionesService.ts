@@ -68,6 +68,42 @@ export async function marcarComoLeida(id: number): Promise<{ message: string }> 
 }
 
 /**
+ * Marca todas las notificaciones como leídas.
+ */
+export async function marcarTodasComoLeidas(): Promise<{ message: string; modificadas?: number }> {
+  const res = await fetch(`${BASE}/marcar-todas-leidas`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  return handleResponse<{ message: string; modificadas?: number }>(res);
+}
+
+/**
+ * Elimina una notificación por su ID.
+ */
+export async function eliminarNotificacion(id: number): Promise<{ message: string }> {
+  const res = await fetch(`${BASE}/${id}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  return handleResponse<{ message: string }>(res);
+}
+
+/**
+ * Elimina todas las notificaciones marcadas como leídas.
+ */
+export async function limpiarNotificacionesLeidas(): Promise<{ message: string; eliminadas?: number }> {
+  const res = await fetch(`${BASE}/limpiar-leidas`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  return handleResponse<{ message: string; eliminadas?: number }>(res);
+}
+
+/**
  * Crea un aviso manual (dirigido a ciudadanos, conductores o ambos).
  */
 export async function crearAvisoManual(payload: AvisoManualPayload): Promise<{ message: string }> {

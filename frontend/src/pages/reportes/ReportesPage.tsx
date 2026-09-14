@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Search, X, Eye, Loader2, ImageOff, MapPin, FileWarning,
   ClipboardList, Clock, CheckCircle2, ChevronLeft, ChevronRight,
-  AlertCircle,
+  AlertCircle, Calendar, RotateCcw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -11,6 +11,8 @@ import type { ReporteRecord, ReporteIndicadores, EstadoReporte, TipoReporte } fr
 import '../../assets/styles/reportes.css';
 import { Header } from '../../components/layout/Header';
 import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
+import { Input } from '../../components/ui/input';
+import { Select } from '../../components/ui/select';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TIPOS_REPORTE: TipoReporte[] = [
@@ -327,10 +329,19 @@ export const ReportesPage: React.FC = () => {
 
   // Filtros
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
+
+  // Debounce search query to optimize indexed search requests
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   // Paginación
   const [page, setPage] = useState(1);
@@ -362,7 +373,7 @@ export const ReportesPage: React.FC = () => {
       if (tipoFilter)   params.set('tipo', tipoFilter);
       if (fechaDesde)   params.set('fecha_desde', fechaDesde);
       if (fechaHasta)   params.set('fecha_hasta', fechaHasta);
-      if (search)       params.set('search', search);
+      if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
 
       const res = await fetch(`/api/reportes?${params.toString()}`);
       if (!res.ok) throw new Error('Error al cargar reportes');
@@ -374,7 +385,7 @@ export const ReportesPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [estadoFilter, tipoFilter, fechaDesde, fechaHasta, search]);
+  }, [estadoFilter, tipoFilter, fechaDesde, fechaHasta, debouncedSearch]);
 
   useEffect(() => {
     fetchIndicadores();
@@ -497,71 +508,74 @@ export const ReportesPage: React.FC = () => {
       {/* ── Filtros ───────────────────────────────────────────── */}
       <div className="reportes-filters-card">
         {/* Búsqueda */}
-        <div className="reportes-filter-group reportes-search-wrapper">
-          <label htmlFor="reportes-search">Buscar</label>
-          <div style={{ position: 'relative' }}>
-            <Search size={15} className="reportes-search-icon" style={{ top: '50%' }} />
-            <input
-              id="reportes-search"
-              type="text"
-              placeholder="Descripción o dirección..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
+        <Input
+          id="reportes-search"
+          label="Buscar"
+          type="text"
+          placeholder="Descripción o dirección..."
+          leftIcon={<Search size={15} />}
+          clearable={true}
+          onClear={() => setSearch('')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          containerClassName="min-w-[220px] flex-2"
+        />
 
         {/* Estado */}
-        <div className="reportes-filter-group">
-          <label htmlFor="reportes-filter-estado">Estado</label>
-          <select
-            id="reportes-filter-estado"
-            value={estadoFilter}
-            onChange={(e) => setEstadoFilter(e.target.value)}
-          >
-            <option value="">Todos</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="En proceso">En proceso</option>
-            <option value="Cerrado">Cerrado</option>
-          </select>
-        </div>
+        <Select
+          id="reportes-filter-estado"
+          label="Estado"
+          value={estadoFilter}
+          onChange={(e) => setEstadoFilter(e.target.value)}
+          icon={<CheckCircle2 size={15} />}
+          isFiltered={!!estadoFilter}
+          containerClassName="min-w-[150px] flex-1"
+        >
+          <option value="">Todos</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="En proceso">En proceso</option>
+          <option value="Cerrado">Cerrado</option>
+        </Select>
 
         {/* Tipo */}
-        <div className="reportes-filter-group">
-          <label htmlFor="reportes-filter-tipo">Tipo de reporte</label>
-          <select
-            id="reportes-filter-tipo"
-            value={tipoFilter}
-            onChange={(e) => setTipoFilter(e.target.value)}
-          >
-            <option value="">Todos</option>
-            {TIPOS_REPORTE.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
+        <Select
+          id="reportes-filter-tipo"
+          label="Tipo de reporte"
+          value={tipoFilter}
+          onChange={(e) => setTipoFilter(e.target.value)}
+          icon={<FileWarning size={15} />}
+          isFiltered={!!tipoFilter}
+          containerClassName="min-w-[170px] flex-1"
+        >
+          <option value="">Todos</option>
+          {TIPOS_REPORTE.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </Select>
 
         {/* Fecha desde */}
-        <div className="reportes-filter-group">
-          <label htmlFor="reportes-fecha-desde">Desde</label>
-          <input
-            id="reportes-fecha-desde"
-            type="date"
-            value={fechaDesde}
-            onChange={(e) => setFechaDesde(e.target.value)}
-          />
-        </div>
+        <Input
+          id="reportes-fecha-desde"
+          label="Desde"
+          type="date"
+          value={fechaDesde}
+          max={fechaHasta || undefined}
+          onChange={(e) => setFechaDesde(e.target.value)}
+          leftIcon={<Calendar size={15} />}
+          containerClassName="min-w-[145px] flex-1"
+        />
 
         {/* Fecha hasta */}
-        <div className="reportes-filter-group">
-          <label htmlFor="reportes-fecha-hasta">Hasta</label>
-          <input
-            id="reportes-fecha-hasta"
-            type="date"
-            value={fechaHasta}
-            onChange={(e) => setFechaHasta(e.target.value)}
-          />
-        </div>
+        <Input
+          id="reportes-fecha-hasta"
+          label="Hasta"
+          type="date"
+          value={fechaHasta}
+          min={fechaDesde || undefined}
+          onChange={(e) => setFechaHasta(e.target.value)}
+          leftIcon={<Calendar size={15} />}
+          containerClassName="min-w-[145px] flex-1"
+        />
 
         {/* Limpiar filtros */}
         {hasActiveFilters && (
@@ -572,7 +586,8 @@ export const ReportesPage: React.FC = () => {
               onClick={handleClearFilters}
               title="Limpiar filtros"
             >
-              <X size={14} /> Limpiar
+              <RotateCcw size={14} />
+              <span>Limpiar</span>
             </button>
           </div>
         )}

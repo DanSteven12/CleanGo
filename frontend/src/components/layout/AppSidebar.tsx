@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import iconoCamion from '../../assets/images/icono.png';
 import { useAuth } from '../../hooks/useAuth';
+import { useConfirm } from '../../hooks/useConfirm';
 import {
   LayoutDashboard,
   Route,
@@ -423,6 +424,7 @@ export const AppSidebar: React.FC = () => {
   const location = useLocation();
   const pathname = location.pathname;
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -482,10 +484,33 @@ export const AppSidebar: React.FC = () => {
     fetchUnread();
     const handleRead = () => fetchUnread();
     window.addEventListener('notificacion-leida', handleRead);
-    return () => window.removeEventListener('notificacion-leida', handleRead);
+    window.addEventListener('notificacion-recibida', handleRead);
+    return () => {
+      window.removeEventListener('notificacion-leida', handleRead);
+      window.removeEventListener('notificacion-recibida', handleRead);
+    };
   }, [user]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const accepted = await confirm({
+      title: 'Cerrar sesión',
+      message: (
+        <div className="flex flex-col gap-2 text-left">
+          <p className="text-sm text-slate-300">
+            ¿Estás seguro de que deseas cerrar tu sesión en CleanGo?
+          </p>
+          <p className="text-xs text-slate-400">
+            Tendrás que volver a ingresar tus credenciales para acceder al panel de administración.
+          </p>
+        </div>
+      ),
+      variant: 'warning',
+      confirmText: 'Cerrar sesión',
+      cancelText: 'Cancelar',
+    });
+
+    if (!accepted) return;
+
     logout();
     navigate('/login', { replace: true });
   };

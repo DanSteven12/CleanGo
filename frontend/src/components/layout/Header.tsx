@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { obtenerNotificacionesAdmin } from '../../services/notificacionesService';
 
 interface HeaderProps {
   title: string;
@@ -9,9 +11,36 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   const nombre = user?.nombre || 'Administrador';
   const rol = 'Administrador';
+
+  const fetchUnread = async () => {
+    try {
+      const unreadList = await obtenerNotificacionesAdmin({ leida: false });
+      setUnreadCount(unreadList.summary?.unread ?? unreadList.data?.length ?? 0);
+    } catch (error) {
+      console.error('Error fetching unread notifications in Header:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    fetchUnread();
+    const handleSync = () => fetchUnread();
+    window.addEventListener('notificacion-leida', handleSync);
+    window.addEventListener('notificacion-recibida', handleSync);
+    return () => {
+      window.removeEventListener('notificacion-leida', handleSync);
+      window.removeEventListener('notificacion-recibida', handleSync);
+    };
+  }, [user]);
+
+  const handleBellClick = () => {
+    navigate('/notificaciones');
+  };
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(' ');
@@ -32,14 +61,22 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
       {/* Right: Notifications + Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-        {/* Bell */}
+        {/* Bell Button with Badge */}
         <button
-          aria-label="Notificaciones"
+          id="header-notifications-btn"
+          aria-label={`Notificaciones${unreadCount > 0 ? ` (${unreadCount} sin leer)` : ''}`}
+          title="Ver notificaciones"
           className="app-header__icon-btn"
+          onClick={handleBellClick}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F3F4F6')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
         >
           <Bell size={18} />
+          {unreadCount > 0 && (
+            <span className="app-header__badge">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </button>
 
         {/* Avatar */}
@@ -54,3 +91,4 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
     </header>
   );
 };
+

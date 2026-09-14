@@ -1,6 +1,12 @@
 // frontend/src/hooks/useNotificaciones.ts
 import { useState, useEffect, useCallback } from 'react';
-import { obtenerNotificacionesAdmin, marcarComoLeida } from '../services/notificacionesService';
+import {
+  obtenerNotificacionesAdmin,
+  marcarComoLeida,
+  marcarTodasComoLeidas,
+  eliminarNotificacion,
+  limpiarNotificacionesLeidas,
+} from '../services/notificacionesService';
 import type { Notificacion, FiltrosNotificaciones } from '../types/notificaciones';
 import { toast } from 'sonner';
 
@@ -45,6 +51,11 @@ export function useNotificaciones(filtrosIniciales?: FiltrosNotificaciones) {
 
   useEffect(() => {
     cargarNotificaciones();
+    const handleRecibida = () => {
+      cargarNotificaciones();
+    };
+    window.addEventListener('notificacion-recibida', handleRecibida);
+    return () => window.removeEventListener('notificacion-recibida', handleRecibida);
   }, [cargarNotificaciones]);
 
   const actualizarFiltro = useCallback((nuevoFiltro: Partial<FiltrosNotificaciones>) => {
@@ -71,7 +82,6 @@ export function useNotificaciones(filtrosIniciales?: FiltrosNotificaciones) {
 
     try {
       await marcarComoLeida(id);
-      // Emitimos el evento global para que el AppSidebar reduzca su contador
       window.dispatchEvent(new CustomEvent('notificacion-leida'));
     } catch (err: any) {
       // Revertimos en caso de error
@@ -85,6 +95,89 @@ export function useNotificaciones(filtrosIniciales?: FiltrosNotificaciones) {
     }
   }, [notificaciones]);
 
+  const marcarTodasLeidas = useCallback(async () => {
+    if (summary.unread === 0) return;
+
+    const prevNotifs = notificaciones;
+    const prevSummary = summary;
+
+    // Actualización optimista
+    setNotificaciones((prev) =>
+      prev.map((n) => ({
+        ...n,
+        leida: true,
+        fecha_lectura: n.fecha_lectura || new Date().toISOString(),
+      }))
+    );
+    setSummary((prev) => ({ ...prev, unread: 0 }));
+
+    try {
+      await marcarTodasComoLeidas();
+      window.dispatchEvent(new CustomEvent('notificacion-leida'));
+      toast.success('Todas las notificaciones fueron marcadas como leídas.');
+    } catch (err: any) {
+      setNotificaciones(prevNotifs);
+      setSummary(prevSummary);
+      toast.error('Error', {
+        description: err.message || 'No se pudieron marcar las notificaciones como leídas.',
+      });
+    }
+  }, [summary, notificaciones]);
+
+  const eliminarNotif = useCallback(async (id: number) => {
+    const notif = notificaciones.find((n) => n.id === id);
+    if (!notif) return;
+
+    const prevNotifs = notificaciones;
+    const prevSummary = summary;
+    const prevTotal = totalRegistros;
+
+    // Optimistic removal
+    setNotificaciones((prev) => prev.filter((n) => n.id !== id));
+    setTotalRegistros((prev) => Math.max(0, prev - 1));
+    if (!notif.leida) {
+      setSummary((prev) => ({ ...prev, unread: Math.max(0, prev.unread - 1) }));
+    }
+
+    try {
+      await eliminarNotificacion(id);
+      window.dispatchEvent(new CustomEvent('notificacion-leida'));
+      toast.success('Notificación eliminada.');
+    } catch (err: any) {
+      setNotificaciones(prevNotifs);
+      setSummary(prevSummary);
+      setTotalRegistros(prevTotal);
+      toast.error('Error', {
+        description: err.message || 'No se pudo eliminar la notificación.',
+      });
+    }
+  }, [notificaciones, summary, totalRegistros]);
+
+  const limpiarLeidas = useCallback(async () => {
+    const leidasCount = notificaciones.filter((n) => n.leida).length;
+    if (leidasCount === 0 && totalRegistros === summary.unread) return;
+
+    const prevNotifs = notificaciones;
+    const prevTotal = totalRegistros;
+
+    // Optimistic removal of read notifications
+    setNotificaciones((prev) => prev.filter((n) => !n.leida));
+    setTotalRegistros((prev) => Math.max(0, prev - leidasCount));
+
+    try {
+      const res = await limpiarNotificacionesLeidas();
+      window.dispatchEvent(new CustomEvent('notificacion-leida'));
+      toast.success(res.message || 'Notificaciones leídas eliminadas.');
+      cargarNotificaciones();
+    } catch (err: any) {
+      setNotificaciones(prevNotifs);
+      setTotalRegistros(prevTotal);
+      toast.error('Error', {
+        description: err.message || 'No se pudieron eliminar las notificaciones leídas.',
+      });
+    }
+  }, [notificaciones, totalRegistros, summary.unread, cargarNotificaciones]);
+
   return {
     notificaciones,
     totalRegistros,
@@ -96,5 +189,9 @@ export function useNotificaciones(filtrosIniciales?: FiltrosNotificaciones) {
     cambiarPagina,
     recargar: cargarNotificaciones,
     marcarLeida,
+    marcarTodasLeidas,
+    eliminarNotif,
+    limpiarLeidas,
   };
 }
+

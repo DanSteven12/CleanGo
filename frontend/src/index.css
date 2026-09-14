@@ -255,6 +255,19 @@
   @keyframes spin-loop {
     to { transform: rotate(360deg); }
   }
+
+  /* Animated Border & Glow Utilities for Filters and Inputs */
+  .border-glow-hover {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .border-glow-hover:hover {
+    border-color: rgba(23, 99, 166, 0.5);
+    box-shadow: 0 0 0 1px rgba(23, 99, 166, 0.15), 0 4px 12px -2px rgba(23, 99, 166, 0.12);
+  }
+  .border-glow-focus:focus-within {
+    border-color: #1763A6;
+    box-shadow: 0 0 0 3px rgba(23, 99, 166, 0.18), 0 0 16px -2px rgba(23, 99, 166, 0.25);
+  }
 }
 
 /* â”€â”€â”€ Sidebar interaction styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -547,9 +560,42 @@
   background-color: #FFFFFF;
   cursor: pointer;
   color: #4B5563;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
+  position: relative;
 }
+
+.app-header__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background-color: #DC2626;
+  color: #FFFFFF;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  animation: pulse-badge 2s infinite ease-in-out;
+}
+
+@keyframes pulse-badge {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
 
 .app-header__avatar {
   width: 36px;
@@ -1010,4 +1056,12 @@
   #dashboard-page {
     max-width: 1600px;
   }
-}
+}
+
+/* ── Rich Toast — progress bar animation ─────────────────────────────────── */
+
+@keyframes cleango-rich-toast-progress {
+  from { width: 100%; }
+  to   { width: 0%;   }
+}
+

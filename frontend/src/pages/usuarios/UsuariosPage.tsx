@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Loader2, KeyRound, Lock, Unlock, Search, X, Users, Shield, UserSquare } from 'lucide-react';
+import { Plus, Pencil, Loader2, KeyRound, Lock, Unlock, Search, X, Users, Shield, UserSquare, ShieldCheck, Activity, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTiltGlow } from '../../lib/useTiltGlow';
@@ -9,6 +9,8 @@ import type { UsuarioRecord } from '../../types/usuarios';
 import '../../assets/styles/usuarios.css';
 import { Header } from '../../components/layout/Header';
 import { PageSectionHeader } from '../../components/layout/PageSectionHeader';
+import { Input } from '../../components/ui/input';
+import { Select } from '../../components/ui/select';
 
 // ─── Componentes de Modal (Helpers locales) ───────────────────────────────────
 
@@ -335,28 +337,51 @@ export const UsuariosPage: React.FC = () => {
         
         {/* Header of main card: Filters, Search, Crear Usuario, Record count */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-          <div className="usuarios-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', flex: 1 }}>
-            <div style={{ position: 'relative', minWidth: '220px', flex: '1 1 300px', maxWidth: '400px' }}>
-              <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text)' }} />
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="Buscar por nombre o correo..." 
-                style={{ paddingLeft: '2.5rem', width: '100%' }}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <select className="form-select" value={rolFilter} onChange={(e) => setRolFilter(e.target.value)}>
+          <div className="usuarios-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', flex: 1, alignItems: 'center' }}>
+            <Input 
+              type="text" 
+              placeholder="Buscar por nombre o correo..." 
+              leftIcon={<Search size={16} />}
+              clearable={true}
+              onClear={() => setSearch('')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              containerClassName="min-w-[240px] flex-1 max-w-[380px]"
+            />
+            <Select
+              value={rolFilter}
+              onChange={(e) => setRolFilter(e.target.value)}
+              icon={<ShieldCheck size={16} />}
+              isFiltered={!!rolFilter}
+              containerClassName="min-w-[175px]"
+            >
               <option value="">Todos los roles</option>
               <option value="Administrador">Administrador</option>
               <option value="Ciudadano">Ciudadano</option>
-            </select>
-            <select className="form-select" value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value)}>
+            </Select>
+            <Select
+              value={estadoFilter}
+              onChange={(e) => setEstadoFilter(e.target.value)}
+              icon={<Activity size={16} />}
+              isFiltered={!!estadoFilter}
+              containerClassName="min-w-[175px]"
+            >
               <option value="">Todos los estados</option>
               <option value="Activo">Activo</option>
               <option value="Bloqueado">Bloqueado</option>
-            </select>
+            </Select>
+
+            {(search || rolFilter || estadoFilter) && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setRolFilter(''); setEstadoFilter(''); }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--destructive)] hover:bg-[var(--destructive)]/10 transition-colors cursor-pointer"
+                title="Limpiar filtros"
+              >
+                <RotateCcw size={13} />
+                <span>Limpiar</span>
+              </button>
+            )}
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>

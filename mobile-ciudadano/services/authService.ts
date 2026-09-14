@@ -66,33 +66,34 @@ function handleAxiosError(error: unknown): never {
     error &&
     typeof error === 'object' &&
     'isAxiosError' in error &&
-    (error as { isAxiosError: boolean }).isAxiosError &&
-    'response' in error
+    (error as { isAxiosError: boolean }).isAxiosError
   ) {
     const axiosErr = error as {
-      response: {
+      response?: {
         status: number;
         data?: { message?: string };
         headers: Record<string, string>;
       };
     };
     const res = axiosErr.response;
-    const remainingHeader = res.headers['ratelimit-remaining'];
-    const retryAfterHeader = res.headers['retry-after'];
+    if (res) {
+      const remainingHeader = res.headers ? res.headers['ratelimit-remaining'] : undefined;
+      const retryAfterHeader = res.headers ? res.headers['retry-after'] : undefined;
 
-    const remaining = remainingHeader ? parseInt(remainingHeader, 10) : undefined;
-    let waitSeconds = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
+      const remaining = remainingHeader ? parseInt(remainingHeader, 10) : undefined;
+      let waitSeconds = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
 
-    if (res.status === 429 && !waitSeconds) {
-      waitSeconds = 60;
+      if (res.status === 429 && !waitSeconds) {
+        waitSeconds = 60;
+      }
+
+      throw new ApiError(
+        res.data?.message || `Error ${res.status}`,
+        res.status,
+        remaining,
+        waitSeconds
+      );
     }
-
-    throw new ApiError(
-      res.data?.message || `Error ${res.status}`,
-      res.status,
-      remaining,
-      waitSeconds
-    );
   }
 
   const errMsg = error instanceof Error ? error.message : 'Error inesperado del servidor.';

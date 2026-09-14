@@ -13,13 +13,36 @@ const router = Router();
 router.use(authorizeRoles('Administrador'));
 
 // ── GET /api/usuarios ─────────────────────────────────────────────────────────
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(`
+    const { search, rol, estado } = req.query as Record<string, string>;
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (search && search.trim()) {
+      conditions.push('(nombre LIKE ? OR correo LIKE ?)');
+      params.push(`%${search.trim()}%`, `%${search.trim()}%`);
+    }
+
+    if (rol && rol.trim()) {
+      conditions.push('rol = ?');
+      params.push(rol.trim());
+    }
+
+    if (estado && estado.trim()) {
+      conditions.push('estado = ?');
+      params.push(estado.trim());
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `
       SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at 
       FROM usuarios
+      ${where}
       ORDER BY id DESC
-    `);
+    `;
+
+    const [rows] = await pool.query<RowDataPacket[]>(sql, params);
     res.json(rows);
   } catch (err) {
     console.error('[usuarios] GET /', err);
