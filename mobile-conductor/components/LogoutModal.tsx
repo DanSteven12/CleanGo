@@ -25,6 +25,7 @@ import {
   Platform,
 } from 'react-native';
 import { LogOut, Truck, X } from 'lucide-react-native';
+import { AnimatedPressable } from './ui';
 import { theme } from '../theme/colors';
 
 interface LogoutModalProps {
@@ -168,20 +169,18 @@ export function LogoutModal({
 
           {/* Botones de acción */}
           <View style={styles.actionsRow}>
-            <TouchableOpacity
+            <AnimatedPressable
               style={[styles.button, styles.cancelBtn]}
               onPress={onClose}
               disabled={isLoading}
-              activeOpacity={0.8}
             >
               <Text style={styles.cancelBtnText}>Cancelar</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
 
-            <TouchableOpacity
+            <AnimatedPressable
               style={[styles.button, styles.confirmBtn, isLoading && styles.confirmBtnDisabled]}
               onPress={onConfirm}
               disabled={isLoading}
-              activeOpacity={0.85}
             >
               {isLoading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -191,7 +190,7 @@ export function LogoutModal({
                   <Text style={styles.confirmBtnText}>Cerrar sesión</Text>
                 </>
               )}
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
         </Animated.View>
       </View>

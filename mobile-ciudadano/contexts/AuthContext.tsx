@@ -30,7 +30,7 @@ import {
   saveLastActiveTimestamp,
   getLastActiveTimestamp,
 } from '../services/secureStorage';
-import { setSessionExpiredCallback } from '../services/api';
+import { setSessionExpiredCallback, performTokenRefresh } from '../services/api';
 import type { CiudadanoUser } from '../services/authService';
 import { connectMobileSocket, disconnectMobileSocket } from '../services/socketService';
 import { getFcmToken } from '../services/fcmService';
@@ -104,25 +104,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [router]);
 
-  // ─── Helper de clasificación de errores ─────────────────────────────────────
-  const isAuthInvalidationError = (error: any): boolean => {
-    const status = error?.response?.status ?? error?.status;
-    return status === 401 || status === 403 || status === 404 || status === 422;
-  };
-
-  // ─── Restauración de Sesión al Arrancar ──────────────────────────────────────
+  // ─── Restauración de Sesión al Arrancar (Optimista no bloqueante) ───────────
   
   useEffect(() => {
     async function restoreSession() {
       try {
-        const storedUser = await getUserData();
-        const refreshToken = await getRefreshToken();
-        const accessToken = await getAccessToken();
-        const lastActive = await getLastActiveTimestamp();
+        // Lecturas independientes ejecutadas en paralelo
+        const [storedUser, refreshToken, accessToken, lastActive] = await Promise.all([
+          getUserData(),
+          getRefreshToken(),
+          getAccessToken(),
+          getLastActiveTimestamp(),
+        ]);
 
         // Si tenemos un usuario y un refresh token en SecureStore:
         if (storedUser && refreshToken) {
-          // Verificar si transcurrió el tiempo de inactividad permitido
+          // 1. Verificar si transcurrió el tiempo de inactividad permitido
           if (lastActive && Date.now() - lastActive > SESSION_INACTIVITY_TIMEOUT_MS) {
             console.log('[Auth] Sesión expirada por inactividad al arrancar la app');
             await clearAllSession();
@@ -133,62 +130,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          try {
-            // Validar en el backend si la sesión sigue activa con timeout controlado para no retrasar el arranque
-            const refreshPromise = authApiService.refreshCiudadanoToken(refreshToken);
-            const timeoutPromise = new Promise<never>((_, reject) =>
-              setTimeout(() => {
-                const timeoutErr: any = new Error('Timeout de conexión con el servidor');
-                timeoutErr.code = 'ECONNABORTED';
-                timeoutErr.isTimeout = true;
-                reject(timeoutErr);
-              }, 3500)
-            );
-            const refreshResult = await Promise.race([refreshPromise, timeoutPromise]);
+          // 2. DESBLOQUEO INMEDIATO (Autenticación optimista local)
+          // Establecer el usuario local y liberar isLoading de inmediato
+          // para que la UI principal (ProtectedNavigator / InicioScreen) se renderice sin esperar la red.
+          setUser(storedUser);
+          setSessionExpiredReason(null);
+          setIsLoading(false);
 
-            // Sesión validada con éxito en el servidor
-            await Promise.all([
-              saveTokens(refreshResult.accessToken, refreshResult.refreshToken),
-              saveUserData(refreshResult.user),
-              saveLastActiveTimestamp(Date.now()),
-            ]);
-            setUser(refreshResult.user);
-            setSessionExpiredReason(null);
-            connectMobileSocket(refreshResult.accessToken);
-            getFcmToken().catch(() => {});
-          } catch (refreshErr: any) {
-            if (isAuthInvalidationError(refreshErr)) {
-              // CASO 3: Sesión realmente invalidada en el backend
-              console.log('[Auth] Sesión invalidada por el servidor al arrancar:', refreshErr?.message);
-              await clearAllSession();
-              disconnectMobileSocket();
-              setUser(null);
-              const reason =
-                refreshErr?.response?.data?.message ||
-                'Por seguridad, tu sesión se cerró después de un período de inactividad. Inicia sesión nuevamente para continuar.';
-              setSessionExpiredReason(reason);
-            } else {
-              // CASO 4: Error de red / timeout / servidor no disponible
-              console.log('[Auth] Error de conectividad al validar sesión al arrancar. Restaurando sesión localmente:', refreshErr?.message);
-              await saveLastActiveTimestamp(Date.now());
-              setUser(storedUser);
-              setSessionExpiredReason(null);
-              if (accessToken) {
-                connectMobileSocket(accessToken);
-              }
-              getFcmToken().catch(() => {});
-            }
+          // Conectar socket inicialmente con el token existente y registrar FCM en segundo plano
+          if (accessToken) {
+            connectMobileSocket(accessToken);
           }
+          getFcmToken().catch(() => {});
+
+          // 3. Ejecutar validación/refresh de tokens en segundo plano utilizando la ÚNICA fuente de verdad (api.ts)
+          performTokenRefresh()
+            .then(async (newAccessToken) => {
+              // Solo actualizar si la sesión sigue activa (no se hizo logout en el interín)
+              const [freshUser, currentToken] = await Promise.all([
+                getUserData(),
+                getAccessToken(),
+              ]);
+              if (freshUser && currentToken) {
+                setUser(freshUser);
+                connectMobileSocket(newAccessToken);
+              }
+            })
+            .catch((refreshErr: any) => {
+              // Si el error fue 401/403/422, performTokenRefresh ya ejecutó:
+              // clearAllSession() y _onSessionExpired(), lo cual desloguea y redirige a login.
+              // Si fue error de red/timeout, la sesión local se mantiene activa.
+              console.log('[Auth] Validación de sesión en segundo plano completada:', refreshErr?.message || refreshErr);
+            });
+
+          return;
         } else {
           // No hay datos previos de sesión
           await clearAllSession();
           setUser(null);
+          setIsLoading(false);
         }
       } catch (error) {
         // Fallo general al leer almacenamiento seguro
         console.error('[Auth] Error al leer almacenamiento seguro:', error);
         setUser(null);
-      } finally {
         setIsLoading(false);
       }
     }

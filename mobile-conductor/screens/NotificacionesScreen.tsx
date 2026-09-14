@@ -39,11 +39,14 @@ import {
   MoreVertical,
   Trash2,
   X,
+  History,
+  Clock,
 } from 'lucide-react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import api from '../services/api';
 import { getMobileSocket } from '../services/socketService';
 import { onForegroundMessage } from '../services/fcmService';
+import { AnimatedCard, AnimatedPressable, CleanGoOrbitRadar } from '../components/ui';
 import { theme } from '../theme/colors';
 
 interface Notificacion {
@@ -55,6 +58,14 @@ interface Notificacion {
   destinatario: 'CIUDADANOS' | 'CONDUCTORES' | 'AMBOS';
   leida: boolean;
   created_at: string;
+}
+
+export interface NotificacionesResponse {
+  data: Notificacion[];
+  total: number;
+  page: number;
+  totalPages: number;
+  hasMore: boolean;
 }
 
 function getCategoriaIcon(categoria: string, leida: boolean) {
@@ -236,20 +247,62 @@ function NotificationCardItem({
 
 export function NotificacionesScreen() {
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Modales
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [selectedItemForMenu, setSelectedItemForMenu] = useState<Notificacion | null>(null);
 
-  const fetchNotificaciones = useCallback(async () => {
+  const fetchNotificaciones = useCallback(async (pageToFetch = 1, isRefresh = false) => {
     try {
       setError(null);
-      const response = await api.get<Notificacion[]>('/device/notificaciones');
-      const todas = Array.isArray(response.data) ? response.data : [];
-      setNotificaciones(todas);
+      const response = await api.get<NotificacionesResponse | Notificacion[]>('/device/notificaciones', {
+        params: { page: pageToFetch, limit: 10 },
+      });
+
+      const payload = response.data;
+      let items: Notificacion[] = [];
+      let totalCount = 0;
+      let currentPage = 1;
+      let totalPgs = 1;
+      let more = false;
+
+      if (payload && typeof payload === 'object' && 'data' in payload && Array.isArray((payload as any).data)) {
+        const resp = payload as NotificacionesResponse;
+        items = resp.data;
+        totalCount = resp.total;
+        currentPage = resp.page;
+        totalPgs = resp.totalPages;
+        more = resp.hasMore ?? (currentPage < totalPgs);
+      } else if (Array.isArray(payload)) {
+        items = payload;
+        totalCount = payload.length;
+        currentPage = 1;
+        totalPgs = 1;
+        more = false;
+      }
+
+      if (pageToFetch === 1) {
+        setNotificaciones(items);
+      } else {
+        setNotificaciones((prev) => {
+          const existingIds = new Set(prev.map((n) => n.id));
+          const newItems = items.filter((n) => !existingIds.has(n.id));
+          return [...prev, ...newItems];
+        });
+      }
+
+      setPage(currentPage);
+      setTotalPages(totalPgs);
+      setTotal(totalCount);
+      setHasMore(more);
     } catch (err: any) {
       const mensaje =
         err?.response?.data?.error ||
@@ -257,32 +310,35 @@ export function NotificacionesScreen() {
         err?.message ||
         'No se pudieron cargar las notificaciones.';
       setError(mensaje);
-      setNotificaciones([]);
+      if (pageToFetch === 1) {
+        setNotificaciones([]);
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+      setIsLoadingMore(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchNotificaciones();
+    fetchNotificaciones(1);
   }, [fetchNotificaciones]);
 
   useEffect(() => {
     const socket = getMobileSocket();
     const onNueva = () => {
-      fetchNotificaciones();
+      fetchNotificaciones(1, false);
     };
     socket.on('notificacion_nueva', onNueva);
     socket.on('connect', onNueva);
 
     const unsubscribeFcm = onForegroundMessage(() => {
-      fetchNotificaciones();
+      fetchNotificaciones(1, false);
     });
 
     const onAppState = (next: AppStateStatus) => {
       if (next === 'active') {
-        fetchNotificaciones();
+        fetchNotificaciones(1, false);
       }
     };
     const appSub = AppState.addEventListener('change', onAppState);
@@ -313,24 +369,31 @@ export function NotificacionesScreen() {
     try {
       await api.patch('/device/notificaciones/marcar-todas-leidas');
     } catch {
-      fetchNotificaciones();
+      fetchNotificaciones(1);
     }
   }, [fetchNotificaciones]);
 
   const eliminarNotificacion = useCallback(async (id: number) => {
     setSelectedItemForMenu(null);
     setNotificaciones((prev) => prev.filter((n) => n.id !== id));
+    setTotal((prev) => Math.max(0, prev - 1));
     try {
       await api.delete(`/device/notificaciones/${id}`);
     } catch {
-      fetchNotificaciones();
+      fetchNotificaciones(1);
     }
   }, [fetchNotificaciones]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    fetchNotificaciones();
-  };
+    fetchNotificaciones(1, true);
+  }, [fetchNotificaciones]);
+
+  const handleCargarAnteriores = useCallback(() => {
+    if (isLoadingMore || !hasMore || page >= totalPages) return;
+    setIsLoadingMore(true);
+    fetchNotificaciones(page + 1);
+  }, [isLoadingMore, hasMore, page, totalPages, fetchNotificaciones]);
 
   if (isLoading) {
     return (
@@ -369,18 +432,55 @@ export function NotificacionesScreen() {
             tintColor={theme.colors.primary}
           />
         }
-        renderItem={({ item }) => (
-          <NotificationCardItem
-            item={item}
-            onPressCard={marcarLeida}
-            onMarcarLeida={(id) => marcarLeida(id, false)}
-            onDelete={eliminarNotificacion}
-            onOpenItemMenu={(notif) => setSelectedItemForMenu(notif)}
-          />
+        renderItem={({ item, index }) => (
+          <AnimatedCard index={index} staggerMs={35}>
+            <NotificationCardItem
+              item={item}
+              onPressCard={marcarLeida}
+              onMarcarLeida={(id) => marcarLeida(id, false)}
+              onDelete={eliminarNotificacion}
+              onOpenItemMenu={(notif) => setSelectedItemForMenu(notif)}
+            />
+          </AnimatedCard>
         )}
+        ListFooterComponent={
+          hasMore ? (
+            <View style={styles.loadMoreWrapper}>
+              <AnimatedPressable
+                style={styles.loadMoreBtn}
+                onPress={handleCargarAnteriores}
+                disabled={isLoadingMore}
+                accessibilityRole="button"
+                accessibilityLabel="Ver notificaciones anteriores"
+              >
+                {isLoadingMore ? (
+                  <View style={styles.loadMoreInner}>
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                    <Text style={styles.loadMoreText}>Cargando avisos anteriores...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.loadMoreInner}>
+                    <History size={16} color={theme.colors.primary} />
+                    <Text style={styles.loadMoreText}>
+                      Ver notificaciones anteriores
+                      {total > notificaciones.length ? ` (${total - notificaciones.length})` : ''}
+                    </Text>
+                  </View>
+                )}
+              </AnimatedPressable>
+            </View>
+          ) : notificaciones.length > 0 ? (
+            <View style={styles.endOfListWrapper}>
+              <View style={styles.endOfListDot} />
+              <Text style={styles.endOfListText}>Estás al día con todos tus avisos</Text>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Bell size={48} color="#CBD5E1" />
+            <View style={styles.radarWrapper}>
+              <CleanGoOrbitRadar />
+            </View>
             <Text style={styles.emptyTitle}>
               {error ? 'No se pudieron cargar' : 'Sin notificaciones'}
             </Text>
@@ -388,9 +488,9 @@ export function NotificacionesScreen() {
               {error || 'No hay avisos disponibles en este momento.'}
             </Text>
             {error ? (
-              <TouchableOpacity onPress={handleRefresh} style={styles.retryButton}>
+              <AnimatedPressable onPress={handleRefresh} style={styles.retryButton}>
                 <Text style={styles.retryText}>Reintentar</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             ) : null}
           </View>
         }
@@ -512,7 +612,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
     flexGrow: 1,
   },
   swipeableContainer: {
@@ -650,6 +750,11 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     gap: 10,
   },
+  radarWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -736,5 +841,59 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#0F172A',
+  },
+
+  // Paginación Estilo Facebook
+  loadMoreWrapper: {
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  loadMoreBtn: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#BFDBFE',
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1763A6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  loadMoreInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadMoreText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: theme.colors.primary,
+    letterSpacing: 0.2,
+  },
+  endOfListWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  endOfListDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#94A3B8',
+  },
+  endOfListText: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#64748B',
   },
 });

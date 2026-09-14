@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { Truck, User, Clock, CheckCircle2, UserCircle, MapPin, Calendar } from 'lucide-react-native';
+import { View, Text, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
+import { Truck, User, Clock, CheckCircle2, UserCircle, MapPin, Calendar, AlertTriangle, AlertCircle, Sparkles } from 'lucide-react-native';
+import { AnimatedPressable, PulsingBeacon } from './ui';
+
+const ANTICIPATION_MINUTES = 30;
 
 interface AsignacionCardProps {
   asignacion: any;
@@ -9,6 +12,13 @@ interface AsignacionCardProps {
   onVerMapa?: () => void;
   isStarting: boolean;
   isFinishing: boolean;
+}
+
+function formatTimeAMPM(date: Date): string {
+  const ampm = date.getHours() >= 12 ? 'PM' : 'AM';
+  const hours = date.getHours() % 12 || 12;
+  const mins = date.getMinutes().toString().padStart(2, '0');
+  return `${hours.toString().padStart(2, '0')}:${mins} ${ampm}`;
 }
 
 function formatFechaCompleta(fechaRaw: any): { fechaBadgeText: string; prefijoEarly: string } {
@@ -83,13 +93,16 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
     onIniciar(conductorRealNombre);
   };
 
-  const estatusColor = asignacion.estatus_recorrido === 'Pendiente' ? '#f59e0b' : '#3b82f6';
-  const estatusBg = asignacion.estatus_recorrido === 'Pendiente' ? '#fef3c7' : '#dbeafe';
+  const isEnProgreso =
+    asignacion.estatus_recorrido === 'En Progreso' ||
+    asignacion.estatus_recorrido === 'En progreso';
+  const estatusColor = asignacion.estatus_recorrido === 'Pendiente' ? '#f59e0b' : '#10b981';
+  const estatusBg = asignacion.estatus_recorrido === 'Pendiente' ? '#fef3c7' : '#d1fae5';
 
   // Calcular fecha formateada y prefijo de horario
   const { fechaBadgeText, prefijoEarly } = formatFechaCompleta(asignacion.fecha_programada);
 
-  // Calcular si el horario ya permite iniciar
+  // Reloj interno para evaluar anticipación y retrasos en tiempo real
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -98,21 +111,56 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
     return () => clearInterval(interval);
   }, [asignacion.estatus_recorrido]);
 
-  let isEarly = false;
-  let timeStr = '';
+  // Cálculos de tiempos y estados
+  let isExpired = false;
+  let isTooEarly = false;
+  let isInAnticipation = false;
+  let isDelayed = false;
+  let delayStr = '';
+  let scheduledTimeStr = '';
+  let unlockTimeStr = '';
 
-  if (asignacion.fecha_programada && asignacion.horario_inicio) {
-    const fechaStr = typeof asignacion.fecha_programada === 'string' 
-      ? asignacion.fecha_programada.split('T')[0] 
-      : new Date(asignacion.fecha_programada).toISOString().split('T')[0];
-    const programada = new Date(`${fechaStr}T${asignacion.horario_inicio}`);
-    
-    if (!isNaN(programada.getTime()) && now < programada) {
-      isEarly = true;
-      const ampm = programada.getHours() >= 12 ? 'PM' : 'AM';
-      const hours = programada.getHours() % 12 || 12;
-      const mins = programada.getMinutes().toString().padStart(2, '0');
-      timeStr = `${hours.toString().padStart(2, '0')}:${mins} ${ampm}`;
+  if (asignacion.estatus_recorrido === 'Pendiente' && asignacion.horario_inicio) {
+    try {
+      const fechaStr = typeof asignacion.fecha_programada === 'string'
+        ? asignacion.fecha_programada.split('T')[0]
+        : new Date(asignacion.fecha_programada).toISOString().split('T')[0];
+
+      const [year, month, day] = fechaStr.split('-').map(Number);
+      const [hours, mins] = (asignacion.horario_inicio || '00:00').split(':').map(Number);
+
+      const scheduledStart = new Date(year, month - 1, day, hours, mins, 0);
+      const startWindow = new Date(scheduledStart.getTime() - ANTICIPATION_MINUTES * 60 * 1000);
+
+      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const assignmentMidnight = new Date(year, month - 1, day);
+
+      if (!isNaN(scheduledStart.getTime())) {
+        scheduledTimeStr = formatTimeAMPM(scheduledStart);
+        unlockTimeStr = formatTimeAMPM(startWindow);
+
+        if (assignmentMidnight < todayMidnight) {
+          isExpired = true;
+        } else if (now < startWindow) {
+          isTooEarly = true;
+        } else if (now >= startWindow && now < scheduledStart) {
+          isInAnticipation = true;
+        } else if (now >= scheduledStart) {
+          const diffMs = now.getTime() - scheduledStart.getTime();
+          const diffMins = Math.floor(diffMs / 60000);
+
+          if (diffMins >= 1) {
+            isDelayed = true;
+            const delayHours = Math.floor(diffMins / 60);
+            const remainingMins = diffMins % 60;
+            delayStr = delayHours > 0
+              ? `${delayHours}h ${remainingMins}m`
+              : `${diffMins} min`;
+          }
+        }
+      }
+    } catch {
+      // Fallback
     }
   }
 
@@ -124,7 +172,8 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
           <View style={[styles.rutaDot, { backgroundColor: asignacion.ruta_color || '#3b82f6' }]} />
           <Text style={styles.rutaNombre}>{asignacion.ruta_nombre}</Text>
         </View>
-        <View style={[styles.estatusBadge, { backgroundColor: estatusBg }]}>
+        <View style={[styles.estatusBadge, { backgroundColor: estatusBg, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+          {isEnProgreso && <PulsingBeacon color="#10B981" size={7} pulseScale={2} />}
           <Text style={[styles.estatusText, { color: estatusColor }]}>
             {asignacion.estatus_recorrido}
           </Text>
@@ -145,7 +194,7 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
         </View>
 
         <View style={styles.infoRightCol}>
-          {Boolean(fechaBadgeText) && (
+          {fechaBadgeText !== '' && (
             <View style={styles.infoRowRight}>
               <Calendar size={13} color="#1763A6" />
               <Text style={styles.infoDateText}>{fechaBadgeText}</Text>
@@ -165,99 +214,133 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
         <View style={styles.actionSection}>
           <View style={styles.divider} />
           
-          {isEarly ? (
-            <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-              <Clock size={28} color="#f59e0b" style={{ marginBottom: 8 }} />
-              <Text style={{ textAlign: 'center', color: '#374151', fontSize: 15, fontWeight: '600' }}>
-                Programado para {prefijoEarly} a las {timeStr}
-              </Text>
-              <Text style={{ textAlign: 'center', color: '#6b7280', fontSize: 13, marginTop: 4 }}>
-                El botón se habilitará automáticamente a esa hora.
+          {isExpired ? (
+            <View style={styles.expiredContainer}>
+              <AlertCircle size={26} color="#ef4444" style={{ marginBottom: 6 }} />
+              <Text style={styles.expiredTitle}>Asignación no iniciada</Text>
+              <Text style={styles.expiredSubtitle}>
+                Esta asignación correspondía a una fecha anterior ({fechaBadgeText}) y no fue realizada.
               </Text>
             </View>
-          ) : confirmStep === 'ask' ? (
-            <View>
-              <Text style={styles.questionText}>¿Eres tú quien realizará este recorrido?</Text>
-              
-              <TouchableOpacity 
-                style={styles.primaryButton} 
-                onPress={handleConfirmSelf}
-                disabled={isStarting}
-              >
-                {isStarting ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <CheckCircle2 size={18} color="#fff" style={styles.btnIcon} />
-                    <Text style={styles.primaryButtonText}>Sí, iniciar recorrido</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.secondaryButton} 
-                onPress={() => setConfirmStep('capture')}
-                disabled={isStarting}
-              >
-                <UserCircle size={18} color="#1763A6" style={styles.btnIcon} />
-                <Text style={styles.secondaryButtonText}>No, soy otra persona</Text>
-              </TouchableOpacity>
+          ) : isTooEarly ? (
+            <View style={styles.earlyContainer}>
+              <View style={styles.earlyIconWrapper}>
+                <Clock size={22} color="#d97706" />
+              </View>
+              <Text style={styles.earlyTitle}>
+                Programado para {prefijoEarly} a las {scheduledTimeStr}
+              </Text>
+              <Text style={styles.earlySubtitle}>
+                El botón de inicio se habilitará a las <Text style={styles.earlyHighlight}>{unlockTimeStr}</Text> ({ANTICIPATION_MINUTES} min de anticipación para preparación).
+              </Text>
             </View>
           ) : (
             <View>
-              <Text style={styles.questionText}>Escribe tu nombre completo:</Text>
-              <TextInput
-                style={[styles.input, conductorRealError && styles.inputError]}
-                placeholder="Ej. Leodan Hernández"
-                value={conductorRealNombre}
-                onChangeText={(val) => {
-                  setConductorRealNombre(val);
-                  setConductorRealError(null);
-                }}
-                autoFocus
-              />
-              {conductorRealError && <Text style={styles.errorText}>{conductorRealError}</Text>}
-              
-              <TouchableOpacity 
-                style={styles.primaryButton} 
-                onPress={handleConfirmOtherSubmit}
-                disabled={isStarting}
-              >
-                {isStarting ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <CheckCircle2 size={18} color="#fff" style={styles.btnIcon} />
-                    <Text style={styles.primaryButtonText}>Iniciar recorrido</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.secondaryButton, { marginTop: 8 }]} 
-                onPress={() => { setConfirmStep('ask'); setConductorRealError(null); }}
-                disabled={isStarting}
-              >
-                <Text style={styles.secondaryButtonText}>Regresar</Text>
-              </TouchableOpacity>
+              {/* Banner de anticipación */}
+              {isInAnticipation && (
+                <View style={styles.anticipationBanner}>
+                  <Sparkles size={15} color="#0d9488" />
+                  <Text style={styles.anticipationBannerText}>
+                    Habilitado con anticipación · Horario oficial: {scheduledTimeStr}
+                  </Text>
+                </View>
+              )}
+
+              {/* Banner de retraso informativo (NO bloqueante) */}
+              {isDelayed && (
+                <View style={styles.delayBanner}>
+                  <AlertTriangle size={15} color="#b45309" />
+                  <Text style={styles.delayBannerText}>
+                    Turno con retraso de {delayStr} · Programado: {scheduledTimeStr}
+                  </Text>
+                </View>
+              )}
+
+              {confirmStep === 'ask' ? (
+                <View>
+                  <Text style={styles.questionText}>¿Eres tú quien realizará este recorrido?</Text>
+                  
+                  <AnimatedPressable 
+                    style={styles.primaryButton} 
+                    onPress={handleConfirmSelf}
+                    disabled={isStarting}
+                  >
+                    {isStarting ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <CheckCircle2 size={18} color="#fff" style={styles.btnIcon} />
+                        <Text style={styles.primaryButtonText}>Sí, iniciar recorrido</Text>
+                      </>
+                    )}
+                  </AnimatedPressable>
+                  
+                  <AnimatedPressable 
+                    style={styles.secondaryButton} 
+                    onPress={() => setConfirmStep('capture')}
+                    disabled={isStarting}
+                  >
+                    <UserCircle size={18} color="#1763A6" style={styles.btnIcon} />
+                    <Text style={styles.secondaryButtonText}>No, soy otra persona</Text>
+                  </AnimatedPressable>
+                </View>
+              ) : (
+                <View>
+                  <Text style={styles.questionText}>Escribe tu nombre completo:</Text>
+                  <TextInput
+                    style={[styles.input, conductorRealError && styles.inputError]}
+                    placeholder="Ej. Leodan Hernández"
+                    value={conductorRealNombre}
+                    onChangeText={(val) => {
+                      setConductorRealNombre(val);
+                      setConductorRealError(null);
+                    }}
+                    autoFocus
+                  />
+                  {conductorRealError && <Text style={styles.errorText}>{conductorRealError}</Text>}
+                  
+                  <AnimatedPressable 
+                    style={styles.primaryButton} 
+                    onPress={handleConfirmOtherSubmit}
+                    disabled={isStarting}
+                  >
+                    {isStarting ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <CheckCircle2 size={18} color="#fff" style={styles.btnIcon} />
+                        <Text style={styles.primaryButtonText}>Iniciar recorrido</Text>
+                      </>
+                    )}
+                  </AnimatedPressable>
+                  
+                  <AnimatedPressable 
+                    style={[styles.secondaryButton, { marginTop: 8 }]} 
+                    onPress={() => { setConfirmStep('ask'); setConductorRealError(null); }}
+                    disabled={isStarting}
+                  >
+                    <Text style={styles.secondaryButtonText}>Regresar</Text>
+                  </AnimatedPressable>
+                </View>
+              )}
             </View>
           )}
         </View>
       )}
 
-      {asignacion.estatus_recorrido === 'En Progreso' && (
+      {isEnProgreso && (
         <View style={styles.actionSection}>
           <View style={styles.divider} />
           {onVerMapa && (
-            <TouchableOpacity 
+            <AnimatedPressable 
               style={[styles.primaryButton, { backgroundColor: '#1763A6', marginBottom: 8 }]} 
               onPress={onVerMapa}
             >
               <MapPin size={18} color="#fff" style={styles.btnIcon} />
               <Text style={styles.primaryButtonText}>Ver Mapa de Ruta</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           )}
-          <TouchableOpacity 
+          <AnimatedPressable 
             style={[styles.primaryButton, { backgroundColor: '#10b981' }]} 
             onPress={onFinalizar}
             disabled={isFinishing}
@@ -270,7 +353,7 @@ export const AsignacionCard: React.FC<AsignacionCardProps> = ({
                 <Text style={styles.primaryButtonText}>Finalizar recorrido</Text>
               </>
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       )}
     </View>
@@ -429,5 +512,96 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 12,
     marginTop: -8,
+  },
+  // Banners y Contenedores de Estado de Horario
+  anticipationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f0fdfa',
+    borderColor: '#ccfbf1',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 14,
+  },
+  anticipationBannerText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#0f766e',
+    flex: 1,
+  },
+  delayBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 14,
+  },
+  delayBannerText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#b45309',
+    flex: 1,
+  },
+  earlyContainer: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  earlyIconWrapper: {
+    backgroundColor: '#fef3c7',
+    padding: 8,
+    borderRadius: 20,
+    marginBottom: 8,
+  },
+  earlyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#92400e',
+    textAlign: 'center',
+  },
+  earlySubtitle: {
+    fontSize: 12.5,
+    color: '#78350f',
+    textAlign: 'center',
+    marginTop: 5,
+    lineHeight: 18,
+  },
+  earlyHighlight: {
+    fontWeight: '700',
+    color: '#b45309',
+  },
+  expiredContainer: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fee2e2',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  expiredTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#991b1b',
+    marginTop: 2,
+  },
+  expiredSubtitle: {
+    fontSize: 12.5,
+    color: '#b91c1c',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 18,
   },
 });

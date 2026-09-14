@@ -10,7 +10,6 @@ import { recorridosService } from '../services/recorridosService';
 import { getAsignacionActual } from '../services/camionService';
 import type { AsignacionActual } from '../services/camionService';
 import { useAuth } from './AuthContext';
-import { Alert } from 'react-native';
 
 interface AsignacionContextData {
   asignaciones: any[];
@@ -79,7 +78,7 @@ export function AsignacionProvider({ children }: { children: ReactNode }) {
         fetchAsignacionActualData(),
       ]);
     } catch (err) {
-      Alert.alert('Error', 'No se pudieron actualizar los datos correctamente.');
+      console.error('[AsignacionContext] Error al actualizar datos:', err);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

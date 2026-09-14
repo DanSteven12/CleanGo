@@ -12,6 +12,17 @@ export interface ReporteCiudadano {
   fecha_reporte: string;
 }
 
+export interface PaginatedReportesResponse {
+  data: ReporteCiudadano[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
+
 export interface CrearReporteData {
   tipo_reporte: string;
   latitud: number | string;
@@ -26,8 +37,22 @@ export interface CrearReporteData {
 }
 
 export const reportesService = {
-  getMisReportes: async (): Promise<ReporteCiudadano[]> => {
-    const response = await api.get('/ciudadano/reportes');
+  getMisReportes: async (page = 1, limit = 10): Promise<PaginatedReportesResponse> => {
+    const response = await api.get('/ciudadano/reportes', {
+      params: { page, limit },
+    });
+    if (Array.isArray(response.data)) {
+      return {
+        data: response.data,
+        pagination: {
+          total: response.data.length,
+          page: 1,
+          limit: response.data.length,
+          totalPages: 1,
+          hasMore: false,
+        },
+      };
+    }
     return response.data;
   },
 

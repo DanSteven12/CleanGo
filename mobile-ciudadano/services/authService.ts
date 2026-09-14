@@ -11,7 +11,7 @@
  *   - Endpoints: /mobile/auth/* (en lugar de /device/auth/*)
  *   - Credenciales: email + password (en lugar de usuario_dispositivo + password)
  */
-import api from './api';
+import api, { performTokenRefresh } from './api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -147,21 +147,10 @@ export async function registerCiudadano(
 /**
  * Renueva el Access Token usando el Refresh Token.
  * POST /api/mobile/auth/refresh
- * Nota: este endpoint es llamado directamente por el interceptor de api.ts.
- * Esta función existe para uso explícito desde AuthContext (restauración de sesión).
+ * Delegado a performTokenRefresh en api.ts para centralizar la sincronización y evitar carreras de RTR.
  */
-export async function refreshCiudadanoToken(
-  refreshToken: string
-): Promise<MobileRefreshResponse> {
-  // Llamada directa a axios sin pasar por el interceptor de api.ts
-  // para evitar loop de refresh sobre refresh.
-  const { default: axios } = await import('axios');
-  const response = await axios.post<MobileRefreshResponse>(
-    `${api.defaults.baseURL}/mobile/auth/refresh`,
-    { refreshToken },
-    { headers: { 'Content-Type': 'application/json' }, timeout: 5000 }
-  );
-  return response.data;
+export async function refreshCiudadanoToken(): Promise<string> {
+  return performTokenRefresh();
 }
 
 /**

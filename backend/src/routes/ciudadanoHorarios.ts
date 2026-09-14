@@ -9,8 +9,27 @@ const router = Router();
 router.use(mobileAuthMiddleware);
 
 /**
+ * GET /api/ciudadano/horarios/rutas
+ * Obtiene el catálogo completo de rutas para indexación y búsqueda instantánea en la app móvil.
+ */
+router.get('/rutas', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT id, nombre, descripcion, color 
+       FROM rutas 
+       ORDER BY nombre ASC`
+    );
+
+    res.json({ data: rows });
+  } catch (error) {
+    console.error(`[ciudadano/horarios] GET /rutas:`, error);
+    res.status(500).json({ error: 'Error interno al obtener el catálogo de rutas.' });
+  }
+});
+
+/**
  * GET /api/ciudadano/horarios/buscar?q=...
- * Busca rutas cuya colonia coincida con el parámetro de búsqueda.
+ * Busca rutas cuya colonia coincida con el parámetro de búsqueda (respaldo/compatibilidad).
  */
 router.get('/buscar', async (req: Request, res: Response): Promise<void> => {
   const query = req.query.q as string;
@@ -24,11 +43,11 @@ router.get('/buscar', async (req: Request, res: Response): Promise<void> => {
 
   try {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT id, nombre, descripcion 
+      `SELECT id, nombre, descripcion, color 
        FROM rutas 
        WHERE LOWER(nombre) LIKE ? OR LOWER(descripcion) LIKE ?
        ORDER BY nombre ASC
-       LIMIT 20`,
+       LIMIT 25`,
       [searchTerm, searchTerm]
     );
 

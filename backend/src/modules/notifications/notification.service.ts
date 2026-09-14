@@ -351,12 +351,34 @@ export async function obtenerPorUsuario(
 }
 
 /**
+ * Obtiene las notificaciones paginadas de un usuario ciudadano/administrador.
+ */
+export async function obtenerPaginadasPorUsuario(
+  usuario_id: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<NotificationRepository.NotificacionesPaginadasUsuario> {
+  return NotificationRepository.obtenerNotificacionesPaginadasPorUsuario(usuario_id, page, limit);
+}
+
+/**
  * Obtiene el conteo de notificaciones no leídas de un usuario (ciudadano o administrador).
  */
 export async function obtenerConteoNoLeidasPorUsuario(
   usuario_id: number
 ): Promise<number> {
   return NotificationRepository.obtenerConteoNoLeidasPorUsuario(usuario_id);
+}
+
+/**
+ * Obtiene las notificaciones paginadas de un conductor.
+ */
+export async function obtenerPaginadasPorConductor(
+  conductor_id: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<NotificationRepository.NotificacionesPaginadasConductor> {
+  return NotificationRepository.obtenerNotificacionesPaginadasPorConductor(conductor_id, page, limit);
 }
 
 /**

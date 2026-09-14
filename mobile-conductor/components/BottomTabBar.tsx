@@ -1,29 +1,39 @@
 // mobile-conductor/components/BottomTabBar.tsx
 /**
- * Bottom Tab Bar con Navegación Curvada Animada para la app móvil de Conductores.
+ * Barra de Navegación Inferior Flotante (Floating Bottom Tab Bar) para la app móvil de Conductores.
  *
  * Características:
- *  - Línea azul continua en el BORDE INFERIOR (bottom) a lo largo de toda la barra.
- *  - Alineación sub-píxel perfecta entre la línea recta y la curva (0 escalones o baches).
- *  - El arco se eleva lo suficiente para pasar por encima del icono activo.
- *  - Colores corporativos CleanGo (Azul primario #1763A6).
- *  - Integración completa con Safe Area.
+ *  - Diseño flotante estilo cápsula (Pill Shape) con elevación y bordes suaves idéntico a Mobile Ciudadano.
+ *  - Micro-animaciones fluidas con react-native-reanimated (elevación y escala en pestaña activa).
+ *  - Indicador circular luminoso (Glow Halo) adaptado a cada color temático.
+ *  - Punto indicador dinámico inferior animado con resorte (Spring).
+ *  - Soporte para insignia (Badge) de notificaciones no leídas.
+ *  - Integración completa y segura con Safe Area Insets.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
   Platform,
-  Animated,
-  LayoutChangeEvent,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, MapPin, Bell, User, History } from 'lucide-react-native';
-import { theme } from '../theme/colors';
+import { Home, MapPin, Bell, History, User } from 'lucide-react-native';
+
+const T = {
+  bgCard: '#FFFFFF',
+  textMuted: '#64748B',
+  border: '#E2E8F0',
+  destructive: '#DC2626',
+};
 
 export type TabName = 'inicio' | 'recorrido' | 'notificaciones' | 'historial' | 'perfil';
 
@@ -31,15 +41,127 @@ interface Tab {
   name: TabName;
   label: string;
   Icon: React.ComponentType<{ size: number; color: string; strokeWidth?: number }>;
+  color: string;
+  lightBg: string;
 }
 
 const TABS: Tab[] = [
-  { name: 'inicio', label: 'Inicio', Icon: Home },
-  { name: 'recorrido', label: 'Recorrido', Icon: MapPin },
-  { name: 'notificaciones', label: 'Avisos', Icon: Bell },
-  { name: 'historial', label: 'Historial', Icon: History },
-  { name: 'perfil', label: 'Perfil', Icon: User },
+  { name: 'inicio', label: 'Inicio', Icon: Home, color: '#1763A6', lightBg: 'rgba(23, 99, 166, 0.14)' },
+  { name: 'recorrido', label: 'Recorrido', Icon: MapPin, color: '#0D9488', lightBg: 'rgba(13, 148, 136, 0.14)' },
+  { name: 'notificaciones', label: 'Avisos', Icon: Bell, color: '#D97706', lightBg: 'rgba(217, 119, 6, 0.14)' },
+  { name: 'historial', label: 'Historial', Icon: History, color: '#7C3AED', lightBg: 'rgba(124, 58, 237, 0.14)' },
+  { name: 'perfil', label: 'Perfil', Icon: User, color: '#0284C7', lightBg: 'rgba(2, 132, 199, 0.14)' },
 ];
+
+interface AnimatedTabItemProps {
+  tab: Tab;
+  isActive: boolean;
+  onPress: () => void;
+  notificationCount?: number;
+}
+
+function AnimatedTabItem({ tab, isActive, onPress, notificationCount = 0 }: AnimatedTabItemProps) {
+  const { name, label, Icon, color, lightBg } = tab;
+
+  const translateY = useSharedValue(isActive ? -5 : 0);
+  const scale = useSharedValue(isActive ? 1.08 : 1);
+  const dotScale = useSharedValue(isActive ? 1 : 0);
+  const dotOpacity = useSharedValue(isActive ? 1 : 0);
+
+  useEffect(() => {
+    if (isActive) {
+      translateY.value = withSpring(-5, { damping: 14, stiffness: 300 });
+      scale.value = withSpring(1.08, { damping: 14, stiffness: 300 });
+      dotScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+      dotOpacity.value = withTiming(1, { duration: 150 });
+    } else {
+      translateY.value = withSpring(0, { damping: 18, stiffness: 300 });
+      scale.value = withSpring(1, { damping: 18, stiffness: 300 });
+      dotScale.value = withTiming(0, { duration: 150 });
+      dotOpacity.value = withTiming(0, { duration: 150 });
+    }
+  }, [isActive, translateY, scale, dotScale, dotOpacity]);
+
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  const animatedDotStyle = useAnimatedStyle(() => ({
+    opacity: dotOpacity.value,
+    transform: [{ scale: dotScale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(isActive ? 1.02 : 0.94, { damping: 15, stiffness: 350 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(isActive ? 1.08 : 1, { damping: 15, stiffness: 350 });
+  };
+
+  return (
+    <Pressable
+      style={styles.tab}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      hitSlop={{ top: 16, bottom: 12, left: 6, right: 6 }}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
+      accessibilityLabel={label}
+    >
+      <Animated.View style={[styles.iconLift, animatedIconStyle]} pointerEvents="none">
+        <View
+          style={[
+            styles.iconCircle,
+            isActive && {
+              backgroundColor: lightBg,
+              borderColor: color + '35',
+              borderWidth: 1.5,
+              shadowColor: color,
+              shadowOpacity: 0.18,
+              shadowRadius: 5,
+              elevation: 4,
+            },
+          ]}
+        >
+          <Icon
+            size={22}
+            color={isActive ? color : T.textMuted}
+            strokeWidth={isActive ? 2.4 : 1.8}
+          />
+          {name === 'notificaciones' && notificationCount > 0 && (
+            <View style={styles.badge} pointerEvents="none">
+              <Text style={styles.badgeText}>
+                {notificationCount > 9 ? '9+' : notificationCount}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Animated.View>
+
+      <Text
+        style={[styles.label, isActive && { color, fontWeight: '700' }]}
+        pointerEvents="none"
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+
+      <Animated.View
+        style={[
+          styles.dot,
+          { backgroundColor: color },
+          animatedDotStyle,
+        ]}
+        pointerEvents="none"
+      />
+    </Pressable>
+  );
+}
 
 interface BottomTabBarProps {
   activeTab: TabName;
@@ -47,230 +169,111 @@ interface BottomTabBarProps {
   notificationCount?: number;
 }
 
-const CURVE_WIDTH = 92;
-const CURVE_HEIGHT = 62;
-
 export function BottomTabBar({ activeTab, onTabPress, notificationCount = 0 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 6);
-
-  const [containerWidth, setContainerWidth] = useState<number>(0);
-  const activeIndex = TABS.findIndex((t) => t.name === activeTab);
-
-  // Valor animado del índice de tab (0 a 4)
-  const animIndex = useRef(new Animated.Value(activeIndex < 0 ? 0 : activeIndex)).current;
-
-  // Animaciones individuales para los íconos
-  const iconAnimValues = useRef(TABS.map((_, i) => new Animated.Value(i === activeIndex ? 1 : 0))).current;
-
-  useEffect(() => {
-    const targetIdx = activeIndex < 0 ? 0 : activeIndex;
-
-    // Animar la curva hacia el tab destino
-    Animated.spring(animIndex, {
-      toValue: targetIdx,
-      useNativeDriver: false,
-      tension: 68,
-      friction: 10,
-    }).start();
-
-    // Animar activación e iluminación de íconos
-    iconAnimValues.forEach((animVal, i) => {
-      Animated.spring(animVal, {
-        toValue: i === targetIdx ? 1 : 0,
-        useNativeDriver: true,
-        tension: 80,
-        friction: 9,
-      }).start();
-    });
-  }, [activeIndex, animIndex, iconAnimValues]);
-
-  const handleLayout = (e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    if (w > 0 && w !== containerWidth) {
-      setContainerWidth(w);
-    }
-  };
-
-  const tabWidth = containerWidth > 0 ? containerWidth / TABS.length : 0;
-
-  // Interpolación de la posición X del centro de la curva
-  const translateX = animIndex.interpolate({
-    inputRange: TABS.map((_, i) => i),
-    outputRange: TABS.map((_, i) => (i + 0.5) * tabWidth - CURVE_WIDTH / 2),
-  });
+  const bottomMargin = Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10);
 
   return (
-    <View style={[styles.wrapper, { paddingBottom: bottomPadding }]} onLayout={handleLayout}>
-      {/* Indicador con Línea Azul Continua + Alineación Perfecta de la Curva */}
-      {containerWidth > 0 && (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          {/* Línea azul primaria continua en la parte inferior */}
-          <View style={[styles.bottomLineBase, { backgroundColor: theme.colors.primary, bottom: bottomPadding }]} />
-
-          {/* Arco/Curva animada alineada milimétricamente con la línea base */}
-          <Animated.View
-            style={[
-              styles.curveWrapper,
-              {
-                bottom: bottomPadding,
-                transform: [{ translateX }],
-              },
-            ]}
-          >
-            <Svg width={CURVE_WIDTH} height={CURVE_HEIGHT + 8} viewBox="-46 -64 92 72">
-              {/* Máscara de fondo blanco que tapa la línea recta debajo de la curva */}
-              <Path
-                d="M -46 6 L -46 -1.75 C -30 -1.75 -20 -58 0 -58 C 20 -58 30 -1.75 46 -1.75 L 46 6 Z"
-                fill={theme.colors.card}
-              />
-              {/* Trazo del arco azul primario alineado a y = -1.75 con tangente horizontal pura */}
-              <Path
-                d="M -46 -1.75 C -30 -1.75 -20 -58 0 -58 C 20 -58 30 -1.75 46 -1.75"
-                fill="none"
-                stroke={theme.colors.primary}
-                strokeWidth={3.5}
-                strokeLinecap="butt"
-              />
-            </Svg>
-          </Animated.View>
-        </View>
-      )}
-
-      {/* Ítems del Tab Bar */}
-      {TABS.map(({ name, label, Icon }, index) => {
-        const isActive = activeTab === name;
-        const iconAnim = iconAnimValues[index];
-
-        const scale = iconAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [1, 1.12],
-        });
-
-        const color = isActive ? theme.colors.primary : theme.colors.textMuted;
-
-        return (
-          <Pressable
-            key={name}
-            style={({ pressed }) => [
-              styles.tab,
-              pressed && styles.tabPressed,
-            ]}
-            onPress={() => onTabPress(name)}
-            hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
-            android_ripple={{
-              color: 'rgba(23, 99, 166, 0.12)',
-              borderless: true,
-              radius: 32,
-            }}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isActive }}
-            accessibilityLabel={label}
-          >
-            <Animated.View
-              style={[
-                styles.iconWrapper,
-                {
-                  transform: [{ scale }],
-                },
-              ]}
-              pointerEvents="none"
-            >
-              <Icon size={22} color={color} strokeWidth={isActive ? 2.5 : 1.8} />
-
-              {/* Badge de notificaciones */}
-              {name === 'notificaciones' && notificationCount > 0 && (
-                <View style={[styles.badge, { backgroundColor: theme.colors.destructive }]} pointerEvents="none">
-                  <Text style={styles.badgeText}>
-                    {notificationCount > 9 ? '9+' : notificationCount}
-                  </Text>
-                </View>
-              )}
-            </Animated.View>
-
-            <Text
-              style={[
-                styles.label,
-                isActive && styles.labelActive,
-              ]}
-              pointerEvents="none"
-              numberOfLines={1}
-            >
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
+    <View style={[styles.outerWrapper, { marginBottom: bottomMargin }]}>
+      <View style={styles.floatingBar}>
+        {TABS.map((tab) => (
+          <AnimatedTabItem
+            key={tab.name}
+            tab={tab}
+            isActive={activeTab === tab.name}
+            onPress={() => onTabPress(tab.name)}
+            notificationCount={notificationCount}
+          />
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.card,
-    paddingTop: 8,
-    position: 'relative',
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    ...theme.shadows.header,
-  },
-  bottomLineBase: {
+  outerWrapper: {
     position: 'absolute',
+    bottom: 0,
     left: 0,
     right: 0,
-    height: 3.5,
+    paddingHorizontal: 16,
+    overflow: 'visible',
+    zIndex: 20,
+    backgroundColor: 'transparent',
   },
-  curveWrapper: {
-    position: 'absolute',
-    left: 0,
-    width: CURVE_WIDTH,
-    height: CURVE_HEIGHT + 6,
+  floatingBar: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: T.bgCard,
+    borderRadius: 30,
+    paddingVertical: 8,
+    minHeight: 64,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
+    overflow: 'visible',
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    minHeight: 52,
-    position: 'relative',
-    zIndex: 2,
+    paddingVertical: 2,
+    overflow: 'visible',
   },
-  tabPressed: {
-    opacity: 0.75,
-  },
-  iconWrapper: {
-    position: 'relative',
+  iconLift: {
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 3,
+    marginBottom: 2,
+    zIndex: 3,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    shadowOffset: { width: 0, height: 3 },
   },
   label: {
     fontSize: 11,
     fontWeight: '500',
-    color: theme.colors.textMuted,
+    color: T.textMuted,
     letterSpacing: 0.2,
-    marginTop: 1,
   },
-  labelActive: {
-    color: theme.colors.primary,
-    fontWeight: '700',
+  dot: {
+    width: 4.5,
+    height: 4.5,
+    borderRadius: 2.25,
+    marginTop: 2,
   },
   badge: {
     position: 'absolute',
-    top: -5,
-    right: -8,
+    top: -3,
+    right: -4,
+    backgroundColor: T.destructive,
     borderRadius: 8,
     minWidth: 16,
     height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
     paddingHorizontal: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   badgeText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 9,
     fontWeight: '700',
+    textAlign: 'center',
   },
 });

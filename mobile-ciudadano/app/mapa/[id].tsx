@@ -8,7 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useRouteSimulation, Checkpoint } from '../../hooks/useRouteSimulation';
 import { NavigationArrow } from '../../components/mapa/NavigationArrow';
 import { GarbageTruckIcon } from '../../components/mapa/GarbageTruckIcon';
-import { useRecorridoMapCache } from '../../contexts/RecorridoMapCache';
+import { useRecorridoMapCache, mapGeometria } from '../../contexts/RecorridoMapCache';
 import { ArrowLeft, MapPin, CheckCircle2 } from 'lucide-react-native';
 import { useAlert } from '../../contexts/AlertContext';
 
@@ -182,6 +182,10 @@ export default function CiudadanoMapScreen() {
     cache.entry?.recorridoId === Number(id) &&
     cache.entry?.recorridoData != null;
 
+  // Capturado en ref para que el useEffect de carga no re-dispare si el caché
+  // cambia por un tick del socket mientras el mapa está visible.
+  const hadCachedDataOnMount = useRef(hasCachedData);
+
   const mountSnapshotRef = useRef(hasCachedData ? cache.entry!.snapshot : null);
   const snapshotPos = mountSnapshotRef.current
     ? { latitude: mountSnapshotRef.current.latitude, longitude: mountSnapshotRef.current.longitude }
@@ -189,10 +193,14 @@ export default function CiudadanoMapScreen() {
   const snapshotPct = mountSnapshotRef.current ? mountSnapshotRef.current.porcentajeAvance / 100 : 0;
   const snapshotHeading = mountSnapshotRef.current ? mountSnapshotRef.current.heading : 0;
 
+  // isLoading: false si ya hay datos en caché → sin spinner al re-entrar al mapa
   const [isLoading, setIsLoading] = useState(!hasCachedData);
   const [recorridoData, setRecorridoData] = useState<any | null>(
     hasCachedData ? cache.entry!.recorridoData : null
   );
+
+  const [trackVehicleChanges, setTrackVehicleChanges] = useState(true);
+  const [isMapReady, setIsMapReady] = useState(false);
 
   const _initialGeom = hasCachedData ? cache.entry!.streetGeometry : [];
   const [streetGeometry, setStreetGeometry] = useState<LatLng[]>(_initialGeom);
@@ -213,6 +221,23 @@ export default function CiudadanoMapScreen() {
       }
       const data = await recorridosService.getRecorridoDetalle(Number(id));
       cache.setFromApi(Number(id), data);
+
+      const mappedGeom = mapGeometria(data.geometria ?? undefined);
+      const initPos = mappedGeom.length > 0
+        ? mappedGeom[0]
+        : (data.checkpoints && data.checkpoints.length > 0)
+        ? { latitude: Number(data.checkpoints[0].latitud), longitude: Number(data.checkpoints[0].longitud) }
+        : null;
+
+      if (initPos) {
+        setDisplayPosition((prev) => prev ?? initPos);
+        if (!animPosRef.current) {
+          animPosRef.current = initPos;
+          startPosRef.current = initPos;
+          targetPosRef.current = initPos;
+        }
+      }
+
       setRecorridoData(data);
     } catch (error: any) {
       console.warn(`[Mapa] No se pudo obtener el recorrido ${id}:`, error?.message);
@@ -226,8 +251,11 @@ export default function CiudadanoMapScreen() {
     }
   }, [id, isAuthenticated, router, cache.setFromApi, hasCachedData, showError]);
 
+  // Si hay datos en caché al montar, omitir el fetch HTTP (sin spinner, sin espera).
+  // hadCachedDataOnMount.current es estable: no varía con ticks del socket.
+  // El socket (RecorridoMapCache) mantiene los datos actualizados en tiempo real.
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !hadCachedDataOnMount.current) {
       fetchRecorridoDetalle();
     }
   }, [fetchRecorridoDetalle, isAuthenticated]);
@@ -444,6 +472,20 @@ export default function CiudadanoMapScreen() {
     };
   }, []);
 
+  // ── Tracker de renderización SVG del marcador ──────────────────────────────
+  // Inicia la ventana de rasterización solo cuando MapView está listo (onMapReady)
+  // y displayPosition existe. Permite que el SVG se pinte completamente en Android
+  // y luego pasa a false para optimizar el rendimiento a 60 FPS.
+  useEffect(() => {
+    if (isMapReady && displayPosition) {
+      setTrackVehicleChanges(true);
+      const timer = setTimeout(() => {
+        setTrackVehicleChanges(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isMapReady, !!displayPosition]);
+
   // Estado finalizado se gestiona directamente en la tarjeta inferior (Opción 1)
 
   if (isLoading || !recorridoData) {
@@ -556,6 +598,7 @@ export default function CiudadanoMapScreen() {
         toolbarEnabled={false}
         pitchEnabled={true}
         rotateEnabled={true}
+        onMapReady={() => setIsMapReady(true)}
       >
         {fallbackRoute && fallbackRoute.length > 1 && (
           <Polyline
@@ -619,14 +662,14 @@ export default function CiudadanoMapScreen() {
         })}
 
         {/* Vehículo animado */}
-        {displayPosition && (
+        {displayPosition && !isNaN(displayPosition.latitude) && !isNaN(displayPosition.longitude) && (
           <Marker
             coordinate={displayPosition}
             anchor={{ x: 0.5, y: 0.5 }}
             rotation={normalizeAngle(displayHeading - 90)}
             flat={true}
             zIndex={100}
-            tracksViewChanges={false}
+            tracksViewChanges={trackVehicleChanges}
           >
             <NavigationArrow />
           </Marker>

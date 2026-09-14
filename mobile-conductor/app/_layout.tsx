@@ -2,35 +2,53 @@
 /**
  * Layout raíz de la app móvil de Conductores.
  *
- * Responsabilidades:
- *  1. Envuelve toda la app con AuthProvider y SafeAreaProvider
- *  2. Implementa navegación protegida basada en el estado de autenticación:
- *       - Sin sesión  → redirige a /login
- *       - Con sesión  → muestra las pantallas protegidas
- *  3. Mantiene el Splash Screen nativo hasta resolver el arranque
- *     (evita el flash de pantalla equivocada)
- *  4. Registra las pantallas en el Stack de Expo Router
+ * El Stack de Expo Router debe existir desde el primer frame.
+ * Si se oculta el splash nativo sin navigator montado, Android muestra
+ * el fondo de la Activity (negro).
  */
 import 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
-import { View, StyleSheet, LogBox } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import React, { Component, useCallback, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
+import { View, StyleSheet, LogBox, Animated } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SystemUI from 'expo-system-ui';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { RecorridoMapCacheProvider } from '../contexts/RecorridoMapCache';
 import { AsignacionProvider } from '../contexts/AsignacionContext';
+import { AlertProvider } from '../contexts/AlertContext';
 import { registerBackgroundHandler, onForegroundMessage, onFcmTokenRefresh, handleNotificationOpen } from '../services/fcmService';
-
-// El handler de background se registra en index.js (entry point).
+import { AnimatedSplashScreen } from '../components/splash/AnimatedSplashScreen';
 
 // Prevenir que el Splash Screen se oculte automáticamente
-SplashScreen.preventAutoHideAsync().catch(() => {
-  /* ignorar errores si ya se previno */
+SplashScreen.preventAutoHideAsync().catch((err) => {
+  console.log('[Splash] preventAutoHideAsync error:', err);
 });
 
-// Ignorar advertencias espurias de Dev Client con Firebase Messaging
+SystemUI.setBackgroundColorAsync('#F4F7FA').catch(() => {});
+
+// Ignorar advertencias espurias
 LogBox.ignoreLogs(['Error: undefined', 'undefined']);
+LogBox.ignoreAllLogs(true);
+
+class SplashErrorBoundary extends Component<{ children: ReactNode; onError: () => void }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.log('[Splash] render error:', error?.message, info?.componentStack);
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
 
 // ─── Componente de navegación protegida ───────────────────────────────────────
 
@@ -45,9 +63,6 @@ function ProtectedNavigator() {
 
   useEffect(() => {
     if (isLoading) return; // Esperar a que termine la restauración de sesión
-
-    // Ocultar el Splash Screen una vez resuelto el estado de autenticación
-    SplashScreen.hideAsync().catch(() => {});
 
     const inLoginScreen = segments[0] === 'login';
 
@@ -65,24 +80,14 @@ function ProtectedNavigator() {
     if (!isAuthenticated) return;
     const unsubscribe = onForegroundMessage((message) => {
       // La notificación local ya se maneja internamente en fcmService.ts
-      // Aquí podrías agregar actualización de contexto/estado si es necesario.
     });
     return () => {
       unsubscribe();
     };
   }, [isAuthenticated]);
 
-  // Mantener el fondo del splash mientras se resuelve la sesión
-  // (el splash nativo cubre esta vista hasta hideAsync).
-  if (isLoading) {
-    return <View style={styles.loadingContainer} />;
-  }
-
   return (
-    <Stack
-      screenOptions={{ headerShown: false }}
-      initialRouteName={isAuthenticated ? 'index' : 'login'}
-    >
+    <Stack screenOptions={{ headerShown: false }}>
       {/* Pantalla de login — pública */}
       <Stack.Screen name="login" options={{ gestureEnabled: false }} />
 
@@ -95,10 +100,56 @@ function ProtectedNavigator() {
   );
 }
 
+// ─── App Shell con Splash Animado Overlay ─────────────────────────────────────
+
+function AppShell() {
+  const [splashFinished, setSplashFinished] = useState(false);
+  const [nativeHidden, setNativeHidden] = useState(false);
+  const overlayOpacity = useRef(new Animated.Value(1)).current;
+
+  const hideNativeSplash = useCallback(() => {
+    if (nativeHidden) return;
+    setNativeHidden(true);
+    SplashScreen.hideAsync().catch(() => {});
+  }, [nativeHidden]);
+
+  const handleSplashEnd = useCallback(() => {
+    Animated.timing(overlayOpacity, {
+      toValue: 0,
+      duration: 350,
+      useNativeDriver: true,
+    }).start(() => {
+      setSplashFinished(true);
+    });
+  }, [overlayOpacity]);
+
+  const handleSplashError = useCallback(() => {
+    SplashScreen.hideAsync().catch(() => {});
+    setSplashFinished(true);
+  }, []);
+
+  const showAnimatedSplash = !splashFinished;
+
+  return (
+    <View style={styles.root}>
+      <ProtectedNavigator />
+      {showAnimatedSplash && (
+        <Animated.View style={[styles.splashOverlay, { opacity: overlayOpacity }]} pointerEvents="auto">
+          <SplashErrorBoundary onError={handleSplashError}>
+            <AnimatedSplashScreen onReady={hideNativeSplash} onAnimationEnd={handleSplashEnd} />
+          </SplashErrorBoundary>
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
   useEffect(() => {
+    registerBackgroundHandler();
+
     // Activar listener de rotación silenciosa de token FCM.
     const unsubscribeTokenRefresh = onFcmTokenRefresh();
 
@@ -112,24 +163,38 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        {/* RecorridoMapCacheProvider vive aquí para sobrevivir al desmontaje
-            de /mapa/[id] y mantener geometría, posición y socket activos
-            mientras el usuario navega a otros tabs. */}
-        <RecorridoMapCacheProvider>
-          <AsignacionProvider>
-            <ProtectedNavigator />
-          </AsignacionProvider>
-        </RecorridoMapCacheProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider style={styles.root}>
+        <AlertProvider>
+          <AuthProvider>
+            {/* RecorridoMapCacheProvider vive aquí para sobrevivir al desmontaje
+                de /mapa/[id] y mantener geometría, posición y socket activos
+                mientras el usuario navega a otros tabs. */}
+            <RecorridoMapCacheProvider>
+              <AsignacionProvider>
+                <AppShell />
+              </AsignacionProvider>
+            </RecorridoMapCacheProvider>
+          </AuthProvider>
+        </AlertProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
+  root: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F4F7FA',
+  },
+  splashOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+    elevation: 999,
+    backgroundColor: '#F4F7FA',
   },
 });

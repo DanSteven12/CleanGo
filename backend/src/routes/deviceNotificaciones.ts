@@ -47,18 +47,30 @@ router.get('/unread', async (req: Request, res: Response) => {
 
 /**
  * GET /api/device/notificaciones
+ * Query params:
+ *   page?: number (default 1)
+ *   limit?: number (default 10)
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
     const camion = req.camion as DeviceAuthPayload;
     const conductorId = await resolverConductorId(camion.camion_id);
 
+    const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1);
+    const limit = Math.max(1, parseInt(String(req.query.limit ?? '10'), 10) || 10);
+
     if (!conductorId) {
-      return res.json([]);
+      return res.json({
+        data: [],
+        total: 0,
+        page: 1,
+        totalPages: 1,
+        hasMore: false,
+      });
     }
 
-    const notificaciones = await NotificationService.obtenerPorConductor(conductorId);
-    res.json(notificaciones);
+    const resultado = await NotificationService.obtenerPaginadasPorConductor(conductorId, page, limit);
+    res.json(resultado);
   } catch (error) {
     console.error('[deviceNotificaciones] Error en GET /:', error);
     res.status(500).json({ error: 'Error interno al obtener notificaciones del dispositivo.' });

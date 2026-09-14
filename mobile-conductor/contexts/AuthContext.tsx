@@ -34,6 +34,10 @@ interface AuthContextData {
   camion: CamionAuth | null;
   /** true durante la carga inicial (restauración de sesión) */
   isLoading: boolean;
+  /** Motivo cuando la sesión expiró o fue invalidada */
+  sessionExpiredReason: string | null;
+  /** Limpia el mensaje de sesión expirada */
+  clearSessionExpiredReason: () => void;
   /** Inicia sesión con usuario_dispositivo + password */
   login: (usuario_dispositivo: string, password: string) => Promise<void>;
   /** Cierra sesión: revoca en backend + limpia SecureStore + navega a /login */
@@ -48,6 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [camion, setCamion] = useState<CamionAuth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionExpiredReason, setSessionExpiredReason] = useState<string | null>(null);
+
+  const clearSessionExpiredReason = useCallback(() => {
+    setSessionExpiredReason(null);
+  }, []);
 
   // ─── Logout ─────────────────────────────────────────────────────────────────
 
@@ -55,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 1. Desconectar sockets y limpiar estado en memoria inmediatamente
     disconnectMobileSocket();
     setCamion(null);
+    setSessionExpiredReason(null);
 
     // 2. Ejecutar revocación en backend y borrado de SecureStore en segundo plano
     authApiService.logoutDevice().catch(() => {});
@@ -67,9 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Registro del callback de sesión expirada ────────────────────────────────
 
   useEffect(() => {
-    setSessionExpiredCallback(() => {
+    setSessionExpiredCallback((reason?: string) => {
       // El interceptor de axios llama esto cuando el refresh falla
       setCamion(null);
+      setSessionExpiredReason(
+        reason ||
+          'Por seguridad, tu sesión se cerró después de un período de inactividad. Inicia sesión nuevamente para continuar.'
+      );
       router.replace('/login');
     });
   }, [router]);
@@ -130,6 +144,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!camion,
         camion,
         isLoading,
+        sessionExpiredReason,
+        clearSessionExpiredReason,
         login,
         logout,
       }}

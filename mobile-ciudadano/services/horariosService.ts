@@ -4,6 +4,7 @@ export interface RutaSearchResult {
   id: number;
   nombre: string;
   descripcion: string | null;
+  color?: string | null;
 }
 
 export interface HorarioRecoleccion {
@@ -19,6 +20,19 @@ export interface RutaConHorarios {
 }
 
 export const horariosService = {
+  /**
+   * Obtiene el catálogo completo de rutas para indexación y búsqueda instantánea local.
+   */
+  async getAllRutas(): Promise<RutaSearchResult[]> {
+    try {
+      const response = await api.get<{ data: RutaSearchResult[] }>('/ciudadano/horarios/rutas');
+      return response.data.data;
+    } catch (error) {
+      console.error('[horariosService] Error en getAllRutas:', error);
+      throw error;
+    }
+  },
+
   /**
    * Busca rutas por colonia/barrio.
    */

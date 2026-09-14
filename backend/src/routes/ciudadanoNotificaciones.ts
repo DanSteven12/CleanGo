@@ -26,12 +26,19 @@ router.get('/unread', async (req: any, res) => {
 });
 
 // GET /api/ciudadano/notificaciones
-// Obtiene todas las notificaciones del ciudadano autenticado
+// Obtiene las notificaciones del ciudadano autenticado (paginadas o todas)
 router.get('/', async (req: any, res) => {
   try {
     const usuarioId = req.user?.id;
     if (!usuarioId) {
       return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    if (req.query.page !== undefined || req.query.limit !== undefined) {
+      const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1);
+      const limit = Math.max(1, parseInt(String(req.query.limit ?? '10'), 10) || 10);
+      const resultado = await NotificationService.obtenerPaginadasPorUsuario(usuarioId, page, limit);
+      return res.json(resultado);
     }
 
     const notificaciones = await NotificationService.obtenerPorUsuario(usuarioId);

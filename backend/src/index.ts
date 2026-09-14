@@ -182,12 +182,14 @@ import { initSocketServer } from './socket/socketServer';
 import { resumeActiveSimulations } from './services/simulationService';
 import { ensureHistoricalSnapshotSchema } from './utils/historyMigration';
 import { ensureFcmTokensCamionesSchema } from './utils/fcmCamionesMigration';
+import { ensureRutasIndexes } from './utils/rutasIndexMigration';
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on http://localhost:${PORT}`);
   console.log(`🔐 Auth routes: /api/auth/{login,register,forgot-password,reset-password,me}`);
   void ensureHistoricalSnapshotSchema();
   void ensureFcmTokensCamionesSchema();
+  void ensureRutasIndexes();
 });
 
 // Initialize Socket.IO and resume any active simulations

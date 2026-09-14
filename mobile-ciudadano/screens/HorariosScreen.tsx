@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Search, MapPin, CalendarClock } from 'lucide-react-native';
-import axios from 'axios';
+import { Search, MapPin, CalendarClock, X } from 'lucide-react-native';
 import { horariosService, RutaSearchResult } from '../services/horariosService';
 import { AnimatedCard, AnimatedPressable } from '../components/ui';
 
@@ -26,144 +26,118 @@ const T = {
   muted: '#94A3B8',
 };
 
-// Custom hook for debounce
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-  return debouncedValue;
+/**
+ * Normaliza cadenas de texto para búsqueda insensible a mayúsculas, minúsculas y tildes.
+ * Ej. "Álvaro Obregón" -> "alvaro obregon"
+ */
+function normalizeText(text: string): string {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
 }
 
 export function HorariosScreen() {
   const router = useRouter();
   const [query, setQuery] = useState('');
-  const debouncedQuery = useDebounce(query, 500);
-  
-  const [results, setResults] = useState<RutaSearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [catalogoRutas, setCatalogoRutas] = useState<RutaSearchResult[]>([]);
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const activeQueryRef = useRef<string>('');
-
-  const search = useCallback(async (q: string) => {
-    const trimmed = q.trim();
-    activeQueryRef.current = trimmed;
-
-    // Cancelar la petición anterior en vuelo si existe
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    if (trimmed.length < 2) {
-      setResults([]);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    setLoading(true);
+  const fetchCatalogo = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     setError(null);
-
     try {
-      const data = await horariosService.searchRutas(trimmed, controller.signal);
-      // Validar que la respuesta corresponda a la última búsqueda activa
-      if (activeQueryRef.current === trimmed && !controller.signal.aborted) {
-        setResults(data);
-        setError(null);
-      }
+      const data = await horariosService.getAllRutas();
+      setCatalogoRutas(data);
     } catch (err: any) {
-      // Ignorar cancelaciones deliberadas
-      if (
-        axios.isCancel(err) ||
-        err?.name === 'CanceledError' ||
-        err?.name === 'AbortError' ||
-        err?.code === 'ERR_CANCELED' ||
-        controller.signal.aborted
-      ) {
-        return;
-      }
-      if (activeQueryRef.current === trimmed) {
-        setError('Error al conectar. Verifica tu conexión.');
+      console.error('[HorariosScreen] Error al obtener catálogo de rutas:', err);
+      if (catalogoRutas.length === 0) {
+        setError('No se pudieron cargar las rutas. Verifica tu conexión.');
       }
     } finally {
-      if (activeQueryRef.current === trimmed && !controller.signal.aborted) {
-        setLoading(false);
-      }
+      setLoadingInitial(false);
+      setRefreshing(false);
     }
-  }, []);
+  }, [catalogoRutas.length]);
 
   useEffect(() => {
-    if (debouncedQuery.trim().length >= 2) {
-      search(debouncedQuery);
-    } else {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      activeQueryRef.current = '';
-      setResults([]);
-      setLoading(false);
-      setError(null);
-    }
+    fetchCatalogo();
+  }, [fetchCatalogo]);
 
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [debouncedQuery, search]);
+  // Búsqueda e indexación instantánea en memoria (0 ms de latencia)
+  const results = useMemo(() => {
+    const cleanQuery = normalizeText(query);
+    if (cleanQuery.length < 2) return [];
+
+    const terms = cleanQuery.split(/\s+/).filter(Boolean);
+
+    return catalogoRutas.filter((ruta) => {
+      const normNombre = normalizeText(ruta.nombre);
+      const normDesc = normalizeText(ruta.descripcion || '');
+
+      // Coincidencia con todos los términos ingresados en nombre o descripción
+      return terms.every(
+        (term) => normNombre.includes(term) || normDesc.includes(term)
+      );
+    });
+  }, [query, catalogoRutas]);
 
   const handleSelectRuta = (rutaId: number) => {
     router.push(`/horarios/${rutaId}` as any);
   };
 
+  const handleClearQuery = () => {
+    setQuery('');
+  };
+
   const renderEmptyState = () => {
-    if (loading) {
+    if (loadingInitial && !refreshing) {
       return (
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color={T.primary} />
-          <Text style={styles.emptyText}>Buscando...</Text>
+          <Text style={styles.emptyText}>Cargando catálogo de rutas...</Text>
         </View>
       );
     }
 
-    if (error) {
+    if (error && catalogoRutas.length === 0) {
       return (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyTitle}>¡Ups!</Text>
           <Text style={styles.emptyText}>{error}</Text>
-          <AnimatedPressable style={styles.retryBtn} onPress={() => search(debouncedQuery)}>
+          <AnimatedPressable style={styles.retryBtn} onPress={() => fetchCatalogo()}>
             <Text style={styles.retryText}>Reintentar</Text>
           </AnimatedPressable>
         </View>
       );
     }
 
-    if (debouncedQuery.trim().length >= 2 && results.length === 0) {
+    const cleanQuery = query.trim();
+
+    if (cleanQuery.length >= 2 && results.length === 0) {
       return (
         <View style={styles.emptyContainer}>
           <Search size={48} color={T.muted} style={{ marginBottom: 16 }} />
           <Text style={styles.emptyTitle}>Sin coincidencias</Text>
-          <Text style={styles.emptyText}>No encontramos ninguna colonia que coincida con "{debouncedQuery}".</Text>
+          <Text style={styles.emptyText}>
+            No encontramos ninguna colonia o ruta que coincida con "{query}".
+          </Text>
         </View>
       );
     }
 
-    if (debouncedQuery.trim().length < 2) {
+    if (cleanQuery.length < 2) {
       return (
         <View style={styles.emptyContainer}>
           <CalendarClock size={64} color={T.muted} style={{ marginBottom: 16 }} />
           <Text style={styles.emptyTitle}>Consulta tu horario de recolección</Text>
-          <Text style={styles.emptyText}>Encuentra los días y horarios en los que pasa el camión por tu zona.</Text>
+          <Text style={styles.emptyText}>
+            Encuentra los días y horarios en los que pasa el camión por tu zona.
+          </Text>
         </View>
       );
     }
@@ -178,7 +152,9 @@ export function HorariosScreen() {
     >
       <View style={styles.header}>
         <Text style={styles.title}>¿Cuándo pasa el camión?</Text>
-        <Text style={styles.subtitle}>Busca tu colonia para conocer los días y horarios de recolección.</Text>
+        <Text style={styles.subtitle}>
+          Busca tu colonia para conocer los días y horarios de recolección.
+        </Text>
         
         <View style={styles.searchContainer}>
           <Search size={20} color={T.muted} style={styles.searchIcon} />
@@ -189,7 +165,18 @@ export function HorariosScreen() {
             value={query}
             onChangeText={setQuery}
             autoCorrect={false}
+            autoCapitalize="none"
+            clearButtonMode="while-editing"
           />
+          {query.length > 0 && Platform.OS !== 'ios' && (
+            <TouchableOpacity 
+              onPress={handleClearQuery}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.clearBtn}
+            >
+              <X size={18} color={T.muted} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -199,6 +186,14 @@ export function HorariosScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmptyState}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchCatalogo(true)}
+            colors={[T.primary]}
+            tintColor={T.primary}
+          />
+        }
         renderItem={({ item, index }) => (
           <AnimatedCard 
             index={index}
@@ -211,7 +206,9 @@ export function HorariosScreen() {
             <View style={styles.resultTextContainer}>
               <Text style={styles.resultTitle}>{item.nombre}</Text>
               {item.descripcion && (
-                <Text style={styles.resultDesc} numberOfLines={2}>{item.descripcion}</Text>
+                <Text style={styles.resultDesc} numberOfLines={2}>
+                  {item.descripcion}
+                </Text>
               )}
             </View>
           </AnimatedCard>
@@ -261,6 +258,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: T.textH,
+  },
+  clearBtn: {
+    padding: 4,
   },
   listContent: {
     flexGrow: 1,

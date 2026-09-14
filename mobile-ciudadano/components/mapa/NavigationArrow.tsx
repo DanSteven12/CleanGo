@@ -10,7 +10,7 @@ import { GarbageTruckIcon } from './GarbageTruckIcon';
 export const NavigationArrow = () => {
   return (
     <View style={styles.container}>
-      <GarbageTruckIcon size={56} />
+      <GarbageTruckIcon size={56} showPulse={false} />
     </View>
   );
 };
@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 56,
-    height: 56,
+    width: 60,
+    height: 60,
   },
 });

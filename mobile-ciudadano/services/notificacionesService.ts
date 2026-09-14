@@ -16,12 +16,26 @@ export interface Notificacion {
   updated_at: string;
 }
 
+export interface NotificacionesPaginadasResponse {
+  data: Notificacion[];
+  total: number;
+  page: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
 /**
- * Obtiene todas las notificaciones del ciudadano autenticado
+ * Obtiene las notificaciones del ciudadano autenticado (paginadas o todas)
  */
-export async function getNotificaciones(): Promise<Notificacion[]> {
+export async function getNotificaciones(
+  page: number = 1,
+  limit: number = 10
+): Promise<NotificacionesPaginadasResponse | Notificacion[]> {
   try {
-    const response = await api.get('/ciudadano/notificaciones');
+    const response = await api.get<NotificacionesPaginadasResponse | Notificacion[]>(
+      '/ciudadano/notificaciones',
+      { params: { page, limit } }
+    );
     return response.data;
   } catch (error) {
     console.log('[notificacionesService] Error al obtener notificaciones:', error);

@@ -23,10 +23,11 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { History, ClipboardX } from 'lucide-react-native';
+import { History, ClipboardX, AlertCircle } from 'lucide-react-native';
 import { HistorialCard } from '../components/HistorialCard';
 import { recorridosService } from '../services/recorridosService';
 import type { RecorridoHistorial } from '../services/recorridosService';
+import { AnimatedCard, AnimatedPressable, CleanGoOrbitRadar } from '../components/ui';
 import { theme } from '../theme/colors';
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -46,12 +47,20 @@ export function HistorialScreen() {
 
   // ─── Carga inicial / refresh ─────────────────────────────────────────────────
 
-  const fetchHistorial = useCallback(async (isRefresh = false) => {
+  const fetchHistorial = useCallback(async (pageToFetch = 1, isRefresh = false) => {
     try {
       setError(null);
-      const data = await recorridosService.getHistorial(1);
-      setRecorridos(data.data);
-      setPage(1);
+      const data = await recorridosService.getHistorial(pageToFetch);
+      if (pageToFetch === 1) {
+        setRecorridos(data.data);
+      } else {
+        setRecorridos((prev) => {
+          const existingIds = new Set(prev.map((r) => r.id));
+          const newItems = (data.data || []).filter((r) => !existingIds.has(r.id));
+          return [...prev, ...newItems];
+        });
+      }
+      setPage(data.page);
       setTotalPages(data.totalPages);
       setTotal(data.total);
     } catch (err: any) {
@@ -60,56 +69,54 @@ export function HistorialScreen() {
         err?.message ||
         'No se pudo cargar el historial. Verifica tu conexión.';
       setError(msg);
-      if (isRefresh) {
-        // En refresh, conservar datos anteriores para no dejar pantalla vacía
-        setRecorridos((prev) => prev);
-      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+      setIsLoadingMore(false);
+      isLoadingMoreRef.current = false;
     }
   }, []);
 
   useEffect(() => {
-    fetchHistorial();
+    fetchHistorial(1);
   }, [fetchHistorial]);
 
   // ─── Pull-to-refresh ─────────────────────────────────────────────────────────
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    fetchHistorial(true);
+    fetchHistorial(1, true);
   }, [fetchHistorial]);
 
   // ─── Paginación: cargar más al llegar al final ───────────────────────────────
 
-  const handleLoadMore = useCallback(async () => {
-    if (isLoadingMoreRef.current || page >= totalPages) return;
-
+  const handleLoadMore = () => {
+    if (isLoading || isRefreshing || isLoadingMoreRef.current || page >= totalPages) return;
     isLoadingMoreRef.current = true;
     setIsLoadingMore(true);
-
-    try {
-      const nextPage = page + 1;
-      const data = await recorridosService.getHistorial(nextPage);
-      setRecorridos((prev) => [...prev, ...data.data]);
-      setPage(nextPage);
-      setTotalPages(data.totalPages);
-    } catch {
-      // Silenciar error de paginación — el usuario puede hacer pull-to-refresh
-    } finally {
-      setIsLoadingMore(false);
-      isLoadingMoreRef.current = false;
-    }
-  }, [page, totalPages]);
+    fetchHistorial(page + 1);
+  };
 
   // ─── Estados especiales ──────────────────────────────────────────────────────
 
   if (isLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Cargando historial...</Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.headerIconWrapper}>
+              <History size={20} color={theme.colors.primary} />
+            </View>
+            <View>
+              <Text style={styles.title}>Historial</Text>
+              <Text style={styles.subtitle}>Recorridos completados</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Cargando historial...</Text>
+        </View>
       </View>
     );
   }
@@ -118,23 +125,29 @@ export function HistorialScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Historial</Text>
-          <Text style={styles.subtitle}>Recorridos completados</Text>
+          <View style={styles.headerLeft}>
+            <View style={styles.headerIconWrapper}>
+              <History size={20} color={theme.colors.primary} />
+            </View>
+            <View>
+              <Text style={styles.title}>Historial</Text>
+              <Text style={styles.subtitle}>Recorridos completados</Text>
+            </View>
+          </View>
         </View>
         <View style={styles.center}>
-          <ClipboardX size={44} color="#cbd5e1" />
-          <Text style={styles.errorTitle}>No se pudo cargar</Text>
+          <AlertCircle size={48} color={theme.colors.destructive} />
+          <Text style={styles.errorTitle}>No se pudo cargar el historial</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.retryBtn}
             onPress={() => {
               setIsLoading(true);
               fetchHistorial();
             }}
-            activeOpacity={0.8}
           >
             <Text style={styles.retryBtnText}>Reintentar</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       </View>
     );
@@ -177,10 +190,16 @@ export function HistorialScreen() {
         }
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.3}
-        renderItem={({ item }) => <HistorialCard recorrido={item} />}
+        renderItem={({ item, index }) => (
+          <AnimatedCard index={index} staggerMs={35}>
+            <HistorialCard recorrido={item} />
+          </AnimatedCard>
+        )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <History size={48} color="#cbd5e1" />
+            <View style={styles.radarWrapper}>
+              <CleanGoOrbitRadar />
+            </View>
             <Text style={styles.emptyTitle}>Sin recorridos aún</Text>
             <Text style={styles.emptyText}>
               Los recorridos completados por este camión aparecerán aquí.
@@ -191,6 +210,10 @@ export function HistorialScreen() {
           isLoadingMore ? (
             <View style={styles.footerLoader}>
               <ActivityIndicator size="small" color={theme.colors.primary} />
+            </View>
+          ) : total > 0 && page >= totalPages ? (
+            <View style={styles.endOfListContainer}>
+              <Text style={styles.endOfListText}>Has llegado al final del historial</Text>
             </View>
           ) : null
         }
@@ -270,7 +293,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
     flexGrow: 1,
   },
   emptyContainer: {
@@ -279,6 +302,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 80,
     gap: 10,
+  },
+  radarWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   emptyTitle: {
     fontSize: 17,
@@ -318,5 +346,15 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: 20,
     alignItems: 'center',
+  },
+  endOfListContainer: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endOfListText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    fontWeight: '500',
   },
 });

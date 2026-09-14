@@ -12,13 +12,26 @@ const router = Router();
 router.use(mobileAuthMiddleware);
 
 // GET /api/ciudadano/reportes
-// Historial de reportes del ciudadano autenticado
+// Historial de reportes del ciudadano autenticado (con soporte para paginación)
 router.get('/', async (req: any, res) => {
   try {
     const usuarioId = req.user?.id;
     if (!usuarioId) {
       return res.status(401).json({ error: 'No autorizado' });
     }
+
+    const { page, limit } = req.query;
+    const isPaginated = page !== undefined || limit !== undefined;
+    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+    const limitNum = Math.max(1, Math.min(50, parseInt(limit as string, 10) || 10));
+    const offset = (pageNum - 1) * limitNum;
+
+    // Total de reportes del usuario
+    const countRows = await query(
+      'SELECT COUNT(*) AS total FROM reportes_ciudadanos WHERE usuario_id = ?',
+      [usuarioId]
+    );
+    const total = Number(countRows[0]?.total || 0);
 
     const sql = `
       SELECT
@@ -34,8 +47,25 @@ router.get('/', async (req: any, res) => {
       FROM reportes_ciudadanos
       WHERE usuario_id = ?
       ORDER BY fecha_reporte DESC
+      ${isPaginated ? 'LIMIT ? OFFSET ?' : ''}
     `;
-    const reportes = await query(sql, [usuarioId]);
+
+    const queryParams = isPaginated ? [usuarioId, limitNum, offset] : [usuarioId];
+    const reportes = await query(sql, queryParams);
+
+    if (isPaginated) {
+      return res.json({
+        data: reportes,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum) || 1,
+          hasMore: offset + reportes.length < total,
+        },
+      });
+    }
+
     res.json(reportes);
   } catch (error) {
     console.error('Error fetching mis reportes:', error);

@@ -138,6 +138,7 @@ export function setSessionExpiredCallback(cb: (reason?: string) => void): void {
 
 // ─── Cola de refresh (anti-loop) ─────────────────────────────────────────────
 
+let _refreshPromise: Promise<string> | null = null;
 let _isRefreshing = false;
 let _refreshSubscribers: Array<(token: string) => void> = [];
 
@@ -148,6 +149,80 @@ function subscribeToRefresh(cb: (token: string) => void): void {
 function notifyRefreshSubscribers(newToken: string): void {
   _refreshSubscribers.forEach((cb) => cb(newToken));
   _refreshSubscribers = [];
+}
+
+/**
+ * Función centralizada y única fuente de verdad para renovar tokens en mobile-ciudadano.
+ * Protegida contra concurrencia: si ya existe un refresh en vuelo (por background o por 401),
+ * todas las peticiones concurrentes comparten la misma Promise en vuelo.
+ */
+export async function performTokenRefresh(): Promise<string> {
+  if (_refreshPromise) {
+    return _refreshPromise;
+  }
+
+  _isRefreshing = true;
+  _refreshPromise = (async () => {
+    try {
+      const refreshToken = await SecureStorage.getRefreshToken();
+
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      // Llamada directa con axios base sin pasar por el interceptor de api.ts
+      const refreshResponse = await axios.post(
+        `${api.defaults.baseURL}/mobile/auth/refresh`,
+        { refreshToken },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
+      );
+
+      const { accessToken: newAccessToken, refreshToken: newRefreshToken, user } = refreshResponse.data;
+
+      // Guardar nuevos tokens en SecureStore (Refresh Token Rotation)
+      await Promise.all([
+        SecureStorage.saveTokens(newAccessToken, newRefreshToken),
+        user ? SecureStorage.saveUserData(user) : Promise.resolve(),
+        SecureStorage.saveLastActiveTimestamp(Date.now()),
+      ]);
+
+      // Notificar a otras requests encoladas en el interceptor con el nuevo token
+      notifyRefreshSubscribers(newAccessToken);
+
+      return newAccessToken;
+    } catch (refreshError: any) {
+      _refreshSubscribers = [];
+
+      // Distinguir entre sesión realmente invalidada en servidor (401/403/422) vs error de red/timeout
+      const isAuthError =
+        refreshError?.response?.status === 401 ||
+        refreshError?.response?.status === 403 ||
+        refreshError?.response?.status === 422;
+
+      if (isAuthError) {
+        // El backend rechazó el refresh token explícitamente — limpiar sesión y notificar a AuthContext
+        await SecureStorage.clearAllSession();
+
+        if (_onSessionExpired) {
+          const reason =
+            refreshError?.response?.data?.message ||
+            'Por seguridad, tu sesión se cerró después de un período de inactividad. Inicia sesión nuevamente para continuar.';
+          _onSessionExpired(reason);
+        }
+      } else {
+        // Error transitorio de red o timeout durante el intento de refresh:
+        // NO borrar SecureStore ni forzar logout.
+        console.log('[API] Error de red al intentar refresh de token:', refreshError?.message);
+      }
+
+      throw refreshError;
+    } finally {
+      _isRefreshing = false;
+      _refreshPromise = null;
+    }
+  })();
+
+  return _refreshPromise;
 }
 
 // ─── Request interceptor — inyectar Bearer token ──────────────────────────────
@@ -183,11 +258,49 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // En desarrollo: simplificado, sin fallback automático agresivo
-    if (__DEV__ && !error.response && !originalRequest._fallbackTried) {
-      // Opcional: Podríamos reintentar 1 vez en la misma IP para errores transitorios
+    // En desarrollo: fallback bidireccional inteligente si la conexión falla (Network Error / Wi-Fi caído)
+    if (__DEV__ && !error.response && !originalRequest._fallbackTried && originalRequest.baseURL) {
       originalRequest._fallbackTried = true;
-      console.warn(`[API] Error de red en ${originalRequest.baseURL}.`);
+      const isCurrentlyLocalhost =
+        originalRequest.baseURL.includes('localhost') || originalRequest.baseURL.includes('127.0.0.1');
+
+      if (isCurrentlyLocalhost) {
+        // Falló localhost (desconectó cable USB) -> Conmutar a IP Wi-Fi
+        const lanUrl = `http://${getLanHost()}:5001/api`;
+        _activeBaseUrl = lanUrl;
+        api.defaults.baseURL = lanUrl;
+        originalRequest.baseURL = lanUrl;
+        console.log(`[API] Desconexión USB/localhost. Conmutando a Wi-Fi (${lanUrl})...`);
+        return api(originalRequest);
+      } else {
+        // Falló Wi-Fi (o router con aislamiento) -> Probar USB (localhost) y emulador (10.0.2.2)
+        const lanUrl = originalRequest.baseURL;
+        const usbUrl = 'http://localhost:5001/api';
+        originalRequest.baseURL = usbUrl;
+        try {
+          const res = await api(originalRequest);
+          _activeBaseUrl = usbUrl;
+          api.defaults.baseURL = usbUrl;
+          console.log(`[API] Conmutado exitosamente a USB/localhost (${usbUrl}).`);
+          return res;
+        } catch (usbError) {
+          // Si USB también falló, intentar 10.0.2.2 (emulador Android)
+          const emuUrl = 'http://10.0.2.2:5001/api';
+          originalRequest.baseURL = emuUrl;
+          try {
+            const res = await api(originalRequest);
+            _activeBaseUrl = emuUrl;
+            api.defaults.baseURL = emuUrl;
+            console.log(`[API] Conmutado exitosamente a Emulador Android (${emuUrl}).`);
+            return res;
+          } catch (emuError) {
+            // Preservar la IP Wi-Fi si todos los fallbacks fallaron
+            _activeBaseUrl = lanUrl;
+            api.defaults.baseURL = lanUrl;
+            return Promise.reject(usbError);
+          }
+        }
+      }
     }
 
     // Solo intentar refresh si es 401 y no es ya un endpoint de auth
@@ -210,64 +323,18 @@ api.interceptors.response.use(
       }
 
       originalRequest._retry = true;
-      _isRefreshing = true;
 
       try {
-        const refreshToken = await SecureStorage.getRefreshToken();
-
-        if (!refreshToken) {
-          throw new Error('No refresh token available');
-        }
-
-        // Llamar directamente con axios base para no entrar en el interceptor de nuevo
-        const refreshResponse = await axios.post(
-          `${api.defaults.baseURL}/mobile/auth/refresh`,
-          { refreshToken },
-          { headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
-        );
-
-        const { accessToken: newAccessToken, refreshToken: newRefreshToken } = refreshResponse.data;
-
-        // Guardar nuevos tokens en SecureStore (Refresh Token Rotation)
-        await SecureStorage.saveTokens(newAccessToken, newRefreshToken);
+        const newAccessToken = await performTokenRefresh();
 
         // Actualizar header de la request original y reintentar
         if (originalRequest.headers) {
           originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
         }
 
-        // Notificar a otras requests encoladas con el nuevo token
-        notifyRefreshSubscribers(newAccessToken);
-
         return api(originalRequest);
       } catch (refreshError: any) {
-        _refreshSubscribers = [];
-
-        // Distinguir entre sesión realmente invalidada en servidor (401/403/422) vs error de red/timeout
-        const isAuthError =
-          refreshError?.response?.status === 401 ||
-          refreshError?.response?.status === 403 ||
-          refreshError?.response?.status === 422;
-
-        if (isAuthError) {
-          // El backend rechazó el refresh token explícitamente — limpiar sesión y notificar a AuthContext
-          await SecureStorage.clearAllSession();
-
-          if (_onSessionExpired) {
-            const reason =
-              refreshError?.response?.data?.message ||
-              'Por seguridad, tu sesión se cerró después de un período de inactividad. Inicia sesión nuevamente para continuar.';
-            _onSessionExpired(reason);
-          }
-        } else {
-          // Error transitorio de red o timeout durante el intento de refresh:
-          // NO borrar SecureStore ni forzar logout.
-          console.log('[API] Error de red al intentar refresh de token:', refreshError?.message);
-        }
-
         return Promise.reject(refreshError);
-      } finally {
-        _isRefreshing = false;
       }
     }
 

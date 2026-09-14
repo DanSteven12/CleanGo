@@ -5,6 +5,7 @@ import React, {
   useState,
   ReactNode,
   useCallback,
+  useRef,
 } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { getMobileSocket } from '../services/socketService';
@@ -16,6 +17,7 @@ import { ToastPayload } from '../components/ui/CleanGoToast';
 interface NotificationsContextValue {
   unreadCount: number;
   newNotification: Notificacion | null;
+  notificaciones: Notificacion[] | null;
   activeToast: ToastPayload | null;
   showToast: (toast: ToastPayload) => void;
   dismissToast: () => void;
@@ -23,6 +25,7 @@ interface NotificationsContextValue {
   clearNewNotification: () => void;
   refreshUnreadCount: () => Promise<void>;
   setUnreadCount: (count: number | ((prev: number) => number)) => void;
+  setNotificaciones: (data: Notificacion[] | null | ((prev: Notificacion[] | null) => Notificacion[] | null)) => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined);
@@ -31,6 +34,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [unreadCount, setUnreadCountState] = useState<number>(0);
   const [newNotification, setNewNotification] = useState<Notificacion | null>(null);
+  const [notificaciones, setNotificacionesState] = useState<Notificacion[] | null>(null);
   const [activeToast, setActiveToast] = useState<ToastPayload | null>(null);
 
   const showToast = useCallback((toast: ToastPayload) => {
@@ -48,6 +52,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const setNotificaciones = useCallback(
+    (value: Notificacion[] | null | ((prev: Notificacion[] | null) => Notificacion[] | null)) => {
+      setNotificacionesState((prev) => (typeof value === 'function' ? value(prev) : value));
+    },
+    []
+  );
+
   const refreshUnreadCount = useCallback(async () => {
     if (!isAuthenticated) {
       setUnreadCountState(0);
@@ -61,22 +72,49 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated]);
 
-  // Cargar el conteo inicial cuando se autentica
+  const isFirstSocketConnect = useRef(true);
+
+  // Cargar el conteo inicial en segundo plano de forma no bloqueante
+  // después de que el render inicial de la UI haya terminado.
   useEffect(() => {
     let isMounted = true;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
     if (isAuthenticated) {
-      getUnreadCount()
-        .then((count) => {
-          if (isMounted) setUnreadCountState(Math.max(0, count));
-        })
-        .catch(() => {});
+      const scheduleTask = () => {
+        timerId = setTimeout(() => {
+          if (isMounted) {
+            getUnreadCount()
+              .then((count) => {
+                if (isMounted) setUnreadCountState(Math.max(0, count));
+              })
+              .catch(() => {});
+          }
+        }, 1200);
+      };
+
+      const ric = (
+        globalThis as typeof globalThis & {
+          requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+        }
+      ).requestIdleCallback;
+
+      if (typeof ric === 'function') {
+        ric(scheduleTask, { timeout: 2000 });
+      } else {
+        requestAnimationFrame(scheduleTask);
+      }
     } else {
+      isFirstSocketConnect.current = true;
       setUnreadCountState(0);
       setNewNotification(null);
       setActiveToast(null);
+      setNotificacionesState(null);
     }
+
     return () => {
       isMounted = false;
+      if (timerId) clearTimeout(timerId);
     };
   }, [isAuthenticated]);
 
@@ -107,6 +145,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     const handleNotificacionNueva = (notificacion: Notificacion) => {
       setUnreadCountState((prev) => prev + 1);
       setNewNotification(notificacion);
+      setNotificacionesState((prev) => {
+        if (!prev) return prev;
+        if (prev.some((n) => n.id === notificacion.id)) return prev;
+        return [notificacion, ...prev];
+      });
       setActiveToast({
         id: notificacion.id,
         titulo: notificacion.titulo,
@@ -118,6 +161,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     };
 
     const handleReconnect = () => {
+      // Omitir la primera conexión porque la carga diferida inicial ya la cubre;
+      // solo sincronizar ante reconexiones reales posteriores tras una desconexión.
+      if (isFirstSocketConnect.current) {
+        isFirstSocketConnect.current = false;
+        return;
+      }
       getUnreadCount()
         .then((count) => setUnreadCountState(Math.max(0, count)))
         .catch(() => {});
@@ -153,6 +202,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       value={{
         unreadCount,
         newNotification,
+        notificaciones,
         activeToast,
         showToast,
         dismissToast,
@@ -160,6 +210,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         clearNewNotification,
         refreshUnreadCount,
         setUnreadCount,
+        setNotificaciones,
       }}
     >
       {children}

@@ -19,7 +19,6 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AsignacionCard } from '../components/AsignacionCard';
@@ -27,6 +26,8 @@ import { recorridosService } from '../services/recorridosService';
 import { useAuth } from '../contexts/AuthContext';
 import { useRecorridoMapCache } from '../contexts/RecorridoMapCache';
 import { useAsignacionGlobal } from '../contexts/AsignacionContext';
+import { useAlert } from '../contexts/AlertContext';
+import { AnimatedCard, CleanGoOrbitRadar } from '../components/ui';
 import { theme } from '../theme/colors';
 
 interface InicioScreenProps {
@@ -38,6 +39,7 @@ export function InicioScreen({ onRecorridoIniciado }: InicioScreenProps) {
   const router = useRouter();
   const { camion } = useAuth();
   const cache = useRecorridoMapCache();
+  const { showAlert, showError, showSuccess, showWarning, showConfirm } = useAlert();
   
   // Consumir datos del contexto global
   const { asignaciones, isLoading, isRefreshing, refreshData } = useAsignacionGlobal();
@@ -88,30 +90,38 @@ export function InicioScreen({ onRecorridoIniciado }: InicioScreenProps) {
       onRecorridoIniciado?.();
     } catch (error: any) {
       if (error.response?.data?.error) {
-        Alert.alert('Aviso', error.response.data.error);
+        showWarning('Aviso', error.response.data.error);
       } else {
-        Alert.alert('Error', 'No se pudo iniciar el recorrido.');
+        showError('Error al iniciar', 'No se pudo iniciar el recorrido. Verifica tu conexión a internet.');
       }
     } finally {
       setStartingId(null);
     }
   };
 
-  const handleFinalizarRecorrido = async (asignacion: any) => {
-    setFinishingId(asignacion.id);
-    try {
-      const recorridoActivo = await recorridosService.getRecorridoActivo(asignacion.id);
-      if (!recorridoActivo?.recorrido_id) {
-        throw new Error('No se encontró el recorrido activo.');
-      }
-      await recorridosService.finalizarRecorrido(recorridoActivo.recorrido_id);
-      Alert.alert('Éxito', 'Recorrido finalizado correctamente.');
-      await refreshData(false);
-    } catch {
-      Alert.alert('Error', 'No se pudo finalizar el recorrido.');
-    } finally {
-      setFinishingId(null);
-    }
+  const handleFinalizarRecorrido = (asignacion: any) => {
+    showConfirm({
+      title: 'Finalizar Recorrido',
+      message: `¿Estás seguro de finalizar el recorrido de la ruta "${asignacion.ruta_nombre}"? Esta acción registrará el fin del servicio.`,
+      confirmText: 'Sí, finalizar',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        setFinishingId(asignacion.id);
+        try {
+          const recorridoActivo = await recorridosService.getRecorridoActivo(asignacion.id);
+          if (!recorridoActivo?.recorrido_id) {
+            throw new Error('No se encontró el recorrido activo.');
+          }
+          await recorridosService.finalizarRecorrido(recorridoActivo.recorrido_id);
+          showSuccess('¡Recorrido Concluido!', 'El recorrido se ha completado exitosamente.');
+          await refreshData(false);
+        } catch {
+          showError('Error', 'No se pudo finalizar el recorrido en el servidor.');
+        } finally {
+          setFinishingId(null);
+        }
+      },
+    });
   };
 
   if (isLoading) {
@@ -156,26 +166,30 @@ export function InicioScreen({ onRecorridoIniciado }: InicioScreenProps) {
             tintColor={theme.colors.primary}
           />
         }
-        renderItem={({ item }) => (
-          <AsignacionCard
-            asignacion={item}
-            isStarting={startingId === item.id}
-            isFinishing={finishingId === item.id}
-            onIniciar={(conductor) => handleIniciarRecorrido(item, conductor)}
-            onFinalizar={() => handleFinalizarRecorrido(item)}
-            onVerMapa={() =>
-              router.push({
-                pathname: '/mapa/[id]' as any,
-                params: { id: String(item.id) },
-              })
-            }
-          />
+        renderItem={({ item, index }) => (
+          <AnimatedCard index={index} staggerMs={40}>
+            <AsignacionCard
+              asignacion={item}
+              isStarting={startingId === item.id}
+              isFinishing={finishingId === item.id}
+              onIniciar={(conductor) => handleIniciarRecorrido(item, conductor)}
+              onFinalizar={() => handleFinalizarRecorrido(item)}
+              onVerMapa={() =>
+                router.push({
+                  pathname: '/mapa/[id]' as any,
+                  params: { id: String(item.id) },
+                })
+              }
+            />
+          </AnimatedCard>
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>✅</Text>
-            <Text style={styles.emptyTitle}>Todo listo</Text>
-            <Text style={styles.emptyText}>No tienes asignaciones pendientes hoy.</Text>
+            <View style={styles.radarWrapper}>
+              <CleanGoOrbitRadar />
+            </View>
+            <Text style={styles.emptyTitle}>Todo al día</Text>
+            <Text style={styles.emptyText}>No tienes asignaciones pendientes o activas por el momento.</Text>
           </View>
         }
       />
@@ -238,27 +252,33 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 100,
     flexGrow: 1,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 30,
+    paddingBottom: 40,
     gap: 8,
   },
-  emptyIcon: {
-    fontSize: 44,
-    marginBottom: 4,
+  radarWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: theme.colors.text,
+    letterSpacing: -0.2,
   },
   emptyText: {
     fontSize: 14,
     color: theme.colors.textMuted,
     textAlign: 'center',
+    maxWidth: '85%',
+    lineHeight: 20,
   },
 });

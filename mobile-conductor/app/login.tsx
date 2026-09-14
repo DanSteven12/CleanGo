@@ -31,6 +31,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/authService';
+import { X, User, Lock, Eye, EyeOff } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IS_WIDE = SCREEN_WIDTH >= 768;
@@ -367,7 +368,7 @@ function FeatureItem({ icon, title, desc }: { icon: string; title: string; desc:
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function LoginScreen() {
   const router = useRouter();
-  const { isAuthenticated, isLoading, login } = useAuth();
+  const { isAuthenticated, isLoading, login, sessionExpiredReason, clearSessionExpiredReason } = useAuth();
 
   const [usuarioDispositivo, setUsuarioDispositivo] = useState('');
   const [password, setPassword]                     = useState('');
@@ -381,6 +382,64 @@ export default function LoginScreen() {
   const [isFocusedPass, setIsFocusedPass]           = useState(false);
 
   const passwordRef = useRef<TextInput>(null);
+
+  // Referencias para temporizadores de auto-cierre de alertas
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-dismiss inteligente para mensajes de error
+  useEffect(() => {
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+
+    if (serverError) {
+      // Errores locales de formato/vacío desaparecen rápido (3.5s), errores de auth/servidor (5s)
+      const isFast =
+        serverError.includes('Ingresa el usuario') ||
+        serverError.includes('Por favor') ||
+        serverError.includes('formato') ||
+        serverError.includes('obligatorios') ||
+        serverError.includes('válido') ||
+        serverError.includes('incompleto');
+      const duration = isFast ? 3500 : 5000;
+
+      errorTimerRef.current = setTimeout(() => {
+        setServerError(null);
+        errorTimerRef.current = null;
+      }, duration);
+    }
+
+    return () => {
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
+      }
+    };
+  }, [serverError]);
+
+  // Auto-dismiss para aviso de sesión expirada (7.5s de lectura cómoda)
+  useEffect(() => {
+    if (sessionTimerRef.current) {
+      clearTimeout(sessionTimerRef.current);
+      sessionTimerRef.current = null;
+    }
+
+    if (sessionExpiredReason) {
+      sessionTimerRef.current = setTimeout(() => {
+        clearSessionExpiredReason();
+        sessionTimerRef.current = null;
+      }, 7500);
+    }
+
+    return () => {
+      if (sessionTimerRef.current) {
+        clearTimeout(sessionTimerRef.current);
+        sessionTimerRef.current = null;
+      }
+    };
+  }, [sessionExpiredReason, clearSessionExpiredReason]);
 
   // Contador regresivo de bloqueo
   useEffect(() => {
@@ -418,6 +477,7 @@ export default function LoginScreen() {
   // ── Submit ──────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     setServerError(null);
+    if (sessionExpiredReason) clearSessionExpiredReason();
 
     const user = usuarioDispositivo.trim().toLowerCase();
     const pass = password.trim();
@@ -551,6 +611,29 @@ export default function LoginScreen() {
                 </Text>
               </FadeSlideIn>
 
+              {/* ── Banner: Sesión finalizada por inactividad / revocación ── */}
+              {sessionExpiredReason && (
+                <View style={[styles.banner, styles.bannerWarning, { marginBottom: 20 }]}>
+                  <Text style={styles.bannerIcon}>⚠️</Text>
+                  <View style={styles.bannerBody}>
+                    <Text style={[styles.bannerTitle, styles.bannerTitleAmber]}>
+                      Sesión finalizada
+                    </Text>
+                    <Text style={[styles.bannerText, styles.bannerTextAmber]}>
+                      {sessionExpiredReason}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={clearSessionExpiredReason}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cerrar aviso"
+                  >
+                    <X size={16} color={T.warningText} />
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* ── Warning: intentos restantes ──────────────────────────── */}
               {remaining !== null && remaining > 0 && (
                 <View style={[
@@ -588,7 +671,13 @@ export default function LoginScreen() {
                   styles.inputWrapper,
                   isFocusedUser && styles.inputWrapperFocused,
                 ]}>
-                  <Text style={styles.inputIcon}>👤</Text>
+                  <View style={styles.inputIconWrapper}>
+                    <User
+                      size={20}
+                      color={isFocusedUser ? T.primary : T.textMuted}
+                      strokeWidth={2}
+                    />
+                  </View>
                   <TextInput
                     style={styles.input}
                     placeholder="ej. camion_015"
@@ -596,6 +685,7 @@ export default function LoginScreen() {
                     value={usuarioDispositivo}
                     onChangeText={t => {
                       setUsuarioDispositivo(t.toLowerCase());
+                      if (sessionExpiredReason) clearSessionExpiredReason();
                       if (serverError) setServerError(null);
                     }}
                     onFocus={() => setIsFocusedUser(true)}
@@ -617,7 +707,13 @@ export default function LoginScreen() {
                   styles.inputWrapper,
                   isFocusedPass && styles.inputWrapperFocused,
                 ]}>
-                  <Text style={styles.inputIcon}>🔒</Text>
+                  <View style={styles.inputIconWrapper}>
+                    <Lock
+                      size={20}
+                      color={isFocusedPass ? T.primary : T.textMuted}
+                      strokeWidth={2}
+                    />
+                  </View>
                   <TextInput
                     ref={passwordRef}
                     style={[styles.input, styles.inputWithEye]}
@@ -626,6 +722,7 @@ export default function LoginScreen() {
                     value={password}
                     onChangeText={t => {
                       setPassword(t);
+                      if (sessionExpiredReason) clearSessionExpiredReason();
                       if (serverError) setServerError(null);
                     }}
                     onFocus={() => setIsFocusedPass(true)}
@@ -642,8 +739,13 @@ export default function LoginScreen() {
                     onPress={() => setShowPassword(v => !v)}
                     disabled={isSubmitting || isBlocked}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+                    {showPassword ? (
+                      <EyeOff size={20} color={T.textMuted} strokeWidth={2} />
+                    ) : (
+                      <Eye size={20} color={T.textMuted} strokeWidth={2} />
+                    )}
                   </TouchableOpacity>
                 </View>
               </FadeSlideIn>
@@ -988,10 +1090,10 @@ const styles = StyleSheet.create({
     borderColor: T.borderFocus,
     backgroundColor: T.bgInputFocused,
   },
-  inputIcon: {
-    fontSize: 18,
+  inputIconWrapper: {
     marginRight: 10,
-    opacity: 0.7,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   input: {
     flex: 1,
@@ -1006,10 +1108,11 @@ const styles = StyleSheet.create({
   },
   eyeBtn: {
     position: 'absolute',
-    right: 12,
-    padding: 6,
+    right: 14,
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  eyeIcon: { fontSize: 17, opacity: 0.7 },
 
   // ── Submit button ─────────────────────────────────────────────────────────
   submitBtn: {

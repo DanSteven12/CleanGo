@@ -37,20 +37,57 @@ export function ReportesScreen({ isActive = true }: ReportesScreenProps) {
   const fabBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) + 80 + 16;
   const [reportes, setReportes] = useState<ReporteCiudadano[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchReportes = useCallback(async () => {
-    setLoading(true);
+  const fetchReportes = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
+
     try {
-      const data = await reportesService.getMisReportes();
-      setReportes(data);
+      const response = await reportesService.getMisReportes(1, 10);
+      setReportes(response.data);
+      setPage(1);
+      setHasMore(response.pagination.hasMore);
     } catch (err) {
       setError('No pudimos cargar tus reportes. Intenta de nuevo.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || loading || refreshing || !hasMore) {
+      return;
+    }
+
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const response = await reportesService.getMisReportes(nextPage, 10);
+
+      setReportes((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const newItems = response.data.filter((r) => !existingIds.has(r.id));
+        return [...prev, ...newItems];
+      });
+
+      setPage(nextPage);
+      setHasMore(response.pagination.hasMore);
+    } catch (err) {
+      console.error('Error al cargar más reportes:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, loading, refreshing, hasMore, page]);
 
   useFocusEffect(
     useCallback(() => {
@@ -118,6 +155,16 @@ export function ReportesScreen({ isActive = true }: ReportesScreenProps) {
     );
   };
 
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={T.primary} />
+        <Text style={styles.footerLoaderText}>Cargando más reportes...</Text>
+      </View>
+    );
+  };
+
   const renderEmptyState = () => {
     if (loading) {
       return (
@@ -134,7 +181,7 @@ export function ReportesScreen({ isActive = true }: ReportesScreenProps) {
           <AlertCircle size={48} color={T.muted} style={{ marginBottom: 16 }} />
           <Text style={styles.emptyTitle}>¡Ups!</Text>
           <Text style={styles.emptyText}>{error}</Text>
-          <AnimatedPressable style={styles.retryBtn} onPress={fetchReportes}>
+          <AnimatedPressable style={styles.retryBtn} onPress={() => fetchReportes(false)}>
             <Text style={styles.retryText}>Reintentar</Text>
           </AnimatedPressable>
         </View>
@@ -173,8 +220,11 @@ export function ReportesScreen({ isActive = true }: ReportesScreenProps) {
         renderItem={renderItem}
         contentContainerStyle={[styles.listContent, { paddingBottom: fabBottom + 76 }]}
         ListEmptyComponent={renderEmptyState}
-        onRefresh={fetchReportes}
-        refreshing={loading && reportes.length > 0}
+        ListFooterComponent={renderFooter}
+        onRefresh={() => fetchReportes(true)}
+        refreshing={refreshing}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.3}
       />
 
       <AnimatedPressable 
@@ -318,6 +368,17 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  footerLoader: {
+    paddingVertical: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  footerLoaderText: {
+    fontSize: 13,
+    color: T.muted,
   },
   fab: {
     position: 'absolute',

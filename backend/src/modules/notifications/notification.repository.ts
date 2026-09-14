@@ -143,6 +143,102 @@ export async function obtenerConteoNoLeidasPorUsuario(
   return Number(rows[0].count);
 }
 
+export interface NotificacionesPaginadasUsuario {
+  data: Notificacion[];
+  total: number;
+  page: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+/**
+ * Obtiene las notificaciones paginadas de un usuario ciudadano/administrador,
+ * ordenadas por fecha de creación descendente (10 por página por defecto).
+ */
+export async function obtenerNotificacionesPaginadasPorUsuario(
+  usuario_id: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<NotificacionesPaginadasUsuario> {
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.max(1, limit);
+  const offset = (safePage - 1) * safeLimit;
+
+  // 1. Conteo total
+  const [countRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT COUNT(*) as total FROM notificaciones WHERE usuario_id = ?`,
+    [usuario_id]
+  );
+  const total = Number(countRows[0]?.total) || 0;
+  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  const hasMore = safePage < totalPages;
+
+  // 2. Filas paginadas
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT * FROM notificaciones
+     WHERE usuario_id = ?
+     ORDER BY created_at DESC
+     LIMIT ? OFFSET ?`,
+    [usuario_id, safeLimit, offset]
+  );
+
+  return {
+    data: rows as Notificacion[],
+    total,
+    page: safePage,
+    totalPages,
+    hasMore,
+  };
+}
+
+export interface NotificacionesPaginadasConductor {
+  data: Notificacion[];
+  total: number;
+  page: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+/**
+ * Obtiene las notificaciones paginadas de un conductor,
+ * ordenadas por fecha de creación descendente (10 por página por defecto).
+ */
+export async function obtenerNotificacionesPaginadasPorConductor(
+  conductor_id: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<NotificacionesPaginadasConductor> {
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.max(1, limit);
+  const offset = (safePage - 1) * safeLimit;
+
+  // 1. Conteo total
+  const [countRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT COUNT(*) as total FROM notificaciones WHERE conductor_id = ?`,
+    [conductor_id]
+  );
+  const total = Number(countRows[0]?.total) || 0;
+  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  const hasMore = safePage < totalPages;
+
+  // 2. Filas paginadas
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT * FROM notificaciones
+     WHERE conductor_id = ?
+     ORDER BY created_at DESC
+     LIMIT ? OFFSET ?`,
+    [conductor_id, safeLimit, offset]
+  );
+
+  return {
+    data: rows as Notificacion[],
+    total,
+    page: safePage,
+    totalPages,
+    hasMore,
+  };
+}
+
 /**
  * Obtiene todas las notificaciones de un conductor,
  * ordenadas por fecha de creación descendente.

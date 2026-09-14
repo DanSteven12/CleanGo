@@ -39,13 +39,25 @@ export default function HomeScreen() {
   const [visitedTabs, setVisitedTabs] = useState<Set<TabName>>(() => new Set(['inicio']));
 
   const handleTabPress = useCallback((tab: TabName) => {
-    setVisitedTabs(prev => {
-      if (prev.has(tab)) return prev;
-      const next = new Set(prev);
-      next.add(tab);
-      return next;
-    });
     setActiveTab(tab);
+    const mountTab = () => {
+      setVisitedTabs(prev => {
+        if (prev.has(tab)) return prev;
+        const next = new Set(prev);
+        next.add(tab);
+        return next;
+      });
+    };
+    const ric = (
+      globalThis as typeof globalThis & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      }
+    ).requestIdleCallback;
+    if (typeof ric === 'function') {
+      ric(mountTab, { timeout: 250 });
+    } else {
+      requestAnimationFrame(mountTab);
+    }
   }, []);
 
   /**

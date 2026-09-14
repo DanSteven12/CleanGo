@@ -36,6 +36,7 @@ import {
 } from 'lucide-react-native';
 import type { CamionAuth } from '../services/authService';
 import type { AsignacionActual } from '../services/camionService';
+import { AnimatedCard, AnimatedPressable } from './ui';
 import { theme } from '../theme/colors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -173,164 +174,169 @@ export function CamionInfoCard({
       }
     >
       {/* ── Sección: Datos del camión ── */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Truck size={16} color={theme.colors.primary} />
-          <Text style={styles.sectionTitle}>Datos del camión</Text>
+      <AnimatedCard index={0} staggerMs={40}>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Truck size={16} color={theme.colors.primary} />
+            <Text style={styles.sectionTitle}>Datos del camión</Text>
+          </View>
+
+          <InfoRow
+            icon={<Hash size={18} color={theme.colors.primary} />}
+            label="Número económico"
+            value={camion.numero_economico}
+          />
+
+          <View style={styles.divider} />
+
+          <InfoRow
+            icon={<Shield size={18} color="#64748b" />}
+            label="Placa"
+            value={camion.placa}
+          />
+
+          <View style={styles.divider} />
+
+          <InfoRow
+            icon={
+              estadoActivo ? (
+                <CheckCircle size={18} color={theme.colors.success} />
+              ) : (
+                <XCircle size={18} color={theme.colors.destructive} />
+              )
+            }
+            label="Estado"
+            value={
+              <View
+                style={[
+                  styles.estadoBadge,
+                  { backgroundColor: estadoActivo ? theme.colors.successBg : theme.colors.destructiveBg },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.estadoText,
+                    { color: estadoActivo ? theme.colors.successText : theme.colors.destructiveText },
+                  ]}
+                >
+                  {camion.estado}
+                </Text>
+              </View>
+            }
+          />
+
+          <View style={styles.divider} />
+
+          <InfoRow
+            icon={<Wifi size={18} color={camion.gps_instalado ? theme.colors.primary : theme.colors.textMuted} />}
+            label="GPS"
+            value={
+              <View
+                style={[
+                  styles.estadoBadge,
+                  {
+                    backgroundColor: camion.gps_instalado ? theme.colors.activeBg : theme.colors.background,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.estadoText,
+                    { color: camion.gps_instalado ? theme.colors.primary : theme.colors.textMuted },
+                  ]}
+                >
+                  {camion.gps_instalado ? 'Instalado' : 'No instalado'}
+                </Text>
+              </View>
+            }
+          />
         </View>
-
-        <InfoRow
-          icon={<Hash size={18} color={theme.colors.primary} />}
-          label="Número económico"
-          value={camion.numero_economico}
-        />
-
-        <View style={styles.divider} />
-
-        <InfoRow
-          icon={<Shield size={18} color="#64748b" />}
-          label="Placa"
-          value={camion.placa}
-        />
-
-        <View style={styles.divider} />
-
-        <InfoRow
-          icon={
-            estadoActivo ? (
-              <CheckCircle size={18} color={theme.colors.success} />
-            ) : (
-              <XCircle size={18} color={theme.colors.destructive} />
-            )
-          }
-          label="Estado"
-          value={
-            <View
-              style={[
-                styles.estadoBadge,
-                { backgroundColor: estadoActivo ? theme.colors.successBg : theme.colors.destructiveBg },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.estadoText,
-                  { color: estadoActivo ? theme.colors.successText : theme.colors.destructiveText },
-                ]}
-              >
-                {camion.estado}
-              </Text>
-            </View>
-          }
-        />
-
-        <View style={styles.divider} />
-
-        <InfoRow
-          icon={<Wifi size={18} color={camion.gps_instalado ? theme.colors.primary : theme.colors.textMuted} />}
-          label="GPS"
-          value={
-            <View
-              style={[
-                styles.estadoBadge,
-                {
-                  backgroundColor: camion.gps_instalado ? theme.colors.activeBg : theme.colors.background,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.estadoText,
-                  { color: camion.gps_instalado ? theme.colors.primary : theme.colors.textMuted },
-                ]}
-              >
-                {camion.gps_instalado ? 'Instalado' : 'No instalado'}
-              </Text>
-            </View>
-          }
-        />
-      </View>
+      </AnimatedCard>
 
       {/* ── Sección: Asignación actual ── */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Calendar size={16} color={theme.colors.primary} />
-          <Text style={styles.sectionTitle}>Asignación actual</Text>
-        </View>
-
-        {!asignacion ? (
-          <View style={styles.emptyAsignacion}>
-            <Text style={styles.emptyAsignacionText}>Sin asignación activa</Text>
-            <Text style={styles.emptyAsignacionSub}>
-              No hay recorrido programado para hoy.
-            </Text>
+      <AnimatedCard index={1} staggerMs={40}>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Calendar size={16} color={theme.colors.primary} />
+            <Text style={styles.sectionTitle}>Asignación actual</Text>
           </View>
-        ) : (
-          <>
-            <InfoRow
-              icon={<User size={18} color="#64748b" />}
-              label="Conductor asignado"
-              value={asignacion.conductor_nombre ?? '—'}
-            />
 
-            <View style={styles.divider} />
+          {!asignacion ? (
+            <View style={styles.emptyAsignacion}>
+              <Text style={styles.emptyAsignacionText}>Sin asignación activa</Text>
+              <Text style={styles.emptyAsignacionSub}>
+                No hay recorrido programado para hoy.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <InfoRow
+                icon={<User size={18} color="#64748b" />}
+                label="Conductor asignado"
+                value={asignacion.conductor_nombre ?? '—'}
+              />
 
-            <InfoRow
-              icon={<Map size={18} color="#64748b" />}
-              label="Ruta asignada"
-              value={
-                <View style={styles.rutaWrapper}>
-                  <View
-                    style={[
-                      styles.rutaDot,
-                      { backgroundColor: asignacion.ruta_color || '#3b82f6' },
-                    ]}
+              <View style={styles.divider} />
+
+              <InfoRow
+                icon={<Map size={18} color="#64748b" />}
+                label="Ruta asignada"
+                value={
+                  <View style={styles.rutaWrapper}>
+                    <View
+                      style={[
+                        styles.rutaDot,
+                        { backgroundColor: asignacion.ruta_color || '#3b82f6' },
+                      ]}
+                    />
+                    <Text style={styles.infoValue}>{asignacion.ruta_nombre}</Text>
+                  </View>
+                }
+              />
+
+              <View style={styles.divider} />
+
+              <InfoRow
+                icon={<Calendar size={18} color="#64748b" />}
+                label="Fecha de asignación"
+                value={formatFecha(asignacion.fecha_programada)}
+              />
+
+              <View style={styles.divider} />
+
+              <InfoRow
+                icon={<Clock size={18} color="#64748b" />}
+                label="Horario programado"
+                value={`${formatHora(asignacion.horario_inicio)} — ${formatHora(asignacion.horario_fin)}`}
+              />
+
+              {/* Horario base de la ruta, si existe */}
+              {(asignacion.horario_ruta_inicio || asignacion.horario_ruta_fin) && (
+                <>
+                  <View style={styles.divider} />
+                  <InfoRow
+                    icon={<Clock size={18} color="#94a3b8" />}
+                    label="Horario estimado de ruta"
+                    value={`${formatHora(asignacion.horario_ruta_inicio)} — ${formatHora(asignacion.horario_ruta_fin)}`}
                   />
-                  <Text style={styles.infoValue}>{asignacion.ruta_nombre}</Text>
-                </View>
-              }
-            />
-
-            <View style={styles.divider} />
-
-            <InfoRow
-              icon={<Calendar size={18} color="#64748b" />}
-              label="Fecha de asignación"
-              value={formatFecha(asignacion.fecha_programada)}
-            />
-
-            <View style={styles.divider} />
-
-            <InfoRow
-              icon={<Clock size={18} color="#64748b" />}
-              label="Horario programado"
-              value={`${formatHora(asignacion.horario_inicio)} — ${formatHora(asignacion.horario_fin)}`}
-            />
-
-            {/* Horario base de la ruta, si existe */}
-            {(asignacion.horario_ruta_inicio || asignacion.horario_ruta_fin) && (
-              <>
-                <View style={styles.divider} />
-                <InfoRow
-                  icon={<Clock size={18} color="#94a3b8" />}
-                  label="Horario estimado de ruta"
-                  value={`${formatHora(asignacion.horario_ruta_inicio)} — ${formatHora(asignacion.horario_ruta_fin)}`}
-                />
-              </>
-            )}
-          </>
-        )}
-      </View>
+                </>
+              )}
+            </>
+          )}
+        </View>
+      </AnimatedCard>
 
       {/* Botón de cerrar sesión */}
       {onLogout && (
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={onLogout}
-          activeOpacity={0.8}
-        >
-          <LogOut size={18} color={theme.colors.destructive} />
-          <Text style={styles.logoutButtonText}>Cerrar sesión de este dispositivo</Text>
-        </TouchableOpacity>
+        <AnimatedCard index={2} staggerMs={40}>
+          <AnimatedPressable
+            style={styles.logoutButton}
+            onPress={onLogout}
+          >
+            <LogOut size={18} color={theme.colors.destructive} />
+            <Text style={styles.logoutButtonText}>Cerrar sesión de este dispositivo</Text>
+          </AnimatedPressable>
+        </AnimatedCard>
       )}
 
       {/* Nota de solo lectura */}
@@ -349,7 +355,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
   },
   centerContainer: {
     flex: 1,

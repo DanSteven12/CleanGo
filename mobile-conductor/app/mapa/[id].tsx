@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter, Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, Region } from 'react-native-maps';
@@ -15,6 +15,7 @@ import { NavigationControls } from '../../components/navegacion/NavigationContro
 import { theme } from '../../theme/colors';
 import { useRecorridoMapCache } from '../../contexts/RecorridoMapCache';
 import { useAsignacionGlobal } from '../../contexts/AsignacionContext';
+import { useAlert } from '../../contexts/AlertContext';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 type LatLng = { latitude: number; longitude: number };
@@ -238,6 +239,7 @@ const MapaRecorridoScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { showConfirm, showSuccess, showError, showWarning } = useAlert();
   const mapRef = useRef<MapView | null>(null);
   const hasCenteredRef = useRef(true); // true desde el inicio: omitir fitToCoordinates, la cámara de navegación se encarga
 
@@ -307,10 +309,13 @@ const MapaRecorridoScreen = () => {
       setRecorridoData(data);
     } catch (error) {
       console.error('Error al cargar recorrido activo:', error);
-      Alert.alert(
+      showWarning(
         'Sin recorrido activo',
         'No se encontró un recorrido en progreso para esta asignación.',
-        [{ text: 'Volver', onPress: () => router.replace('/') }]
+        () => {
+          router.replace('/');
+        },
+        { confirmText: 'Volver al Inicio' }
       );
     } finally {
       setIsLoading(false);
@@ -604,37 +609,44 @@ const MapaRecorridoScreen = () => {
     }
   };
 
-  const handleFinalizar = async () => {
+  const handleFinalizar = () => {
     if (!recorridoData?.recorrido_id) return;
 
-    Alert.alert(
-      'Finalizar Recorrido',
-      '¿Estás seguro de que deseas finalizar este recorrido? Esta acción registrará el fin del servicio.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Sí, finalizar',
-          style: 'default',
-          onPress: async () => {
-            try {
-              setIsFinishing(true);
-              await recorridosService.finalizarRecorrido(recorridoData.recorrido_id);
-              // Limpiar el caché solo si la finalización fue exitosa;
-              // si falla, el estado se preserva para poder reintentar.
-              await refreshData(false); // Actualizar contexto global
-              Alert.alert('Recorrido Concluido', 'El recorrido ha sido finalizado exitosamente.', [
-                { text: 'Aceptar', onPress: () => { cache.clear(); router.replace('/'); } },
-              ]);
-            } catch (error) {
-              console.error('Error finalizando recorrido:', error);
-              Alert.alert('Error', 'Hubo un problema al finalizar el recorrido.');
-            } finally {
-              setIsFinishing(false);
+    showConfirm({
+      title: 'Finalizar Recorrido',
+      message:
+        '¿Estás seguro de que deseas finalizar este recorrido? Esta acción registrará el fin del servicio y concluirá el rastreo GPS.',
+      confirmText: 'Sí, finalizar',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          setIsFinishing(true);
+          await recorridosService.finalizarRecorrido(recorridoData.recorrido_id);
+          // Actualizar contexto global
+          await refreshData(false);
+          // Alerta con diseño elegante de confirmación de fin de recorrido
+          showSuccess(
+            '¡Recorrido Concluido!',
+            'El recorrido ha sido finalizado exitosamente. Excelente trabajo.',
+            () => {
+              cache.clear();
+              router.replace('/');
+            },
+            {
+              confirmText: 'Volver al Inicio',
             }
-          },
-        },
-      ]
-    );
+          );
+        } catch (error) {
+          console.error('Error finalizando recorrido:', error);
+          showError(
+            'Error al finalizar',
+            'Hubo un problema al finalizar el recorrido en el servidor. Por favor intenta de nuevo.'
+          );
+        } finally {
+          setIsFinishing(false);
+        }
+      },
+    });
   };
 
   // ── Loading ────────────────────────────────────────────────────────────────

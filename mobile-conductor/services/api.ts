@@ -125,9 +125,9 @@ const api = axios.create({
 // ─── Session expired callback ─────────────────────────────────────────────────
 
 /** Registrado por AuthContext. Se llama cuando el refresh falla y la sesión expira. */
-let _onSessionExpired: (() => void) | null = null;
+let _onSessionExpired: ((reason?: string) => void) | null = null;
 
-export function setSessionExpiredCallback(cb: () => void): void {
+export function setSessionExpiredCallback(cb: (reason?: string) => void): void {
   _onSessionExpired = cb;
 }
 
@@ -204,10 +204,21 @@ api.interceptors.response.use(
           console.log(`[API] Conmutado exitosamente a USB (${usbUrl}).`);
           return res;
         } catch (usbError) {
-          // Si USB también falló (no hay cable conectado), preservar la IP Wi-Fi
-          _activeBaseUrl = lanUrl;
-          api.defaults.baseURL = lanUrl;
-          return Promise.reject(usbError);
+          // Si USB también falló, intentar 10.0.2.2 (emulador Android)
+          const emuUrl = 'http://10.0.2.2:5001/api';
+          originalRequest.baseURL = emuUrl;
+          try {
+            const res = await api(originalRequest);
+            _activeBaseUrl = emuUrl;
+            api.defaults.baseURL = emuUrl;
+            console.log(`[API] Conmutado exitosamente a Emulador Android (${emuUrl}).`);
+            return res;
+          } catch (emuError) {
+            // Preservar la IP Wi-Fi si todos los fallbacks fallaron
+            _activeBaseUrl = lanUrl;
+            api.defaults.baseURL = lanUrl;
+            return Promise.reject(usbError);
+          }
         }
       }
     }
@@ -268,7 +279,9 @@ api.interceptors.response.use(
         _refreshSubscribers = [];
 
         if (_onSessionExpired) {
-          _onSessionExpired();
+          _onSessionExpired(
+            'Por seguridad, tu sesión se cerró después de un período de inactividad o cambio de credenciales. Inicia sesión nuevamente para continuar.'
+          );
         }
 
         return Promise.reject(refreshError);
