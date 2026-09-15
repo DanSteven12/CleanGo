@@ -139,8 +139,8 @@ export const UsuariosPage: React.FC = () => {
   
   // Filtros y paginación
   const [search, setSearch] = useState('');
-  const [rolFilter, setRolFilter] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState('');
+  const [rolFilter, setRolFilter] = useState('Ciudadano');
+  const [estadoFilter, setEstadoFilter] = useState('Activo');
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -179,7 +179,9 @@ export const UsuariosPage: React.FC = () => {
   // ── Filtrado y Paginación ────────────────────────────────────────────────
   const filteredUsers = useMemo(() => {
     return usuarios.filter(u => {
-      const matchSearch = u.nombre.toLowerCase().includes(search.toLowerCase()) || u.correo.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = u.nombre.toLowerCase().includes(search.toLowerCase()) || 
+        u.correo.toLowerCase().includes(search.toLowerCase()) ||
+        (u.telefono ? u.telefono.toLowerCase().includes(search.toLowerCase()) : false);
       const matchRol = rolFilter ? u.rol === rolFilter : true;
       const matchEstado = estadoFilter ? u.estado === estadoFilter : true;
       return matchSearch && matchRol && matchEstado;
@@ -222,20 +224,40 @@ export const UsuariosPage: React.FC = () => {
   };
 
   const userPwd = passwordData.password;
-  const userPwdLengthValid = userPwd.length >= 8 && userPwd.length <= 20;
+  const userPwdLengthValid = userPwd.length >= 10 && userPwd.length <= 72;
   const userPwdUpperValid = /[A-Z]/.test(userPwd);
+  const userPwdLowerValid = /[a-z]/.test(userPwd);
   const userPwdNumberValid = /[0-9]/.test(userPwd);
   const userPwdSpecialValid = /[^A-Za-z0-9]/.test(userPwd);
+  const userPwdNoSpacesValid = userPwd.length > 0 && !/\s/.test(userPwd);
   const userPwdMatchValid = passwordData.confirmPassword !== '' && userPwd === passwordData.confirmPassword;
-  const isUserPasswordValid = userPwdLengthValid && userPwdUpperValid && userPwdNumberValid && userPwdSpecialValid && userPwdMatchValid;
+  const isUserPasswordValid = userPwdLengthValid && userPwdUpperValid && userPwdLowerValid && userPwdNumberValid && userPwdSpecialValid && userPwdNoSpacesValid && userPwdMatchValid;
 
   const handleSavePassword = async () => {
     setFormError(null);
     if (!userPwdLengthValid) {
-      return setFormError('La contraseña debe tener entre 8 y 20 caracteres.');
+      return setFormError('La contraseña debe tener entre 10 y 72 caracteres.');
     }
-    if (!userPwdUpperValid || !userPwdNumberValid || !userPwdSpecialValid) {
-      return setFormError('La contraseña debe contener mayúscula, número y carácter especial.');
+    if (!userPwdNoSpacesValid) {
+      return setFormError('La contraseña no debe contener espacios.');
+    }
+    if (!userPwdUpperValid) {
+      return setFormError('La contraseña debe contener al menos 1 letra mayúscula.');
+    }
+    if (!userPwdLowerValid) {
+      return setFormError('La contraseña debe contener al menos 1 letra minúscula.');
+    }
+    if (!userPwdNumberValid) {
+      return setFormError('La contraseña debe contener al menos 1 número.');
+    }
+    if (!userPwdSpecialValid) {
+      return setFormError('La contraseña debe contener al menos 1 carácter especial.');
+    }
+    if (selectedUser?.correo && userPwd.toLowerCase() === selectedUser.correo.trim().toLowerCase()) {
+      return setFormError('La contraseña no puede ser igual al correo electrónico.');
+    }
+    if (selectedUser?.nombre && userPwd.toLowerCase() === selectedUser.nombre.trim().toLowerCase()) {
+      return setFormError('La contraseña no puede ser igual al nombre de usuario.');
     }
     if (passwordData.password !== passwordData.confirmPassword) {
       return setFormError('Las contraseñas no coinciden.');
@@ -286,6 +308,13 @@ export const UsuariosPage: React.FC = () => {
 
   // ── Render Helpers ───────────────────────────────────────────────────────
   const formatDate = (d: string) => d ? new Date(d).toLocaleDateString() : '—';
+  
+  const getInitials = (name: string): string => {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
   
   return (
     <>
@@ -352,31 +381,29 @@ export const UsuariosPage: React.FC = () => {
               value={rolFilter}
               onChange={(e) => setRolFilter(e.target.value)}
               icon={<ShieldCheck size={16} />}
-              isFiltered={!!rolFilter}
+              isFiltered={rolFilter !== 'Ciudadano'}
               containerClassName="min-w-[175px]"
             >
-              <option value="">Todos los roles</option>
-              <option value="Administrador">Administrador</option>
               <option value="Ciudadano">Ciudadano</option>
+              <option value="Administrador">Administrador</option>
             </Select>
             <Select
               value={estadoFilter}
               onChange={(e) => setEstadoFilter(e.target.value)}
               icon={<Activity size={16} />}
-              isFiltered={!!estadoFilter}
+              isFiltered={estadoFilter !== 'Activo'}
               containerClassName="min-w-[175px]"
             >
-              <option value="">Todos los estados</option>
               <option value="Activo">Activo</option>
               <option value="Bloqueado">Bloqueado</option>
             </Select>
 
-            {(search || rolFilter || estadoFilter) && (
+            {(search || rolFilter !== 'Ciudadano' || estadoFilter !== 'Activo') && (
               <button
                 type="button"
-                onClick={() => { setSearch(''); setRolFilter(''); setEstadoFilter(''); }}
+                onClick={() => { setSearch(''); setRolFilter('Ciudadano'); setEstadoFilter('Activo'); }}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--destructive)] hover:bg-[var(--destructive)]/10 transition-colors cursor-pointer"
-                title="Limpiar filtros"
+                title="Restablecer filtros"
               >
                 <RotateCcw size={13} />
                 <span>Limpiar</span>
@@ -401,8 +428,8 @@ export const UsuariosPage: React.FC = () => {
             <table className="usuarios-table">
               <thead>
                 <tr>
-                  <th>Nombre</th>
-                  <th>Correo</th>
+                  <th>Usuario</th>
+                  <th>Teléfono</th>
                   <th>Rol</th>
                   <th>Estado</th>
                   <th>Último Acceso</th>
@@ -418,10 +445,22 @@ export const UsuariosPage: React.FC = () => {
                 ) : (
                   currentUsers.map(u => (
                     <tr key={u.id}>
-                      <td style={{ fontWeight: 600, color: 'var(--text-h)' }}>{u.nombre}</td>
-                      <td>{u.correo}</td>
                       <td>
-                        <span className="rol-badge">{u.rol}</span>
+                        <div className="usuario-cell">
+                          <div className="usuario-avatar" title={u.nombre}>
+                            {getInitials(u.nombre)}
+                          </div>
+                          <div className="usuario-identity">
+                            <span className="usuario-name">{u.nombre}</span>
+                            <span className="usuario-email">{u.correo}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{u.telefono || '—'}</td>
+                      <td>
+                        <span className={`rol-badge ${u.rol === 'Administrador' ? 'rol-admin' : 'rol-ciudadano'}`}>
+                          {u.rol}
+                        </span>
                       </td>
                       <td>
                         <span className={`estado-badge ${u.estado === 'Activo' ? 'estado-activo' : 'estado-bloqueado'}`}>
@@ -438,14 +477,16 @@ export const UsuariosPage: React.FC = () => {
                           <button className="action-btn" onClick={() => handleOpenPassword(u)} title="Cambiar Contraseña" style={{ color: 'oklch(0.6 0.15 40)' }}>
                             <KeyRound size={14} />
                           </button>
-                          <button 
-                            className="action-btn" 
-                            onClick={() => { setSelectedUser(u); setIsConfirmOpen(true); }} 
-                            title={u.estado === 'Activo' ? 'Bloquear' : 'Desbloquear'}
-                            style={{ color: u.estado === 'Activo' ? 'oklch(0.5 0.15 30)' : 'oklch(0.5 0.15 140)' }}
-                          >
-                            {u.estado === 'Activo' ? <Lock size={14} /> : <Unlock size={14} />}
-                          </button>
+                          {u.rol !== 'Administrador' && (
+                            <button 
+                              className="action-btn" 
+                              onClick={() => { setSelectedUser(u); setIsConfirmOpen(true); }} 
+                              title={u.estado === 'Activo' ? 'Bloquear' : 'Desbloquear'}
+                              style={{ color: u.estado === 'Activo' ? 'oklch(0.5 0.15 30)' : 'oklch(0.5 0.15 140)' }}
+                            >
+                              {u.estado === 'Activo' ? <Lock size={14} /> : <Unlock size={14} />}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -492,41 +533,47 @@ export const UsuariosPage: React.FC = () => {
           <div className="form-field">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label className="form-label" style={{ marginBottom: 0 }}>Nueva Contraseña *</label>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{passwordData.password.length}/20</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{passwordData.password.length}/72</span>
             </div>
             <input 
               type="password" 
               className="form-input" 
               value={passwordData.password} 
               onChange={e => setPasswordData({ ...passwordData, password: e.target.value })} 
-              maxLength={20}
+              maxLength={72}
             />
             <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
               <span style={{ color: userPwdLengthValid ? '#22c55e' : (userPwd.length > 0 ? '#ef4444' : 'var(--text)') }}>
-                {userPwdLengthValid ? '✓' : '○'} Entre 8 y 20 caracteres
+                {userPwdLengthValid ? '✓' : '○'} Mínimo 10 caracteres
               </span>
               <span style={{ color: userPwdUpperValid ? '#22c55e' : (userPwd.length > 0 ? '#ef4444' : 'var(--text)') }}>
-                {userPwdUpperValid ? '✓' : '○'} Al menos 1 letra mayúscula
+                {userPwdUpperValid ? '✓' : '○'} Una mayúscula
+              </span>
+              <span style={{ color: userPwdLowerValid ? '#22c55e' : (userPwd.length > 0 ? '#ef4444' : 'var(--text)') }}>
+                {userPwdLowerValid ? '✓' : '○'} Una minúscula
               </span>
               <span style={{ color: userPwdNumberValid ? '#22c55e' : (userPwd.length > 0 ? '#ef4444' : 'var(--text)') }}>
-                {userPwdNumberValid ? '✓' : '○'} Al menos 1 número
+                {userPwdNumberValid ? '✓' : '○'} Un número
               </span>
               <span style={{ color: userPwdSpecialValid ? '#22c55e' : (userPwd.length > 0 ? '#ef4444' : 'var(--text)') }}>
-                {userPwdSpecialValid ? '✓' : '○'} Al menos 1 carácter especial
+                {userPwdSpecialValid ? '✓' : '○'} Un carácter especial
+              </span>
+              <span style={{ color: userPwdNoSpacesValid ? '#22c55e' : (userPwd.length > 0 ? '#ef4444' : 'var(--text)') }}>
+                {userPwdNoSpacesValid ? '✓' : '○'} Sin espacios
               </span>
             </div>
           </div>
           <div className="form-field">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label className="form-label" style={{ marginBottom: 0 }}>Confirmar Contraseña *</label>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{passwordData.confirmPassword.length}/20</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{passwordData.confirmPassword.length}/72</span>
             </div>
             <input 
               type="password" 
               className="form-input" 
               value={passwordData.confirmPassword} 
               onChange={e => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} 
-              maxLength={20}
+              maxLength={72}
             />
             {passwordData.confirmPassword.length > 0 && !userPwdMatchValid && (
               <span style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>

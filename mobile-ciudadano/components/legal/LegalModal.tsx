@@ -25,6 +25,8 @@ const T = {
 };
 
 export function LegalModal({ visible, onClose, children }: LegalModalProps) {
+  if (!visible) return null;
+
   return (
     <Modal
       visible={visible}

@@ -66,10 +66,10 @@ export const recorridosService = {
   },
 
   /**
-   * Obtiene la lista de asignaciones del día o pendientes.
+   * Obtiene la lista de asignaciones exclusivas del camión autenticado.
    */
   getAsignaciones: async (): Promise<any[]> => {
-    const response = await api.get<any[]>('/asignaciones');
+    const response = await api.get<any[]>('/device/auth/asignaciones');
     return response.data;
   },
 

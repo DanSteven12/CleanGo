@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import { ResultSetHeader } from 'mysql2';
 import { getIO } from '../socket/socketServer';
-import { stopSimulation, startSimulation, setSimulationSpeed, getRouteGeometry, fetchRouteGeometry } from '../services/simulationService';
+import { stopSimulation, startSimulation, setSimulationSpeed, getRouteGeometry, fetchRouteGeometry, getSimulationStats } from '../services/simulationService';
 import { NotificationService } from '../modules/notifications';
 import * as NotificationMessages from '../constants/notificationMessages';
 
@@ -584,6 +584,8 @@ router.get('/activo/:asignacion_id', async (req: Request, res: Response): Promis
       console.log(`[DEBUG /activo/:id] ultimos 5:`, routeGeom.slice(-5));
     }
 
+    const currentSim = getSimulationStats(rec.recorrido_id);
+
     res.json({
       recorrido_id: rec.recorrido_id,
       hora_inicio: rec.hora_inicio,
@@ -594,7 +596,8 @@ router.get('/activo/:asignacion_id', async (req: Request, res: Response): Promis
       numero_economico: rec.numero_economico,
       conductor_nombre: rec.conductor_nombre,
       checkpoints: checkpointsCompletos,
-      geometria: routeGeom
+      geometria: routeGeom,
+      simulacion: currentSim || null
     });
   } catch (error) {
     console.error(`[recorridos] GET /activo/${asignacionId}:`, error);

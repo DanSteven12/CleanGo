@@ -44,11 +44,11 @@ export function LegalLinks({ actionText = 'continuar', disabled = false }: Legal
       </View>
 
       <LegalModal visible={showTerms} onClose={() => setShowTerms(false)}>
-        <TermsContent />
+        {showTerms ? <TermsContent /> : null}
       </LegalModal>
 
       <LegalModal visible={showPrivacy} onClose={() => setShowPrivacy(false)}>
-        <PrivacyContent />
+        {showPrivacy ? <PrivacyContent /> : null}
       </LegalModal>
     </>
   );

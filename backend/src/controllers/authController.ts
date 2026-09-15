@@ -77,6 +77,30 @@ export async function login(req: Request, res: Response): Promise<void> {
   try {
     const result = await authService.loginUser(email, password, { ip, userAgent, endpoint }, rememberMe);
 
+    // ── Validar que el usuario tenga rol 'Administrador' (Plataforma Web exclusiva) ──
+    if (result.user.rol !== 'Administrador') {
+      try {
+        const payload = jwt.decode(result.token) as AuthPayload | null;
+        if (payload?.jti) {
+          await authService.logoutSession(result.user.id, payload.jti);
+        }
+      } catch {}
+
+      logSecurityEvent({
+        correo: email,
+        ip,
+        userAgent,
+        endpoint,
+        httpStatus: 403,
+        descripcion: `Web login rechazado — rol no autorizado (${result.user.rol}).`,
+      });
+
+      res.status(403).json({
+        message: 'Acceso no autorizado. Esta plataforma es exclusiva para administradores.',
+      });
+      return;
+    }
+
     // ── Set JWTs as HttpOnly cookies ────────────────────────────────────────
     const sessionCookie = config.cookie.name;
     const refreshCookie = config.cookie.refreshName;
@@ -130,6 +154,26 @@ export async function refresh(req: Request, res: Response): Promise<void> {
   try {
     const result = await authService.refreshSession(refreshToken, ip, userAgent);
 
+    // Verificar que la sesión en Web pertenezca a un Administrador
+    if (result.user.rol !== 'Administrador') {
+      const baseCookieOptions = getCookieOptions();
+      res.clearCookie(config.cookie.name, baseCookieOptions);
+      res.clearCookie(refreshCookieName, baseCookieOptions);
+      res.clearCookie(config.cookie.csrfName, getCsrfCookieOptions());
+
+      logSecurityEvent({
+        correo: result.user.correo,
+        ip,
+        userAgent,
+        endpoint: req.originalUrl,
+        httpStatus: 403,
+        descripcion: `Web refresh rechazado — rol no autorizado (${result.user.rol}).`,
+      });
+
+      res.status(403).json({ message: 'Acceso no autorizado. Esta plataforma es exclusiva para administradores.' });
+      return;
+    }
+
     const sessionCookie = config.cookie.name;
     const baseCookieOptions = getCookieOptions();
 
@@ -155,19 +199,9 @@ export async function refresh(req: Request, res: Response): Promise<void> {
 }
 
 export async function register(req: Request, res: Response): Promise<void> {
-  if (handleValidationErrors(req, res)) return;
-
-  const { nombre, correo, password, rol } = req.body;
-
-  try {
-    const user = await authService.registerUser(nombre, correo, password, rol);
-    res.status(201).json({
-      message: 'Usuario registrado correctamente.',
-      user,
-    });
-  } catch (err) {
-    handleServiceError(err, res);
-  }
+  res.status(403).json({
+    message: 'El registro público no está disponible en la plataforma web. Esta plataforma es exclusiva para administradores.',
+  });
 }
 
 /**

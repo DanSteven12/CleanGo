@@ -75,11 +75,33 @@ export function RecorridoMapCacheProvider({ children }: { children: ReactNode })
         incomingGeom.length >= 2
           ? incomingGeom
           : (sameRecorrido ? prev!.streetGeometry : []);
+      let snapshot = sameRecorrido ? prev!.snapshot : prev?.asignacionId === asignacionId ? prev.snapshot : null;
+      if (data.simulacion && typeof data.simulacion.latitud === 'number' && typeof data.simulacion.longitud === 'number') {
+        snapshot = {
+          latitude: data.simulacion.latitud,
+          longitude: data.simulacion.longitud,
+          porcentajeAvance: typeof data.simulacion.porcentajeAvance === 'number' ? data.simulacion.porcentajeAvance : (snapshot?.porcentajeAvance ?? 0),
+          heading: snapshot?.heading ?? 0,
+          speedMultiplier: data.simulacion.velocidad || snapshot?.speedMultiplier || 1,
+          stats: {
+            ...(snapshot?.stats || {}),
+            ultimoCheckpoint: data.simulacion.ultimoCheckpoint,
+            proximoCheckpoint: data.simulacion.proximoCheckpoint,
+            completados: data.simulacion.completados,
+            pendientes: data.simulacion.pendientes,
+            porcentajeAvance: data.simulacion.porcentajeAvance,
+            etaSegundos: data.simulacion.etaSegundos,
+            horaEstimada: data.simulacion.horaEstimada,
+            estadoDinamico: data.simulacion.estadoDinamico,
+          },
+        };
+      }
+
       return {
         asignacionId,
         recorridoData: data,
         streetGeometry,
-        snapshot: sameRecorrido ? prev!.snapshot : prev?.asignacionId === asignacionId ? prev.snapshot : null,
+        snapshot,
         // Preservar isCompleted si es el mismo recorrido; reiniciar si es nuevo
         isCompleted: sameRecorrido ? (prev!.isCompleted ?? false) : false,
       };

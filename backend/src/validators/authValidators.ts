@@ -1,6 +1,8 @@
 // backend/src/validators/authValidators.ts
 import { body, ValidationChain } from 'express-validator';
 
+import { validatePasswordStrength } from '../utils/passwordPolicy';
+
 export const loginValidators: ValidationChain[] = [
   body('email')
     .trim()
@@ -8,7 +10,6 @@ export const loginValidators: ValidationChain[] = [
     .isEmail().withMessage('El correo electrónico no tiene un formato válido.')
     .normalizeEmail(),
   body('password')
-    .trim()
     .notEmpty().withMessage('La contraseña es obligatoria.'),
 ];
 
@@ -24,13 +25,15 @@ export const registerValidators: ValidationChain[] = [
     .isEmail().withMessage('El correo electrónico no tiene un formato válido.')
     .normalizeEmail(),
   body('password')
-    .trim()
     .notEmpty().withMessage('La contraseña es obligatoria.')
-    .isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres.')
-    .matches(/[A-Z]/).withMessage('La contraseña debe contener al menos una letra mayúscula.')
-    .matches(/[0-9]/).withMessage('La contraseña debe contener al menos un número.'),
+    .custom((value, { req }) => {
+      const result = validatePasswordStrength(value, req.body.nombre, req.body.correo);
+      if (!result.isValid) {
+        throw new Error(result.error);
+      }
+      return true;
+    }),
   body('confirmPassword')
-    .trim()
     .notEmpty().withMessage('La confirmación de contraseña es obligatoria.')
     .custom((value, { req }) => {
       if (value !== req.body.password) {
@@ -38,6 +41,10 @@ export const registerValidators: ValidationChain[] = [
       }
       return true;
     }),
+  body('telefono')
+    .trim()
+    .notEmpty().withMessage('El teléfono es obligatorio.')
+    .matches(/^[0-9]{10}$/).withMessage('El teléfono debe tener exactamente 10 dígitos numéricos.'),
 ];
 
 export const forgotPasswordValidators: ValidationChain[] = [
@@ -54,13 +61,15 @@ export const resetPasswordValidators: ValidationChain[] = [
     .notEmpty().withMessage('El token de recuperación es obligatorio.')
     .isLength({ min: 32 }).withMessage('Token inválido.'),
   body('newPassword')
-    .trim()
     .notEmpty().withMessage('La nueva contraseña es obligatoria.')
-    .isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres.')
-    .matches(/[A-Z]/).withMessage('La contraseña debe contener al menos una letra mayúscula.')
-    .matches(/[0-9]/).withMessage('La contraseña debe contener al menos un número.'),
+    .custom((value) => {
+      const result = validatePasswordStrength(value);
+      if (!result.isValid) {
+        throw new Error(result.error);
+      }
+      return true;
+    }),
   body('confirmPassword')
-    .trim()
     .notEmpty().withMessage('La confirmación de contraseña es obligatoria.')
     .custom((value, { req }) => {
       if (value !== req.body.newPassword) {

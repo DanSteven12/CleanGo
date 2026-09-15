@@ -17,6 +17,7 @@ export interface AuthUser {
   nombre: string;
   correo: string;
   rol: string;
+  telefono: string;
 }
 
 export interface LoginResult {
@@ -67,7 +68,7 @@ export async function loginUser(
   const logCtx = ctx ?? { ip: 'unknown', userAgent: 'unknown', endpoint: '/api/auth/login' };
 
   const [rows] = await pool.query<RowDataPacket[]>(
-    'SELECT id, nombre, correo, password, rol, estado FROM usuarios WHERE correo = ?',
+    'SELECT id, nombre, correo, password, rol, estado, telefono FROM usuarios WHERE correo = ?',
     [email]
   );
 
@@ -123,6 +124,7 @@ export async function loginUser(
     nombre: usuario.nombre,
     correo: usuario.correo,
     rol: usuario.rol,
+    telefono: usuario.telefono ?? null,
   };
 
   const jti = crypto.randomUUID();
@@ -157,7 +159,8 @@ export async function registerUser(
   nombre: string,
   correo: string,
   password: string,
-  rol: string = 'Ciudadano'
+  rol: string = 'Ciudadano',
+  telefono?: string | null
 ): Promise<AuthUser> {
   // Validate role
   if (rol !== 'Administrador' && rol !== 'Ciudadano') {
@@ -173,15 +176,20 @@ export async function registerUser(
     throw { status: 409, message: 'El correo electrónico ya está registrado.' };
   }
 
+  if (!telefono || !telefono.trim()) {
+    throw { status: 400, message: 'El teléfono es obligatorio.' };
+  }
+
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+  const normalizedTelefono = telefono.trim();
 
   const [result] = await pool.execute<ResultSetHeader>(
-    `INSERT INTO usuarios (nombre, correo, password, rol, estado) VALUES (?, ?, ?, ?, 'Activo')`,
-    [nombre, correo, hashedPassword, rol]
+    `INSERT INTO usuarios (nombre, correo, password, rol, estado, telefono) VALUES (?, ?, ?, ?, 'Activo', ?)`,
+    [nombre, correo, hashedPassword, rol, normalizedTelefono]
   );
 
   const [newRows] = await pool.query<RowDataPacket[]>(
-    'SELECT id, nombre, correo, rol FROM usuarios WHERE id = ?',
+    'SELECT id, nombre, correo, rol, telefono FROM usuarios WHERE id = ?',
     [result.insertId]
   );
 
@@ -341,7 +349,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
  */
 export async function getAuthUser(userId: number): Promise<AuthUser> {
   const [rows] = await pool.query<RowDataPacket[]>(
-    'SELECT id, nombre, correo, rol FROM usuarios WHERE id = ? AND estado = ?',
+    'SELECT id, nombre, correo, rol, telefono FROM usuarios WHERE id = ? AND estado = ?',
     [userId, 'Activo']
   );
 
@@ -372,7 +380,7 @@ export async function refreshSession(rawRefreshToken: string, ip: string, userAg
 
   // Buscar sesión por hash y verificar usuario activo
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT s.id as session_id, s.usuario_id, s.jti, u.nombre, u.correo, u.rol, u.estado 
+    `SELECT s.id as session_id, s.usuario_id, s.jti, u.nombre, u.correo, u.rol, u.estado, u.telefono 
      FROM sesiones s
      JOIN usuarios u ON s.usuario_id = u.id
      WHERE s.refresh_token_hash = ?`,
@@ -396,6 +404,7 @@ export async function refreshSession(rawRefreshToken: string, ip: string, userAg
     nombre: session.nombre,
     correo: session.correo,
     rol: session.rol,
+    telefono: session.telefono ?? null,
   };
 
   // Rotation: Generar nuevo jti (invalida el Access Token anterior) y nuevo Refresh Token

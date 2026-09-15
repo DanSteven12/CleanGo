@@ -3,10 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,24 +18,26 @@ import { LegalLinks } from '../components/legal/LegalLinks';
 import { AuthHeader } from '../components/auth/AuthHeader';
 import { AuthInput } from '../components/auth/AuthInput';
 import { AuthButton } from '../components/auth/AuthButton';
-import { Mail, Lock, X } from 'lucide-react-native';
+import { Mail, Lock, X, AlertCircle, AlertTriangle, ShieldAlert } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
 // ─── Design Tokens ───────────────
 const T = {
   primary: '#1763A6',
+  primaryLight: '#EFF6FF',
   bgPage: '#FFFFFF',
-  bgInput: '#F8FAFC',
   textH: '#0F172A',
   text: '#475569',
   border: '#E2E8F0',
   destructive: '#DC2626',
   destructiveBg: '#FEF2F2',
+  destructiveBorder: '#FECACA',
   destructiveText: '#B91C1C',
   warning: '#D97706',
   warningBg: '#FFFBEB',
   warningBorder: '#FDE68A',
   warningText: '#B45309',
+  success: '#10B981',
 };
 
 export default function LoginScreen() {
@@ -54,6 +54,8 @@ export default function LoginScreen() {
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
   // Auto-dismiss inteligente para mensajes de error
   useEffect(() => {
     if (errorTimerRef.current) {
@@ -62,7 +64,6 @@ export default function LoginScreen() {
     }
 
     if (errorMsg) {
-      // Errores locales de formato/vacío desaparecen rápido (3.5s), errores de auth/servidor (5s)
       const isFast =
         errorMsg.includes('Por favor ingresa') ||
         errorMsg.includes('formato') ||
@@ -84,7 +85,7 @@ export default function LoginScreen() {
     };
   }, [errorMsg]);
 
-  // Auto-dismiss para aviso de sesión expirada (7.5s de lectura cómoda)
+  // Auto-dismiss para aviso de sesión expirada
   useEffect(() => {
     if (sessionTimerRef.current) {
       clearTimeout(sessionTimerRef.current);
@@ -133,8 +134,7 @@ export default function LoginScreen() {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
+    if (!isEmailValid) {
       setErrorMsg('Por favor ingresa un correo electrónico válido.');
       return;
     }
@@ -144,8 +144,6 @@ export default function LoginScreen() {
 
     try {
       await login(trimmedEmail, password);
-      // La navegación a Home se maneja automáticamente en _layout.tsx
-      // al cambiar el estado de isAuthenticated
     } catch (error: any) {
       if (error instanceof ApiError || error?.name === 'ApiError') {
         if (error.status === 429 && error.retryAfter) {
@@ -169,11 +167,11 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* ── Bloqueo total (pantalla superpuesta) ─────────────────────── */}
+      {/* ── Bloqueo total (pantalla superpuesta) ── */}
       {isBlocked && (
         <View style={styles.blockOverlay}>
           <View style={styles.blockIcon}>
-            <Text style={styles.blockIconText}>🚫</Text>
+            <ShieldAlert size={48} color="#EF4444" strokeWidth={2.2} />
           </View>
           <Text style={styles.blockTitle}>ACCESO DENEGADO</Text>
           <Text style={styles.blockDesc}>
@@ -193,13 +191,10 @@ export default function LoginScreen() {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View
-            style={styles.formContainer}
-            entering={FadeInDown.duration(400).springify().damping(20).stiffness(200)}
-          >
+          <View style={styles.formContainer}>
             <AuthHeader
-              title="CleanGo"
-              subtitle="Inicia sesión para continuar"
+              title="Iniciar Sesión"
+              subtitle="Bienvenido a CleanGo. Ingresa para seguir tus rutas y avisos."
             />
 
             {/* ── Banner: Sesión finalizada por multisesión / expiración ── */}
@@ -207,9 +202,9 @@ export default function LoginScreen() {
               <Animated.View
                 entering={FadeInDown.duration(250)}
                 exiting={FadeOutUp.duration(200)}
-                style={[styles.banner, styles.bannerWarning, { marginBottom: 20 }]}
+                style={[styles.banner, styles.bannerWarning]}
               >
-                <Text style={styles.bannerIcon}>⚠️</Text>
+                <AlertTriangle size={20} color={T.warningText} strokeWidth={2.2} style={styles.bannerIcon} />
                 <View style={styles.bannerBody}>
                   <Text style={[styles.bannerTitle, styles.bannerTitleAmber]}>
                     Sesión finalizada
@@ -229,7 +224,7 @@ export default function LoginScreen() {
               </Animated.View>
             )}
 
-            {/* ── Warning: intentos restantes ──────────────────────────── */}
+            {/* ── Warning: intentos restantes ── */}
             {remaining !== null && remaining > 0 && (
               <Animated.View
                 entering={FadeInDown.duration(250)}
@@ -239,7 +234,12 @@ export default function LoginScreen() {
                   remaining <= 2 ? styles.bannerDestructive : styles.bannerWarning,
                 ]}
               >
-                <Text style={styles.bannerIcon}>⚠️</Text>
+                <AlertTriangle
+                  size={20}
+                  color={remaining <= 2 ? T.destructiveText : T.warningText}
+                  strokeWidth={2.2}
+                  style={styles.bannerIcon}
+                />
                 <View style={styles.bannerBody}>
                   <Text style={[styles.bannerTitle, remaining <= 2 ? styles.bannerTitleRed : styles.bannerTitleAmber]}>
                     {remaining === 1 ? 'Último intento disponible' : 'Advertencia de seguridad'}
@@ -253,19 +253,21 @@ export default function LoginScreen() {
               </Animated.View>
             )}
 
+            {/* ── Banner de Error ── */}
             {errorMsg && (
               <Animated.View
                 entering={FadeInDown.duration(250)}
                 exiting={FadeOutUp.duration(200)}
-                style={[styles.banner, styles.bannerDestructive, { marginBottom: 20 }]}
+                style={[styles.banner, styles.bannerDestructive]}
               >
-                <Text style={styles.bannerIcon}>⛔</Text>
+                <AlertCircle size={20} color={T.destructiveText} strokeWidth={2.2} style={styles.bannerIcon} />
                 <View style={styles.bannerBody}>
                   <Text style={[styles.bannerText, styles.bannerTextRed]}>{errorMsg}</Text>
                 </View>
               </Animated.View>
             )}
 
+            {/* ── Campo Correo Electrónico ── */}
             <AuthInput
               label="Correo electrónico"
               placeholder="tu@correo.com"
@@ -279,13 +281,15 @@ export default function LoginScreen() {
               autoCapitalize="none"
               autoComplete="email"
               editable={!isLoading}
-              icon={<Mail color={T.text} size={20} />}
+              isValid={isEmailValid}
+              icon={<Mail color={isEmailValid ? T.primary : T.text} size={20} />}
             />
 
+            {/* ── Campo Contraseña ── */}
             <View style={styles.passwordWrapper}>
               <AuthInput
                 label="Contraseña"
-                placeholder="••••••••"
+                placeholder="••••••••••"
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
@@ -295,10 +299,15 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 editable={!isLoading && !isBlocked}
                 isPassword
-                icon={<Lock color={T.text} size={20} />}
+                icon={<Lock color={password.length > 0 ? T.primary : T.text} size={20} />}
               />
+
               <View style={styles.forgotPasswordContainer}>
-                <TouchableOpacity onPress={() => router.push('/forgot-password')}>
+                <TouchableOpacity
+                  onPress={() => router.push('/forgot-password')}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
                   <Text style={styles.forgotPasswordText}>
                     ¿Olvidaste tu contraseña?
                   </Text>
@@ -306,6 +315,7 @@ export default function LoginScreen() {
               </View>
             </View>
 
+            {/* ── Botón Iniciar Sesión ── */}
             <AuthButton
               label="Iniciar Sesión"
               onPress={handleLogin}
@@ -313,15 +323,22 @@ export default function LoginScreen() {
               disabled={isBlocked}
             />
 
+            {/* ── Enlaces Legales ── */}
             <LegalLinks actionText="iniciar sesión" disabled={isLoading || isBlocked} />
 
+            {/* ── Footer ── */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>¿No tienes una cuenta?</Text>
-              <TouchableOpacity onPress={() => router.replace('/register')} disabled={isLoading || isBlocked}>
+              <TouchableOpacity
+                onPress={() => router.replace('/register')}
+                disabled={isLoading || isBlocked}
+                activeOpacity={0.6}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              >
                 <Text style={styles.footerLink}> Regístrate</Text>
               </TouchableOpacity>
             </View>
-          </Animated.View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -338,11 +355,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: 12,
-    paddingBottom: 60,
+    paddingTop: 8,
+    paddingBottom: 48,
   },
   formContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     maxWidth: 500,
     width: '100%',
     alignSelf: 'center',
@@ -353,19 +370,22 @@ const styles = StyleSheet.create({
   forgotPasswordContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: -8, // Offset the AuthInput's marginBottom
+    marginTop: -8,
     marginBottom: 16,
   },
   forgotPasswordText: {
     color: T.primary,
     fontSize: 13,
-    fontWeight: '600'
+    fontWeight: '700',
   },
 
-  // ── Block Overlay ─────────────────────────────────────────────────────────
+  // ── Bloqueo total ──
   blockOverlay: {
     position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 100,
     backgroundColor: 'rgba(15,23,42,0.97)',
     alignItems: 'center',
@@ -381,7 +401,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 22,
   },
-  blockIconText: { fontSize: 44 },
   blockTitle: {
     fontSize: 24,
     fontWeight: '800',
@@ -406,14 +425,15 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
   },
 
-  // ── Banners ─────────────────────────────────────────────────────────
+  // ── Banners ──
   banner: {
     flexDirection: 'row',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     marginBottom: 16,
     borderWidth: 1,
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    gap: 10,
   },
   bannerWarning: {
     backgroundColor: T.warningBg,
@@ -421,20 +441,18 @@ const styles = StyleSheet.create({
   },
   bannerDestructive: {
     backgroundColor: T.destructiveBg,
-    borderColor: '#FECACA',
+    borderColor: T.destructiveBorder,
   },
   bannerIcon: {
-    fontSize: 18,
-    marginRight: 10,
-    marginTop: 2,
+    flexShrink: 0,
   },
   bannerBody: {
     flex: 1,
   },
   bannerTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   bannerTitleAmber: {
     color: T.warningText,
@@ -445,6 +463,7 @@ const styles = StyleSheet.create({
   bannerText: {
     fontSize: 13,
     lineHeight: 18,
+    fontWeight: '500',
   },
   bannerTextAmber: {
     color: '#92400E',
@@ -453,10 +472,13 @@ const styles = StyleSheet.create({
     color: T.destructiveText,
   },
 
+  // ── Footer ──
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 32,
+    alignItems: 'center',
+    marginTop: 24,
+    gap: 4,
   },
   footerText: {
     color: T.text,
@@ -465,6 +487,6 @@ const styles = StyleSheet.create({
   footerLink: {
     color: T.primary,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
 });

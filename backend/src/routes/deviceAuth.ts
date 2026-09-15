@@ -18,6 +18,7 @@ import {
   deviceLogout,
   deviceMe,
   deviceAsignacion,
+  deviceAsignaciones,
   deviceRegisterFcmToken,
   deviceTestFcmPush,
 } from '../controllers/deviceAuthController';
@@ -59,6 +60,14 @@ router.get('/me', deviceAuthMiddleware, deviceMe);
  * El camion_id viene del token — nunca del cliente.
  */
 router.get('/asignacion', deviceAuthMiddleware, deviceAsignacion);
+
+/**
+ * GET /api/device/auth/asignaciones
+ * Requiere Bearer token válido.
+ * Devuelve todas las asignaciones del camión autenticado.
+ * El camion_id viene del token — nunca del cliente.
+ */
+router.get('/asignaciones', deviceAuthMiddleware, deviceAsignaciones);
 
 /**
  * POST /api/device/auth/fcm-token

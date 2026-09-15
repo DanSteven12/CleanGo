@@ -213,9 +213,8 @@ export const LoginPage: React.FC = () => {
             </div>
           </form>
 
-          <div className="auth-bottom">
-            ¿No tienes cuenta?{' '}
-            <Link to="/register" className="auth-link">Regístrate aquí</Link>
+          <div className="auth-bottom" style={{ color: 'var(--text-muted, #737373)', fontSize: '0.8rem', marginTop: '1.25rem', lineHeight: 1.4 }}>
+            Acceso exclusivo para personal autorizado del Ayuntamiento.
           </div>
         </div>
       </div>

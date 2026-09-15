@@ -27,15 +27,22 @@ export const ResetPasswordPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   function validate(): boolean {
-    const errors: FieldErrors = {};
     if (!newPassword) {
       errors.newPassword = 'La contraseña es obligatoria.';
-    } else if (newPassword.length < 8) {
-      errors.newPassword = 'La contraseña debe tener al menos 8 caracteres.';
+    } else if (newPassword.length < 10) {
+      errors.newPassword = 'La contraseña debe tener al menos 10 caracteres.';
+    } else if (newPassword.length > 72) {
+      errors.newPassword = 'La contraseña no puede superar los 72 caracteres.';
+    } else if (/\s/.test(newPassword)) {
+      errors.newPassword = 'La contraseña no puede contener espacios.';
     } else if (!/[A-Z]/.test(newPassword)) {
       errors.newPassword = 'Debe incluir al menos una letra mayúscula.';
+    } else if (!/[a-z]/.test(newPassword)) {
+      errors.newPassword = 'Debe incluir al menos una letra minúscula.';
     } else if (!/[0-9]/.test(newPassword)) {
       errors.newPassword = 'Debe incluir al menos un número.';
+    } else if (!/[^A-Za-z0-9]/.test(newPassword)) {
+      errors.newPassword = 'Debe incluir al menos un carácter especial.';
     }
     if (!confirmPassword) {
       errors.confirmPassword = 'Confirma tu nueva contraseña.';
@@ -71,9 +78,12 @@ export const ResetPasswordPage: React.FC = () => {
   };
 
   const strengthChecks = [
-    { label: 'Al menos 8 caracteres', ok: newPassword.length >= 8 },
-    { label: 'Una letra mayúscula', ok: /[A-Z]/.test(newPassword) },
+    { label: 'Mínimo 10 caracteres', ok: newPassword.length >= 10 && newPassword.length <= 72 },
+    { label: 'Una mayúscula', ok: /[A-Z]/.test(newPassword) },
+    { label: 'Una minúscula', ok: /[a-z]/.test(newPassword) },
     { label: 'Un número', ok: /[0-9]/.test(newPassword) },
+    { label: 'Un carácter especial', ok: /[^A-Za-z0-9]/.test(newPassword) },
+    { label: 'Sin espacios', ok: newPassword.length > 0 && !/\s/.test(newPassword) },
     { label: 'Las contraseñas coinciden', ok: !!confirmPassword && confirmPassword === newPassword },
   ];
 
@@ -162,10 +172,11 @@ export const ResetPasswordPage: React.FC = () => {
                   id="reset-new"
                   type={showNew ? 'text' : 'password'}
                   className={`auth-input auth-input--with-eye${fieldErrors.newPassword ? ' auth-input--error' : ''}`}
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 10 caracteres"
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); setFieldErrors(p => ({ ...p, newPassword: undefined })); }}
                   autoComplete="new-password"
+                  maxLength={72}
                   disabled={isSubmitting || !token}
                 />
                 <button

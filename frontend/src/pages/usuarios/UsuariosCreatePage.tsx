@@ -13,7 +13,7 @@ export const UsuariosCreatePage: React.FC = () => {
 
   const handleCreate = async (formData: UsuarioData) => {
     setFormError(null);
-    if (!formData.nombre || !formData.correo || !formData.rol) {
+    if (!formData.nombre || !formData.correo || !formData.telefono || !formData.rol) {
       return setFormError('Todos los campos obligatorios deben estar llenos.');
     }
 
@@ -32,6 +32,7 @@ export const UsuariosCreatePage: React.FC = () => {
         body: JSON.stringify({ 
           nombre: formData.nombre, 
           correo: formData.correo, 
+          telefono: formData.telefono.trim(),
           password: formData.password, 
           rol: formData.rol 
         })

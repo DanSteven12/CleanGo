@@ -274,8 +274,9 @@ const MapaRecorridoScreen = () => {
     hasCachedData ? cache.entry!.recorridoData : null
   );
 
-  // Estado modificado para asegurar la carga del SVG en Android
-  const [trackVehicleChanges, setTrackVehicleChanges] = useState(true);
+  // trackVehicleChanges: always true while displayPosition is valid.
+  // Never permanently lock it off — doing so stops the SVG re-rendering on Android.
+  const trackVehicleChanges = true;
 
   // La única fuente de verdad para la geometría de la ruta;
   // inicializada desde caché para evitar el flash de mapa sin ruta al re-entrar
@@ -293,10 +294,12 @@ const MapaRecorridoScreen = () => {
   const lastSnappedIdxRef = useRef(0); // avance monotónico sobre streetGeometry
 
   // ── Carga del recorrido ────────────────────────────────────────────────────
-  const fetchRecorridoActivo = useCallback(async () => {
+  const fetchRecorridoActivo = useCallback(async (isBackground = false) => {
     if (!id || !isAuthenticated) return;
     try {
-      setIsLoading(true);
+      if (!isBackground) {
+        setIsLoading(true);
+      }
       const data = await recorridosService.getRecorridoActivo(Number(id));
       console.log('[DEBUG FRONTEND] Datos recibidos de getRecorridoActivo');
       console.log('[DEBUG FRONTEND] data.geometria length:', data?.geometria?.length);
@@ -309,24 +312,27 @@ const MapaRecorridoScreen = () => {
       setRecorridoData(data);
     } catch (error) {
       console.error('Error al cargar recorrido activo:', error);
-      showWarning(
-        'Sin recorrido activo',
-        'No se encontró un recorrido en progreso para esta asignación.',
-        () => {
-          router.replace('/');
-        },
-        { confirmText: 'Volver al Inicio' }
-      );
+      if (!isBackground) {
+        showWarning(
+          'Sin recorrido activo',
+          'No se encontró un recorrido en progreso para esta asignación.',
+          () => {
+            router.replace('/');
+          },
+          { confirmText: 'Volver al Inicio' }
+        );
+      }
     } finally {
-      setIsLoading(false);
+      if (!isBackground) {
+        setIsLoading(false);
+      }
     }
   }, [id, isAuthenticated, router, cache.setFromApi]);
 
-  // Si hay datos en caché al montar, omitir el fetch HTTP (sin spinner, sin espera).
-  // hadCachedDataOnMount.current es estable: no varía con ticks del socket.
+  // Si hay datos en caché al montar, omitir el spinner bloqueante pero actualizar en background.
   useEffect(() => {
-    if (isAuthenticated && !hadCachedDataOnMount.current) {
-      fetchRecorridoActivo();
+    if (isAuthenticated) {
+      fetchRecorridoActivo(hadCachedDataOnMount.current);
     }
   }, [fetchRecorridoActivo, isAuthenticated]);
 
@@ -356,6 +362,7 @@ const MapaRecorridoScreen = () => {
     checkpoints,
     horaInicio: recorridoData?.hora_inicio || null,
     rutaId: recorridoData?.ruta_id,
+    initialSnapshot: mountSnapshotRef.current,
   });
   // isCompleted combinado: del hook (socket directo) o del caché
   // (recorrido finalizado por el backend mientras el mapa estaba oculto)
@@ -405,7 +412,9 @@ const MapaRecorridoScreen = () => {
   const targetHeadingRef = useRef<number>(snapshotHeading);
   const startPercentageRef = useRef<number>(snapshotPct);
   const targetPercentageRef = useRef<number>(snapshotPct);
-  const tickStartTimeRef = useRef<number>(0);
+  // If we have a snapshot, seed tickStartTimeRef to now so the 60FPS loop
+  // enters the animation branch immediately (no waiting for first socket tick).
+  const tickStartTimeRef = useRef<number>(snapshotPos ? Date.now() : 0);
   const animPosRef = useRef<LatLng | null>(snapshotPos);
   const animHeadingRef = useRef<number>(snapshotHeading);
   const animPercentageRef = useRef<number>(snapshotPct);
@@ -427,17 +436,54 @@ const MapaRecorridoScreen = () => {
   // Actualizar en cada render para que el cleanup siempre use la versión más reciente
   updateSnapshotRef.current = cache.updateSnapshot;
 
-  // ── Tracker de renderización SVG ───────────────────────────────────────────
+  // tracksViewChanges is kept always-true (see declaration above).
+  // Removing the old timer that turned it off — that was causing the arrow
+  // to disappear on Android after 800 ms when the socket was slow.
+
+  // ── Posición inicial inmediata (sin snapshot, sin esperar al socket) ───────
+  // Al cargar el recorrido por primera vez (sin caché) la flecha aparece de
+  // inmediato en el primer punto de la geometría / primer checkpoint.
+  // Esto evita el "mapa vacío" durante la espera del primer tick del socket.
   useEffect(() => {
-    if (displayPosition) {
-      // Mantiene tracksViewChanges en true un instante para que el SVG se dibuje completamente.
-      // Luego lo apaga (false) para que las actualizaciones a 60FPS no maten el rendimiento.
-      const timer = setTimeout(() => {
-        setTrackVehicleChanges(false);
-      }, 800);
-      return () => clearTimeout(timer);
+    // Solo actuar si aún no hay posición animada (primera entrada, sin snapshot)
+    if (animPosRef.current) return;
+    // Necesitamos al menos recorridoData para saber dónde colocar la flecha
+    if (!recorridoData) return;
+
+    let seedPos: LatLng | null = null;
+    let seedHeading = 0;
+
+    const geom = streetGeometryRef.current;
+    if (geom.length >= 2) {
+      // Usar el primer punto de la geometría y calcular heading inicial
+      seedPos = geom[0];
+      seedHeading = getHeadingFromGeometry(geom, 0);
+    } else {
+      // Sin geometría: usar el primer checkpoint
+      const firstCp = recorridoData.checkpoints?.[0];
+      if (firstCp) {
+        const lat = Number(firstCp.latitud);
+        const lng = Number(firstCp.longitud);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          seedPos = { latitude: lat, longitude: lng };
+        }
+      }
     }
-  }, [!!displayPosition]);
+
+    if (!seedPos) return;
+
+    animPosRef.current = seedPos;
+    animHeadingRef.current = seedHeading;
+    startPosRef.current = seedPos;
+    startHeadingRef.current = seedHeading;
+    targetPosRef.current = seedPos;
+    targetHeadingRef.current = seedHeading;
+    // Seed tickStartTimeRef so the 60FPS loop immediately enters the draw branch
+    tickStartTimeRef.current = Date.now();
+    setDisplayPosition(seedPos);
+    setDisplayHeading(normalizeAngle(seedHeading));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorridoData, streetGeometry]);
 
   // ── Actualización de destino al recibir evento del socket / posición ───────
   // Note: dependemos de 'stats.porcentajeAvance' porque es nuestra fuente de verdad unificada
@@ -478,8 +524,13 @@ const MapaRecorridoScreen = () => {
     const delta = shortestAngleDelta(prevHeading, rawHeading);
     const newAccumulatedHeading = prevHeading + delta; // espacio acumulado para interpolación suave
 
-    if (isFirstTickRef.current || !animPosRef.current) {
-      // Primer tick: posicionar directamente sin animar
+    const currentAnimPct = animPercentageRef.current;
+    const pctDiff = typeof currentAnimPct === 'number' ? Math.abs(porcentaje - currentAnimPct) : 1;
+    // Si es el primer tick, no hay posición previa o hay un salto notable (> 0.03, ej. reingreso al mapa tras varios minutos):
+    // posicionamos inmediatamente en el punto exacto en vivo sin animar lentamente desde la posición vieja.
+    const shouldSnapDirectly = isFirstTickRef.current || !animPosRef.current || pctDiff > 0.03;
+
+    if (shouldSnapDirectly) {
       isFirstTickRef.current = false;
       animPosRef.current = snapped;
       animHeadingRef.current = newAccumulatedHeading;
@@ -494,9 +545,21 @@ const MapaRecorridoScreen = () => {
       setDisplayPosition(snapped);
       setDisplayHeading(normalizeAngle(newAccumulatedHeading));
       setDisplayProgress(porcentaje);
+
+      // Sincronizar cámara inmediatamente con la nueva posición
+      if (isFollowingRef.current && mapRef.current) {
+        mapRef.current.setCamera({
+          center: snapped,
+          heading: normalizeAngle(newAccumulatedHeading),
+          pitch: 60,
+          zoom: 18.5,
+        });
+      }
     } else {
       // Registrar estado de partida desde la posición animada actual
-      startPosRef.current = { ...animPosRef.current };
+      startPosRef.current = animPosRef.current
+        ? { latitude: animPosRef.current.latitude, longitude: animPosRef.current.longitude }
+        : snapped;
       startHeadingRef.current = animHeadingRef.current;
       startPercentageRef.current = animPercentageRef.current;
       targetPosRef.current = snapped;
@@ -577,8 +640,11 @@ const MapaRecorridoScreen = () => {
           }
         }
       } else if (animPos) {
-        // Antes del primer tick: mostrar posición inicial
+        // Antes del primer tick del socket: mostrar posición y heading del snapshot/caché
+        // para que la flecha aparezca inmediatamente sin esperar al socket.
         setDisplayPosition(animPos);
+        setDisplayHeading(normalizeAngle(animHeadingRef.current));
+        setDisplayProgress(animPercentageRef.current);
       }
 
       animId = requestAnimationFrame(loop);

@@ -26,6 +26,7 @@ export const UserForm: React.FC<UserFormProps> = ({
   const [formData, setFormData] = useState<UsuarioData>({
     nombre: '',
     correo: '',
+    telefono: '',
     password: '',
     confirmPassword: '',
     rol: 'Ciudadano',
@@ -54,12 +55,26 @@ export const UserForm: React.FC<UserFormProps> = ({
       else if (value.trim().length > 100) err = 'El correo no puede exceder los 100 caracteres.';
       else if (!emailRegex.test(value.trim())) err = 'Introduce un formato de correo electrónico válido.';
     }
+    if (name === 'telefono') {
+      if (!value.trim()) {
+        err = 'El teléfono es requerido.';
+      } else if (!/^[0-9]{10}$/.test(value.trim())) {
+        err = 'El teléfono debe tener exactamente 10 dígitos numéricos.';
+      }
+    }
     if (!isEditing) {
       if (name === 'password') {
         if (!value) err = 'La contraseña es requerida.';
-        else if (value.length < 8 || value.length > 20) err = 'Debe tener entre 8 y 20 caracteres.';
-        else if (!/[A-Z]/.test(value) || !/[0-9]/.test(value) || !/[^A-Za-z0-9]/.test(value)) {
-          err = 'Debe contener mayúscula, número y carácter especial.';
+        else if (value.length < 10 || value.length > 72) err = 'Debe tener entre 10 y 72 caracteres.';
+        else if (/\s/.test(value)) err = 'La contraseña no debe contener espacios.';
+        else if (!/[A-Z]/.test(value)) err = 'Debe contener al menos 1 letra mayúscula.';
+        else if (!/[a-z]/.test(value)) err = 'Debe contener al menos 1 letra minúscula.';
+        else if (!/[0-9]/.test(value)) err = 'Debe contener al menos 1 número.';
+        else if (!/[^A-Za-z0-9]/.test(value)) err = 'Debe contener al menos 1 carácter especial.';
+        else if (formData.correo && value.toLowerCase() === formData.correo.trim().toLowerCase()) {
+          err = 'La contraseña no puede ser igual al correo electrónico.';
+        } else if (formData.nombre && value.toLowerCase() === formData.nombre.trim().toLowerCase()) {
+          err = 'La contraseña no puede ser igual al nombre de usuario.';
         }
       }
       if (name === 'confirmPassword') {
@@ -86,19 +101,37 @@ export const UserForm: React.FC<UserFormProps> = ({
   };
 
   const pwd = formData.password || '';
-  const pwdLengthValid = pwd.length >= 8 && pwd.length <= 20;
+  const pwdLengthValid = pwd.length >= 10 && pwd.length <= 72;
   const pwdUpperValid = /[A-Z]/.test(pwd);
+  const pwdLowerValid = /[a-z]/.test(pwd);
   const pwdNumberValid = /[0-9]/.test(pwd);
   const pwdSpecialValid = /[^A-Za-z0-9]/.test(pwd);
+  const pwdNoSpacesValid = pwd.length > 0 && !/\s/.test(pwd);
   const pwdMatchValid = (formData.confirmPassword || '') !== '' && pwd === formData.confirmPassword;
+  const pwdNotEmailValid = !formData.correo || pwd.toLowerCase() !== formData.correo.trim().toLowerCase();
+  const pwdNotNameValid = !formData.nombre || pwd.toLowerCase() !== formData.nombre.trim().toLowerCase();
 
   const isFormValid = () => {
     if (!formData.nombre || formData.nombre.trim().length < 2 || formData.nombre.trim().length > 100) return false;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.correo || formData.correo.trim().length > 100 || !emailRegex.test(formData.correo.trim())) return false;
 
+    if (!formData.telefono || !/^[0-9]{10}$/.test(formData.telefono.trim())) {
+      return false;
+    }
+
     if (!isEditing) {
-      if (!pwdLengthValid || !pwdUpperValid || !pwdNumberValid || !pwdSpecialValid || !pwdMatchValid) return false;
+      if (
+        !pwdLengthValid || 
+        !pwdUpperValid || 
+        !pwdLowerValid || 
+        !pwdNumberValid || 
+        !pwdSpecialValid || 
+        !pwdNoSpacesValid || 
+        !pwdNotEmailValid || 
+        !pwdNotNameValid || 
+        !pwdMatchValid
+      ) return false;
     }
     return true;
   };
@@ -166,12 +199,41 @@ export const UserForm: React.FC<UserFormProps> = ({
           </AnimatePresence>
         </div>
 
+        <div className="form-field">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ marginBottom: 0 }}>Teléfono *</label>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{(formData.telefono || '').length}/10</span>
+          </div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.2rem', marginBottom: '0.5rem' }}>
+            Número de contacto del usuario (10 dígitos).
+          </p>
+          <input 
+            type="tel" 
+            className={`form-input ${touched.telefono && fieldErrors.telefono ? 'input-error' : ''}`}
+            value={formData.telefono || ''} 
+            onChange={e => {
+              const val = e.target.value.replace(/[^0-9]/g, '');
+              handleChange('telefono', val);
+            }} 
+            onBlur={e => handleBlur('telefono', e.target.value)}
+            placeholder="Ej. 9191234567"
+            maxLength={10}
+          />
+          <AnimatePresence>
+            {touched.telefono && fieldErrors.telefono && (
+              <motion.span initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                {fieldErrors.telefono}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
+
         {!isEditing && (
           <>
             <div className="form-field">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label className="form-label" style={{ marginBottom: 0 }}>Contraseña *</label>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{(formData.password || '').length}/20</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{(formData.password || '').length}/72</span>
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.2rem', marginBottom: '0.5rem' }}>
                 Define una contraseña segura con la que el usuario accederá al sistema.
@@ -182,21 +244,27 @@ export const UserForm: React.FC<UserFormProps> = ({
                 value={formData.password || ''} 
                 onChange={e => handleChange('password', e.target.value)} 
                 onBlur={e => handleBlur('password', e.target.value)}
-                placeholder="Al menos 8 caracteres"
-                maxLength={20}
+                placeholder="Al menos 10 caracteres"
+                maxLength={72}
               />
               <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
                 <span style={{ color: pwdLengthValid ? '#22c55e' : (touched.password ? '#ef4444' : 'var(--text)') }}>
-                  {pwdLengthValid ? '✓' : '○'} Entre 8 y 20 caracteres
+                  {pwdLengthValid ? '✓' : '○'} Mínimo 10 caracteres
                 </span>
                 <span style={{ color: pwdUpperValid ? '#22c55e' : (touched.password ? '#ef4444' : 'var(--text)') }}>
-                  {pwdUpperValid ? '✓' : '○'} Al menos 1 letra mayúscula
+                  {pwdUpperValid ? '✓' : '○'} Una mayúscula
+                </span>
+                <span style={{ color: pwdLowerValid ? '#22c55e' : (touched.password ? '#ef4444' : 'var(--text)') }}>
+                  {pwdLowerValid ? '✓' : '○'} Una minúscula
                 </span>
                 <span style={{ color: pwdNumberValid ? '#22c55e' : (touched.password ? '#ef4444' : 'var(--text)') }}>
-                  {pwdNumberValid ? '✓' : '○'} Al menos 1 número
+                  {pwdNumberValid ? '✓' : '○'} Un número
                 </span>
                 <span style={{ color: pwdSpecialValid ? '#22c55e' : (touched.password ? '#ef4444' : 'var(--text)') }}>
-                  {pwdSpecialValid ? '✓' : '○'} Al menos 1 carácter especial
+                  {pwdSpecialValid ? '✓' : '○'} Un carácter especial
+                </span>
+                <span style={{ color: pwdNoSpacesValid ? '#22c55e' : (touched.password ? '#ef4444' : 'var(--text)') }}>
+                  {pwdNoSpacesValid ? '✓' : '○'} Sin espacios
                 </span>
               </div>
             </div>
@@ -204,7 +272,7 @@ export const UserForm: React.FC<UserFormProps> = ({
             <div className="form-field">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label className="form-label" style={{ marginBottom: 0 }}>Confirmar Contraseña *</label>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{(formData.confirmPassword || '').length}/20</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text)', opacity: 0.8 }}>{(formData.confirmPassword || '').length}/72</span>
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #737373)', marginTop: '0.2rem', marginBottom: '0.5rem' }}>
                 Vuelve a escribir la contraseña para confirmar que ambos valores coinciden.
@@ -216,7 +284,7 @@ export const UserForm: React.FC<UserFormProps> = ({
                 onChange={e => handleChange('confirmPassword', e.target.value)} 
                 onBlur={e => handleBlur('confirmPassword', e.target.value)}
                 placeholder="Repita la contraseña"
-                maxLength={20}
+                maxLength={72}
               />
               <AnimatePresence>
                 {touched.confirmPassword && (formData.confirmPassword || '').length > 0 && !pwdMatchValid && (

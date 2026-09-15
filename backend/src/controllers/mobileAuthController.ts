@@ -117,6 +117,7 @@ export async function mobileLogin(req: Request, res: Response): Promise<void> {
         id: result.user.id,
         nombre: result.user.nombre,
         correo: result.user.correo,
+        telefono: result.user.telefono ?? null,
         rol: result.user.rol,
       },
       accessToken: result.token,
@@ -168,6 +169,7 @@ export async function mobileRefresh(req: Request, res: Response): Promise<void> 
         id: result.user.id,
         nombre: result.user.nombre,
         correo: result.user.correo,
+        telefono: result.user.telefono ?? null,
         rol: result.user.rol,
       },
     });
@@ -225,11 +227,11 @@ export async function mobileLogout(req: Request, res: Response): Promise<void> {
 export async function mobileRegister(req: Request, res: Response): Promise<void> {
   if (handleValidationErrors(req, res)) return;
 
-  const { nombre, correo, password } = req.body;
+  const { nombre, correo, password, telefono } = req.body;
 
   try {
     // Forzamos el rol 'Ciudadano', ignorando si el body intenta enviar otro rol
-    const user = await authService.registerUser(nombre, correo, password, 'Ciudadano');
+    const user = await authService.registerUser(nombre, correo, password, 'Ciudadano', telefono);
     
     // No registramos sesión, ni devolvemos tokens.
     // El frontend debe navegar al Login.

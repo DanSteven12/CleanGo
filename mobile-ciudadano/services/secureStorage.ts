@@ -50,6 +50,7 @@ export interface StoredUser {
   nombre: string;
   correo: string;
   rol: 'Ciudadano';
+  telefono: string;
 }
 
 export async function saveUserData(user: StoredUser): Promise<void> {

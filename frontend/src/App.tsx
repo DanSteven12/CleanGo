@@ -6,7 +6,6 @@ import { ConfirmProvider } from './hooks/useConfirm';
 import { ProtectedRoute } from './components/routes/ProtectedRoute';
 import { MainLayout } from './layouts/MainLayout';
 import { LoginPage } from './pages/auth/LoginPage';
-import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { RoutesPage } from './pages/routes/RoutesPage';
@@ -112,7 +111,7 @@ function App() {
             <Route path="/" element={<WelcomePage />} />
             <Route path="/welcome" element={<WelcomePage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/register" element={<Navigate to="/login" replace />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

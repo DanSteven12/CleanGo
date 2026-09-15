@@ -153,7 +153,8 @@ export default function ForgotPasswordScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   editable={!isLoading}
-                  icon={<Mail color={T.text} size={20} />}
+                  isValid={/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())}
+                  icon={<Mail color={/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? T.primary : T.text} size={20} />}
                 />
 
                 <AuthButton

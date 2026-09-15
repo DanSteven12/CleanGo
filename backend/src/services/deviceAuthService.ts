@@ -287,8 +287,7 @@ export async function getAsignacionActual(camionId: number): Promise<RowDataPack
      LEFT JOIN horarios_rutas hr
        ON hr.ruta_id = ar.ruta_id AND hr.dia_semana = ?
      WHERE ar.camion_id = ?
-       AND ar.fecha_programada = CURDATE()
-       AND ar.estatus_recorrido IN ('Pendiente', 'En progreso')
+       AND (ar.fecha_programada = CURDATE() OR ar.estatus_recorrido IN ('Pendiente', 'En progreso'))
      ORDER BY ar.horario_inicio ASC
      LIMIT 1`,
     [diaSemanaActual, camionId]
@@ -299,6 +298,46 @@ export async function getAsignacionActual(camionId: number): Promise<RowDataPack
   }
 
   return rows[0];
+}
+
+/**
+ * Obtiene todas las asignaciones activas o pendientes exclusivas del camión autenticado.
+ */
+export async function getAsignacionesCamion(camionId: number): Promise<RowDataPacket[]> {
+  const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const diaSemanaActual = diasSemana[new Date().getDay()];
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT
+       ar.id,
+       ar.ruta_id,
+       ar.camion_id,
+       ar.conductor_id,
+       ar.fecha_programada,
+       ar.horario_inicio,
+       ar.horario_fin,
+       ar.estatus_recorrido,
+       r.nombre        AS ruta_nombre,
+       r.color         AS ruta_color,
+       c.numero_economico,
+       c.placa,
+       c.gps_instalado,
+       d.nombre_completo AS conductor_nombre,
+       hr.hora_inicio_estimada AS horario_ruta_inicio,
+       hr.hora_fin_estimada    AS horario_ruta_fin
+     FROM asignaciones_rutas ar
+     LEFT JOIN rutas r       ON r.id = ar.ruta_id
+     LEFT JOIN camiones c    ON c.id = ar.camion_id
+     LEFT JOIN conductores d ON d.id = ar.conductor_id
+     LEFT JOIN horarios_rutas hr
+       ON hr.ruta_id = ar.ruta_id AND hr.dia_semana = ?
+     WHERE ar.camion_id = ?
+       AND (ar.fecha_programada = CURDATE() OR ar.estatus_recorrido IN ('Pendiente', 'En progreso'))
+     ORDER BY ar.fecha_programada DESC, ar.horario_inicio ASC`,
+    [diaSemanaActual, camionId]
+  );
+
+  return rows;
 }
 
 /**

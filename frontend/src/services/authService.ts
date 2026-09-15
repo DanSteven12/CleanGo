@@ -7,6 +7,7 @@ export interface AuthUser {
   nombre: string;
   correo: string;
   rol: string;
+  telefono: string;
 }
 
 export interface LoginPayload {
@@ -20,6 +21,7 @@ export interface RegisterPayload {
   correo: string;
   password: string;
   confirmPassword: string;
+  telefono: string;
 }
 
 // Login no longer returns a token — it is stored exclusively in an HttpOnly cookie.

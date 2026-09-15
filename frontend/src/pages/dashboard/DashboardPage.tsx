@@ -181,10 +181,10 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, accentColor, bg
 
       {/* Value + Label */}
       <div style={{ transform: 'translateZ(5px)' }}>
-        <div className="stat-value" style={{ fontSize: '1.875rem' }}>
+        <div className="stat-value" style={{ fontSize: '2.25rem' }}>
           {typeof value === 'number' ? value.toLocaleString('es-MX') : value}
         </div>
-        <div className="stat-label" style={{ marginBottom: 0, marginTop: '0.25rem' }}>
+        <div className="stat-label" style={{ marginBottom: 0, marginTop: '0.35rem' }}>
           {label}
         </div>
       </div>
@@ -248,10 +248,10 @@ const QuickBtn: React.FC<QuickBtnProps> = ({ id, icon, label, description, onCli
 
       {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-h)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>
+        <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-h)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>
           {label}
         </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text)', marginTop: '0.15rem' }}>
+        <div style={{ fontSize: '0.8125rem', color: 'var(--text)', marginTop: '0.2rem' }}>
           {description}
         </div>
       </div>
@@ -282,11 +282,11 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ icon, title, subtitle, ac
         {icon}
       </div>
       <div>
-        <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: 'var(--text-h)', letterSpacing: '-0.02em' }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-h)', letterSpacing: '-0.02em' }}>
           {title}
         </h2>
         {subtitle && (
-          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text)' }}>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text)' }}>
             {subtitle}
           </p>
         )}
@@ -428,7 +428,7 @@ export const DashboardPage: React.FC = () => {
 
         {/* ════════ REFRESH BUTTON & TIMESTAMP ═══════════════════════════════════ */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '-1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
             <Clock size={14} />
             <span>{nowStr}</span>
           </div>
@@ -442,7 +442,7 @@ export const DashboardPage: React.FC = () => {
               background: 'var(--panel-bg)',
               border: '1px solid var(--panel-border)',
               borderRadius: '0.625rem',
-              fontSize: '0.8125rem', fontWeight: 600,
+              fontSize: '0.875rem', fontWeight: 600,
               color: 'var(--text)',
               cursor: 'pointer',
               boxShadow: '0 1px 3px 0 oklch(0.2 0.04 240 / 0.06)',
@@ -778,7 +778,7 @@ export const DashboardPage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <CalendarDays size={16} style={{ color: '#4f46e5' }} />
-                <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-h)', fontFamily: 'var(--font-display)' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-h)', fontFamily: 'var(--font-display)' }}>
                   Asignaciones
                 </span>
               </div>
@@ -790,7 +790,7 @@ export const DashboardPage: React.FC = () => {
                   padding: '0.3rem 0.625rem',
                   background: 'transparent', color: '#1763A6',
                   border: '1px solid #1763A640', borderRadius: '0.4rem',
-                  fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer',
+                  fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer',
                 }}
               >
                 Ver más <ChevronRight size={12} />
@@ -824,17 +824,17 @@ export const DashboardPage: React.FC = () => {
                       flexShrink: 0,
                     }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-h)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-h)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {a.ruta_nombre}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text)' }}>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--text)' }}>
                         {a.numero_economico} · {formatDateShort(a.fecha_programada)}
                       </div>
                     </div>
                     <span style={{
-                      padding: '0.15rem 0.45rem',
+                      padding: '0.2rem 0.55rem',
                       borderRadius: '999px',
-                      fontSize: '0.68rem', fontWeight: 700,
+                      fontSize: '0.75rem', fontWeight: 700,
                       color: a.estatus_recorrido === 'Completado' ? '#388C35'
                         : a.estatus_recorrido === 'En progreso' ? '#1763A6'
                         : 'oklch(0.50 0.12 75)',
@@ -859,7 +859,7 @@ export const DashboardPage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <CheckCircle2 size={16} style={{ color: '#388C35' }} />
-                <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-h)', fontFamily: 'var(--font-display)' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-h)', fontFamily: 'var(--font-display)' }}>
                   Recorridos completados
                 </span>
               </div>
@@ -871,7 +871,7 @@ export const DashboardPage: React.FC = () => {
                   padding: '0.3rem 0.625rem',
                   background: 'transparent', color: '#1763A6',
                   border: '1px solid #1763A640', borderRadius: '0.4rem',
-                  fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer',
+                  fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer',
                 }}
               >
                 Ver más <ChevronRight size={12} />
@@ -904,16 +904,16 @@ export const DashboardPage: React.FC = () => {
                       flexShrink: 0,
                     }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-h)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-h)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.ruta_nombre}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text)' }}>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--text)' }}>
                         {r.numero_economico} · {r.hora_fin ? formatDate(r.hora_fin) : '—'}
                       </div>
                     </div>
                     <span style={{
-                      padding: '0.15rem 0.45rem', borderRadius: '999px',
-                      fontSize: '0.68rem', fontWeight: 700,
+                      padding: '0.2rem 0.55rem', borderRadius: '999px',
+                      fontSize: '0.75rem', fontWeight: 700,
                       color: '#388C35', background: '#388C3518', flexShrink: 0,
                     }}>
                       Completado
@@ -932,7 +932,7 @@ export const DashboardPage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <FileWarning size={16} style={{ color: 'oklch(0.58 0.22 25)' }} />
-                <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-h)', fontFamily: 'var(--font-display)' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-h)', fontFamily: 'var(--font-display)' }}>
                   Reportes ciudadanos
                 </span>
               </div>
@@ -944,7 +944,7 @@ export const DashboardPage: React.FC = () => {
                   padding: '0.3rem 0.625rem',
                   background: 'transparent', color: '#1763A6',
                   border: '1px solid #1763A640', borderRadius: '0.4rem',
-                  fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer',
+                  fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer',
                 }}
               >
                 Ver más <ChevronRight size={12} />
@@ -980,19 +980,19 @@ export const DashboardPage: React.FC = () => {
                     >
                       <FileWarning size={13} style={{ color: estadoColor, marginTop: 2, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-h)' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-h)' }}>
                           {r.tipo_reporte}
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {r.descripcion?.slice(0, 50) || r.direccion_referencia || '—'}
                         </div>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--muted-foreground)', marginTop: '0.1rem' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.1rem' }}>
                           {formatDate(r.fecha_reporte)}
                         </div>
                       </div>
                       <span style={{
-                        padding: '0.15rem 0.45rem', borderRadius: '999px',
-                        fontSize: '0.68rem', fontWeight: 700,
+                        padding: '0.2rem 0.55rem', borderRadius: '999px',
+                        fontSize: '0.75rem', fontWeight: 700,
                         color: estadoColor, background: estadoBg, flexShrink: 0,
                       }}>
                         {r.estado}
@@ -1007,7 +1007,7 @@ export const DashboardPage: React.FC = () => {
       </section>
 
       {/* Footer info */}
-      <div style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--muted-foreground)', paddingBottom: '0.5rem' }}>
+      <div style={{ textAlign: 'center', fontSize: '0.8125rem', color: 'var(--muted-foreground)', paddingBottom: '0.5rem' }}>
         Última actualización: {lastRefresh.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         {' · '}CleanGo Logística Urbana
       </div>

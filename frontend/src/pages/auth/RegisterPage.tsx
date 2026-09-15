@@ -1,7 +1,7 @@
 // frontend/src/pages/auth/RegisterPage.tsx
 import React, { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../hooks/useAuth';
 import { registerUser } from '../../services/authService';
@@ -12,8 +12,10 @@ import '../../assets/styles/auth.css';
 interface FieldErrors {
   nombre?: string;
   correo?: string;
+  telefono?: string;
   password?: string;
   confirmPassword?: string;
+  terms?: string;
 }
 
 export const RegisterPage: React.FC = () => {
@@ -22,8 +24,10 @@ export const RegisterPage: React.FC = () => {
 
   const [nombre, setNombre] = useState('');
   const [correo, setCorreo] = useState('');
+  const [telefono, setTelefono] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,19 +48,39 @@ export const RegisterPage: React.FC = () => {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.trim())) {
       errors.correo = 'El correo electrónico no tiene un formato válido.';
     }
+    if (!telefono.trim()) {
+      errors.telefono = 'El teléfono es obligatorio.';
+    } else if (!/^[0-9]{10}$/.test(telefono.trim())) {
+      errors.telefono = 'El teléfono debe tener exactamente 10 dígitos numéricos.';
+    }
     if (!password) {
       errors.password = 'La contraseña es obligatoria.';
-    } else if (password.length < 8) {
-      errors.password = 'La contraseña debe tener al menos 8 caracteres.';
+    } else if (password.length < 10) {
+      errors.password = 'La contraseña debe tener al menos 10 caracteres.';
+    } else if (password.length > 72) {
+      errors.password = 'La contraseña no puede superar los 72 caracteres.';
+    } else if (/\s/.test(password)) {
+      errors.password = 'La contraseña no puede contener espacios.';
     } else if (!/[A-Z]/.test(password)) {
       errors.password = 'Debe incluir al menos una letra mayúscula.';
+    } else if (!/[a-z]/.test(password)) {
+      errors.password = 'Debe incluir al menos una letra minúscula.';
     } else if (!/[0-9]/.test(password)) {
       errors.password = 'Debe incluir al menos un número.';
+    } else if (!/[^A-Za-z0-9]/.test(password)) {
+      errors.password = 'Debe incluir al menos un carácter especial.';
+    } else if (nombre.trim() && password.toLowerCase() === nombre.trim().toLowerCase()) {
+      errors.password = 'La contraseña no puede ser igual a tu nombre.';
+    } else if (correo.trim() && (password.toLowerCase() === correo.trim().toLowerCase() || (correo.includes('@') && password.toLowerCase() === correo.split('@')[0].trim().toLowerCase()))) {
+      errors.password = 'La contraseña no puede ser igual a tu correo electrónico.';
     }
     if (!confirmPassword) {
       errors.confirmPassword = 'Confirma tu contraseña.';
     } else if (confirmPassword !== password) {
       errors.confirmPassword = 'Las contraseñas no coinciden.';
+    }
+    if (!acceptedTerms) {
+      errors.terms = 'Debes aceptar los Términos de servicio y la Política de privacidad.';
     }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -76,6 +100,7 @@ export const RegisterPage: React.FC = () => {
       await registerUser({
         nombre: nombre.trim(),
         correo: correo.trim(),
+        telefono: telefono.trim(),
         password,
         confirmPassword,
       });
@@ -159,6 +184,32 @@ export const RegisterPage: React.FC = () => {
               )}
             </div>
 
+            {/* Teléfono */}
+            <div>
+              <label htmlFor="reg-telefono" className="auth-label">Teléfono</label>
+              <div className="auth-input-wrapper">
+                <span className="auth-input-icon"><Phone size={16} /></span>
+                <input
+                  id="reg-telefono"
+                  type="tel"
+                  className={`auth-input${fieldErrors.telefono ? ' auth-input--error' : ''}`}
+                  placeholder="Ej. 9191234567"
+                  value={telefono}
+                  onChange={(e) => { 
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setTelefono(val); 
+                    setFieldErrors(p => ({ ...p, telefono: undefined })); 
+                  }}
+                  maxLength={10}
+                  autoComplete="tel"
+                  disabled={isSubmitting}
+                />
+              </div>
+              {fieldErrors.telefono && (
+                <p className="auth-field-error"><AlertCircle size={12} />{fieldErrors.telefono}</p>
+              )}
+            </div>
+
             {/* Contraseña */}
             <div>
               <label htmlFor="reg-password" className="auth-label">Contraseña</label>
@@ -168,10 +219,11 @@ export const RegisterPage: React.FC = () => {
                   id="reg-password"
                   type={showPassword ? 'text' : 'password'}
                   className={`auth-input auth-input--with-eye${fieldErrors.password ? ' auth-input--error' : ''}`}
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 10 caracteres"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setFieldErrors(p => ({ ...p, password: undefined })); }}
                   autoComplete="new-password"
+                  maxLength={72}
                   disabled={isSubmitting}
                 />
                 <button
@@ -187,6 +239,28 @@ export const RegisterPage: React.FC = () => {
               {fieldErrors.password && (
                 <p className="auth-field-error"><AlertCircle size={12} />{fieldErrors.password}</p>
               )}
+
+              {/* Requisitos visuales de contraseña */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem 0.75rem', marginTop: '0.5rem', marginBottom: '0.75rem', fontSize: '0.78rem' }}>
+                <span style={{ color: (password.length >= 10 && password.length <= 72) ? '#22c55e' : (password.length > 0 ? '#ef4444' : 'var(--text-muted, #94a3b8)') }}>
+                  {(password.length >= 10 && password.length <= 72) ? '✓' : '○'} Mínimo 10 caracteres
+                </span>
+                <span style={{ color: /[A-Z]/.test(password) ? '#22c55e' : (password.length > 0 ? '#ef4444' : 'var(--text-muted, #94a3b8)') }}>
+                  {/[A-Z]/.test(password) ? '✓' : '○'} Una mayúscula
+                </span>
+                <span style={{ color: /[a-z]/.test(password) ? '#22c55e' : (password.length > 0 ? '#ef4444' : 'var(--text-muted, #94a3b8)') }}>
+                  {/[a-z]/.test(password) ? '✓' : '○'} Una minúscula
+                </span>
+                <span style={{ color: /[0-9]/.test(password) ? '#22c55e' : (password.length > 0 ? '#ef4444' : 'var(--text-muted, #94a3b8)') }}>
+                  {/[0-9]/.test(password) ? '✓' : '○'} Un número
+                </span>
+                <span style={{ color: /[^A-Za-z0-9]/.test(password) ? '#22c55e' : (password.length > 0 ? '#ef4444' : 'var(--text-muted, #94a3b8)') }}>
+                  {/[^A-Za-z0-9]/.test(password) ? '✓' : '○'} Un carácter especial
+                </span>
+                <span style={{ color: (password.length > 0 && !/\s/.test(password)) ? '#22c55e' : (password.length > 0 ? '#ef4444' : 'var(--text-muted, #94a3b8)') }}>
+                  {(password.length > 0 && !/\s/.test(password)) ? '✓' : '○'} Sin espacios
+                </span>
+              </div>
             </div>
 
             {/* Confirmar contraseña */}
@@ -216,6 +290,52 @@ export const RegisterPage: React.FC = () => {
               </div>
               {fieldErrors.confirmPassword && (
                 <p className="auth-field-error"><AlertCircle size={12} />{fieldErrors.confirmPassword}</p>
+              )}
+            </div>
+
+            {/* Términos de servicio y Política de privacidad */}
+            <div className="auth-terms-container">
+              <label htmlFor="reg-terms" className="auth-terms-label">
+                <input
+                  id="reg-terms"
+                  type="checkbox"
+                  className="auth-terms-checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => {
+                    setAcceptedTerms(e.target.checked);
+                    setFieldErrors(p => ({ ...p, terms: undefined }));
+                  }}
+                  disabled={isSubmitting}
+                />
+                <span className="auth-terms-text">
+                  Acepto los{' '}
+                  <Link 
+                    to="/terms-and-conditions" 
+                    state={{ from: '/register' }} 
+                    className="auth-terms-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Términos de servicio
+                  </Link>{' '}
+                  y la{' '}
+                  <Link 
+                    to="/privacy-policy" 
+                    state={{ from: '/register' }} 
+                    className="auth-terms-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Política de privacidad
+                  </Link>{' '}
+                  municipal de CleanGo.
+                </span>
+              </label>
+              {fieldErrors.terms && (
+                <p className="auth-field-error" style={{ marginTop: '0.35rem' }}>
+                  <AlertCircle size={12} />
+                  {fieldErrors.terms}
+                </p>
               )}
             </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getMobileSocket } from '../services/socketService';
+import type { RecorridoSnapshot } from '../contexts/RecorridoMapCache';
 
 export interface Checkpoint {
   id: number;
@@ -26,26 +27,47 @@ interface UseRouteSimulationProps {
   checkpoints: Checkpoint[];
   horaInicio?: string | null;
   rutaId?: number;
+  initialSnapshot?: RecorridoSnapshot | null;
 }
 
 export function useRouteSimulation({
   recorridoId,
   checkpoints,
   horaInicio,
+  initialSnapshot,
 }: UseRouteSimulationProps) {
-  const [currentPosition, setCurrentPosition] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
+  const [currentPosition, setCurrentPosition] = useState<{ latitude: number; longitude: number } | null>(
+    initialSnapshot && initialSnapshot.latitude !== 0 && initialSnapshot.longitude !== 0
+      ? { latitude: initialSnapshot.latitude, longitude: initialSnapshot.longitude }
+      : null
+  );
+  const [speedMultiplier, setSpeedMultiplier] = useState<number>(
+    initialSnapshot?.speedMultiplier || 1
+  );
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
-  const [stats, setStats] = useState<SimulationStats>({
-    ultimoCheckpoint: 'Inicio',
-    proximoCheckpoint: 'Calculando...',
-    completados: checkpoints.length > 0 ? 1 : 0,
-    pendientes: Math.max(0, checkpoints.length - (checkpoints.length > 0 ? 1 : 0)),
-    porcentajeAvance: 0,
-    etaSegundos: 0,
-    horaEstimada: '--:--',
-    tiempoTranscurrido: '00:00:00',
-    estadoDinamico: 'En Progreso',
+  const [stats, setStats] = useState<SimulationStats>(() => {
+    const baseCompletados = checkpoints.length > 0 ? 1 : 0;
+    const defaultStats: SimulationStats = {
+      ultimoCheckpoint: 'Inicio',
+      proximoCheckpoint: 'Calculando...',
+      completados: baseCompletados,
+      pendientes: Math.max(0, checkpoints.length - baseCompletados),
+      porcentajeAvance: 0,
+      etaSegundos: 0,
+      horaEstimada: '--:--',
+      tiempoTranscurrido: '00:00:00',
+      estadoDinamico: 'En Progreso',
+    };
+    if (initialSnapshot) {
+      return {
+        ...defaultStats,
+        ...(initialSnapshot.stats || {}),
+        porcentajeAvance: typeof initialSnapshot.porcentajeAvance === 'number'
+          ? initialSnapshot.porcentajeAvance
+          : (initialSnapshot.stats?.porcentajeAvance ?? 0),
+      };
+    }
+    return defaultStats;
   });
 
   const startTimeRef = useRef<number>(Date.now());
@@ -59,16 +81,16 @@ export function useRouteSimulation({
     }
   }, [horaInicio]);
 
-  // Posición inicial
+  // Posición inicial de respaldo si no hay snapshot ni posición previa
   useEffect(() => {
-    if (checkpoints && checkpoints.length > 0 && !currentPosition) {
+    if (!initialSnapshot && checkpoints && checkpoints.length > 0 && !currentPosition) {
       const first = checkpoints[0];
       setCurrentPosition({
         latitude: Number(first.latitud),
         longitude: Number(first.longitud),
       });
     }
-  }, [checkpoints]);
+  }, [checkpoints, initialSnapshot, currentPosition]);
 
   const formatElapsedTime = useCallback((startMs: number) => {
     const diffSec = Math.max(0, Math.floor((Date.now() - startMs) / 1000));

@@ -24,6 +24,13 @@ const simulationSpeeds = new Map<number, number>();
 const PROXIMITY_THROTTLE_TICKS = 30; // 30 segundos
 const proximityTickCounters = new Map<number, number>();
 
+// Último snapshot de estadísticas por recorrido activo (para sincronización inmediata)
+const lastSimulationStats = new Map<number, any>();
+
+export function getSimulationStats(recorridoId: number): any | null {
+  return lastSimulationStats.get(recorridoId) || null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Routes API — Geometry fetching & decoding
 // ─────────────────────────────────────────────────────────────────────────────
@@ -304,6 +311,7 @@ export function stopSimulation(recorridoId: number) {
     clearInterval(activeSimulations.get(recorridoId)!);
     activeSimulations.delete(recorridoId);
     simulationSpeeds.delete(recorridoId);
+    lastSimulationStats.delete(recorridoId);
     // Limpiar geometría cacheada al detener la simulación
     routeGeometryCache.delete(recorridoId);
     // Limpiar caché de alertas de proximidad para este recorrido
@@ -412,6 +420,8 @@ export async function startSimulation(recorridoId: number, checkpoints: any[], i
       rutaId: cpStart.ruta_id,
       velocidad: currentSpeed,
     };
+
+    lastSimulationStats.set(recorridoId, stats);
 
     // Emitir ubicación en tiempo real
     io.to(roomName).emit('ubicacion_actualizada', stats);

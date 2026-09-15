@@ -71,17 +71,17 @@ function ProtectedNavigator() {
   }, [isAuthenticated, isLoading, segments, router]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="login" options={{ gestureEnabled: false }} />
-      <Stack.Screen name="register" options={{ gestureEnabled: false, title: 'Registro' }} />
-      <Stack.Screen name="forgot-password" options={{ gestureEnabled: false, title: 'Recuperar Contraseña' }} />
-      <Stack.Screen name="reset-password" options={{ gestureEnabled: false, title: 'Restablecer Contraseña' }} />
-      <Stack.Screen name="index" />
-      <Stack.Screen name="mapa/[id]" />
-      <Stack.Screen name="horarios/[id]" />
-      <Stack.Screen name="perfil/mis-zonas" options={{ title: 'Mis Zonas' }} />
-      <Stack.Screen name="perfil/notificaciones" options={{ title: 'Notificaciones' }} />
-      <Stack.Screen name="perfil/preferencias" options={{ title: 'Preferencias' }} />
+    <Stack screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 150 }}>
+      <Stack.Screen name="login" options={{ gestureEnabled: false, animation: 'none' }} />
+      <Stack.Screen name="register" options={{ gestureEnabled: false, title: 'Registro', animation: 'none' }} />
+      <Stack.Screen name="forgot-password" options={{ gestureEnabled: false, title: 'Recuperar Contraseña', animation: 'fade' }} />
+      <Stack.Screen name="reset-password" options={{ gestureEnabled: false, title: 'Restablecer Contraseña', animation: 'fade' }} />
+      <Stack.Screen name="index" options={{ animation: 'fade' }} />
+      <Stack.Screen name="mapa/[id]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="horarios/[id]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="perfil/mis-zonas" options={{ title: 'Mis Zonas', animation: 'slide_from_right' }} />
+      <Stack.Screen name="perfil/notificaciones" options={{ title: 'Notificaciones', animation: 'slide_from_right' }} />
+      <Stack.Screen name="perfil/preferencias" options={{ title: 'Preferencias', animation: 'slide_from_right' }} />
     </Stack>
   );
 }

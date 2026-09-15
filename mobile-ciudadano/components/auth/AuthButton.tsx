@@ -57,7 +57,7 @@ export const AuthButton: React.FC<AuthButtonProps> = ({
 const styles = StyleSheet.create({
   button: {
     height: 52,
-    borderRadius: 8,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
@@ -66,6 +66,11 @@ const styles = StyleSheet.create({
   },
   buttonPrimary: {
     backgroundColor: T.primary,
+    shadowColor: T.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 3,
   },
   buttonOutline: {
     backgroundColor: 'transparent',
@@ -73,11 +78,13 @@ const styles = StyleSheet.create({
     borderColor: T.primary,
   },
   buttonDisabled: {
-    opacity: 0.65,
+    opacity: 0.6,
+    elevation: 0,
   },
   text: {
     fontSize: 16,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
   textPrimary: {
     color: '#FFFFFF',

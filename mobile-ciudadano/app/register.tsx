@@ -1,41 +1,52 @@
 // mobile-ciudadano/app/register.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ApiError } from '../services/authService';
-import { LegalLinks } from '../components/legal/LegalLinks';
-import { registerCiudadano } from '../services/authService';
+import { ApiError, registerCiudadano } from '../services/authService';
+import { LegalModal } from '../components/legal/LegalModal';
+import { TermsContent } from '../components/legal/TermsContent';
+import { PrivacyContent } from '../components/legal/PrivacyContent';
 import { AuthHeader } from '../components/auth/AuthHeader';
 import { AuthInput } from '../components/auth/AuthInput';
 import { AuthButton } from '../components/auth/AuthButton';
-import { Mail, Lock, User, Check, Circle } from 'lucide-react-native';
+import {
+  Mail,
+  Lock,
+  User,
+  Check,
+  Phone,
+  AlertCircle,
+  ShieldCheck,
+} from 'lucide-react-native';
 
 // ─── Design Tokens ───────────────
 const T = {
   primary: '#1763A6',
+  primaryLight: '#EFF6FF',
   bgPage: '#FFFFFF',
-  bgInput: '#F8FAFC',
+  cardBg: '#FFFFFF',
   textH: '#0F172A',
   text: '#475569',
+  textMuted: '#94A3B8',
   border: '#E2E8F0',
   destructive: '#DC2626',
   destructiveBg: '#FEF2F2',
+  destructiveBorder: '#FECACA',
   destructiveText: '#B91C1C',
+  success: '#10B981',
   successBg: '#ECFDF5',
+  successBorder: '#A7F3D0',
   successText: '#065F46',
-  successIcon: '#10B981', // Verde brillante para los checks
-  errorIcon: '#EF4444', // Rojo brillante para los círculos
+  warning: '#F59E0B',
 };
 
 export default function RegisterScreen() {
@@ -46,6 +57,10 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   // Estados de UI
   const [isLoading, setIsLoading] = useState(false);
@@ -81,27 +96,62 @@ export default function RegisterScreen() {
     };
   }, [errorMsg]);
 
-  // Validación rápida frontend para la contraseña (UX)
-  const isPasswordValid = (pwd: string) => {
-    return pwd.length >= 8 && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd);
-  };
+  // Validaciones en tiempo real (UX)
+  const isNombreValid = nombre.trim().length >= 3;
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const isTelefonoValid = /^[0-9]{10}$/.test(telefono.trim());
+  const isConfirmPasswordValid =
+    confirmPassword.length > 0 && confirmPassword === password;
+
+  // Requisitos individuales de contraseña
+  const reqLength = password.length >= 10 && password.length <= 72;
+  const reqUpper = /[A-Z]/.test(password);
+  const reqLower = /[a-z]/.test(password);
+  const reqNum = /[0-9]/.test(password);
+  const reqSpecial = /[^A-Za-z0-9]/.test(password);
+  const reqNoSpaces = password.length > 0 && !/\s/.test(password);
+
+  const isPasswordSecure =
+    reqLength && reqUpper && reqLower && reqNum && reqSpecial && reqNoSpaces;
+
+  // Medidor de fuerza de contraseña
+  const strengthInfo = useMemo(() => {
+    if (!password) return { score: 0, label: 'Sin contraseña', color: T.textMuted };
+    const metCount = [reqLength, reqUpper, reqLower, reqNum, reqSpecial, reqNoSpaces].filter(
+      Boolean
+    ).length;
+
+    if (metCount <= 2) {
+      return { score: 1, label: 'Débil', color: '#EF4444' };
+    }
+    if (metCount <= 4) {
+      return { score: 2, label: 'Media', color: '#F59E0B' };
+    }
+    if (metCount === 5) {
+      return { score: 3, label: 'Buena', color: '#3B82F6' };
+    }
+    return { score: 4, label: 'Excelente', color: '#10B981' };
+  }, [password, reqLength, reqUpper, reqLower, reqNum, reqSpecial, reqNoSpaces]);
 
   const handleRegister = async () => {
-    // 1. Limpiar estados
     setErrorMsg(null);
 
-    // 2. Validaciones básicas frontend
     const trimmedNombre = nombre.trim();
     const trimmedEmail = email.trim();
+    const trimmedTelefono = telefono.trim();
 
-    if (!trimmedNombre || !trimmedEmail || !password || !confirmPassword) {
+    if (!trimmedNombre || !trimmedEmail || !trimmedTelefono || !password || !confirmPassword) {
       setErrorMsg('Todos los campos son obligatorios.');
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
+    if (!isEmailValid) {
       setErrorMsg('Por favor ingresa un correo electrónico válido.');
+      return;
+    }
+
+    if (!/^[0-9]{10}$/.test(trimmedTelefono)) {
+      setErrorMsg('El teléfono debe tener exactamente 10 dígitos numéricos.');
       return;
     }
 
@@ -110,15 +160,39 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (!isPasswordValid(password)) {
-      setErrorMsg('La contraseña debe tener al menos 8 caracteres, una mayúscula y un número.');
+    if (!isPasswordSecure) {
+      setErrorMsg('La contraseña no cumple con los requisitos de seguridad.');
       return;
     }
 
-    // 3. Llamada a la API
+    if (
+      password.toLowerCase() === trimmedEmail.toLowerCase() ||
+      (trimmedEmail.includes('@') &&
+        password.toLowerCase() === trimmedEmail.split('@')[0].toLowerCase())
+    ) {
+      setErrorMsg('La contraseña no puede ser igual a tu correo electrónico.');
+      return;
+    }
+
+    if (password.toLowerCase() === trimmedNombre.toLowerCase()) {
+      setErrorMsg('La contraseña no puede ser igual a tu nombre.');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setErrorMsg('Debes aceptar los Términos de servicio y la Política de privacidad.');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await registerCiudadano(trimmedNombre, trimmedEmail, password, confirmPassword);
+      await registerCiudadano(
+        trimmedNombre,
+        trimmedEmail,
+        password,
+        confirmPassword,
+        trimmedTelefono
+      );
       router.replace('/login');
     } catch (error) {
       if (error instanceof ApiError) {
@@ -130,19 +204,6 @@ export default function RegisterScreen() {
       setIsLoading(false);
     }
   };
-
-  const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => (
-    <View style={styles.requirementRow}>
-      {met ? (
-        <Check color={T.successIcon} size={16} strokeWidth={3} />
-      ) : (
-        <Circle color={T.errorIcon} size={16} strokeWidth={2} />
-      )}
-      <Text style={[styles.requirementText, met ? styles.requirementMet : styles.requirementUnmet]}>
-        {text}
-      </Text>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -157,20 +218,22 @@ export default function RegisterScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.formContainer}>
-            <AuthHeader 
-              title="Registro" 
-              subtitle="Crea tu cuenta de Ciudadano" 
+            <AuthHeader
+              title="Crear Cuenta"
+              subtitle="Regístrate como ciudadano para consultar rutas y recibir avisos."
             />
 
             {errorMsg && (
               <View style={styles.errorBanner}>
+                <AlertCircle size={18} color={T.destructive} strokeWidth={2.2} style={styles.errorIcon} />
                 <Text style={styles.errorText}>{errorMsg}</Text>
               </View>
             )}
 
+            {/* ── Nombre Completo ── */}
             <AuthInput
               label="Nombre completo"
-              placeholder="Ej. Juan Pérez"
+              placeholder="Ej. Juan Pérez López"
               value={nombre}
               onChangeText={(text) => {
                 setNombre(text);
@@ -178,9 +241,11 @@ export default function RegisterScreen() {
               }}
               autoCapitalize="words"
               editable={!isLoading}
-              icon={<User color={T.text} size={20} />}
+              isValid={isNombreValid}
+              icon={<User color={isNombreValid ? T.primary : T.text} size={20} />}
             />
 
+            {/* ── Correo Electrónico ── */}
             <AuthInput
               label="Correo electrónico"
               placeholder="tu@correo.com"
@@ -193,12 +258,33 @@ export default function RegisterScreen() {
               autoCapitalize="none"
               autoComplete="email"
               editable={!isLoading}
-              icon={<Mail color={T.text} size={20} />}
+              isValid={isEmailValid}
+              icon={<Mail color={isEmailValid ? T.primary : T.text} size={20} />}
             />
 
+            {/* ── Teléfono con Bandera Mexicana ── */}
+            <AuthInput
+              label="Número telefónico"
+              placeholder="919 123 4567"
+              value={telefono}
+              prefix="🇲🇽 +52"
+              onChangeText={(text) => {
+                const numericText = text.replace(/[^0-9]/g, '');
+                setTelefono(numericText);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              keyboardType="number-pad"
+              autoCapitalize="none"
+              editable={!isLoading}
+              maxLength={10}
+              isValid={isTelefonoValid}
+              icon={<Phone color={isTelefonoValid ? T.primary : T.text} size={20} />}
+            />
+
+            {/* ── Contraseña ── */}
             <AuthInput
               label="Contraseña"
-              placeholder="••••••••"
+              placeholder="Mínimo 10 caracteres"
               value={password}
               onChangeText={(text) => {
                 setPassword(text);
@@ -207,19 +293,52 @@ export default function RegisterScreen() {
               autoCapitalize="none"
               editable={!isLoading}
               isPassword
-              icon={<Lock color={T.text} size={20} />}
+              maxLength={72}
+              icon={<Lock color={isPasswordSecure ? T.primary : T.text} size={20} />}
             />
 
-            {/* Requerimientos de contraseña en tiempo real */}
-            <View style={styles.requirementsContainer}>
-              <PasswordRequirement met={password.length >= 8} text="Al menos 8 caracteres" />
-              <PasswordRequirement met={/[A-Z]/.test(password)} text="Al menos 1 letra mayúscula" />
-              <PasswordRequirement met={/[0-9]/.test(password)} text="Al menos 1 número" />
-            </View>
+            {/* ── Medidor de Fortaleza de Contraseña & Chips ── */}
+            {password.length > 0 && (
+              <View style={styles.passwordFeedbackContainer}>
+                {/* Barra de progreso */}
+                <View style={styles.strengthHeader}>
+                  <View style={styles.strengthBars}>
+                    {[1, 2, 3, 4].map((level) => (
+                      <View
+                        key={level}
+                        style={[
+                          styles.strengthSegment,
+                          {
+                            backgroundColor:
+                              strengthInfo.score >= level
+                                ? strengthInfo.color
+                                : '#E2E8F0',
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <Text style={[styles.strengthLabel, { color: strengthInfo.color }]}>
+                    {strengthInfo.label}
+                  </Text>
+                </View>
 
+                {/* Grid 2x3 de Chips Requerimientos */}
+                <View style={styles.reqGrid}>
+                  <RequirementChip met={reqLength} label="10+ caracteres" />
+                  <RequirementChip met={reqUpper} label="1 Mayúscula" />
+                  <RequirementChip met={reqLower} label="1 Minúscula" />
+                  <RequirementChip met={reqNum} label="1 Número" />
+                  <RequirementChip met={reqSpecial} label="1 Especial (@#$)" />
+                  <RequirementChip met={reqNoSpaces} label="Sin espacios" />
+                </View>
+              </View>
+            )}
+
+            {/* ── Confirmar Contraseña ── */}
             <AuthInput
               label="Confirmar contraseña"
-              placeholder="••••••••"
+              placeholder="Repite tu contraseña"
               value={confirmPassword}
               onChangeText={(text) => {
                 setConfirmPassword(text);
@@ -228,30 +347,118 @@ export default function RegisterScreen() {
               autoCapitalize="none"
               editable={!isLoading}
               isPassword
-              icon={<Lock color={T.text} size={20} />}
+              maxLength={72}
+              isValid={isConfirmPasswordValid}
+              error={
+                confirmPassword.length > 0 && !isConfirmPasswordValid
+                  ? 'Las contraseñas no coinciden'
+                  : null
+              }
+              icon={<ShieldCheck color={isConfirmPasswordValid ? T.success : T.text} size={20} />}
             />
 
+            {/* ── Tarjeta Interactiva de Términos y Condiciones ── */}
+            <TouchableOpacity
+              style={[
+                styles.termsCard,
+                acceptedTerms && styles.termsCardChecked,
+              ]}
+              onPress={() => {
+                setAcceptedTerms(!acceptedTerms);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              activeOpacity={0.75}
+              disabled={isLoading}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  acceptedTerms && styles.checkboxChecked,
+                ]}
+              >
+                {acceptedTerms && <Check color="#FFFFFF" size={13} strokeWidth={3.5} />}
+              </View>
+
+              <Text style={styles.termsText}>
+                Acepto los{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (!isLoading) setShowTerms(true);
+                  }}
+                  suppressHighlighting
+                >
+                  Términos de servicio
+                </Text>{' '}
+                y la{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (!isLoading) setShowPrivacy(true);
+                  }}
+                  suppressHighlighting
+                >
+                  Política de privacidad
+                </Text>{' '}
+                municipal de CleanGo.
+              </Text>
+            </TouchableOpacity>
+
+            {/* ── Botón Principal ── */}
             <AuthButton
               label="Crear Cuenta"
               onPress={handleRegister}
               isLoading={isLoading}
             />
 
-            <LegalLinks actionText="registrarte" disabled={isLoading} />
-
+            {/* ── Footer ── */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>¿Ya tienes una cuenta?</Text>
-              <TouchableOpacity onPress={() => router.replace('/login')} disabled={isLoading}>
+              <TouchableOpacity
+                onPress={() => router.replace('/login')}
+                disabled={isLoading}
+                activeOpacity={0.6}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              >
                 <Text style={styles.footerLink}> Inicia sesión</Text>
               </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <LegalModal visible={showTerms} onClose={() => setShowTerms(false)}>
+        {showTerms ? <TermsContent /> : null}
+      </LegalModal>
+
+      <LegalModal visible={showPrivacy} onClose={() => setShowPrivacy(false)}>
+        {showPrivacy ? <PrivacyContent /> : null}
+      </LegalModal>
     </SafeAreaView>
   );
 }
 
+// ─── Componente Chip de Requisito ─────────────────────
+function RequirementChip({ met, label }: { met: boolean; label: string }) {
+  return (
+    <View style={[styles.chip, met ? styles.chipMet : styles.chipUnmet]}>
+      <View style={[styles.chipIconWrap, met ? styles.chipIconWrapMet : styles.chipIconWrapUnmet]}>
+        {met ? (
+          <Check size={11} color="#FFFFFF" strokeWidth={3.5} />
+        ) : (
+          <View style={styles.chipDot} />
+        )}
+      </View>
+      <Text style={[styles.chipText, met ? styles.chipTextMet : styles.chipTextUnmet]} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+// ─── Estilos ──────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -262,45 +469,176 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: 12,
-    paddingBottom: 60,
+    paddingTop: 8,
+    paddingBottom: 48,
   },
   formContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     maxWidth: 500,
     width: '100%',
     alignSelf: 'center',
   },
   errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: T.destructiveBg,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: T.destructiveBg,
+    borderColor: T.destructiveBorder,
+    gap: 10,
+  },
+  errorIcon: {
+    flexShrink: 0,
   },
   errorText: {
+    flex: 1,
     color: T.destructiveText,
-    fontSize: 14,
-    textAlign: 'center',
+    fontSize: 13.5,
+    fontWeight: '500',
+    lineHeight: 18,
   },
-  successBanner: {
-    backgroundColor: T.successBg,
+
+  // ── Feedback Contraseña ──
+  passwordFeedbackContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: T.border,
   },
-  successText: {
+  strengthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  strengthBars: {
+    flexDirection: 'row',
+    gap: 5,
+    flex: 1,
+    marginRight: 12,
+  },
+  strengthSegment: {
+    flex: 1,
+    height: 4.5,
+    borderRadius: 3,
+  },
+  strengthLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  reqGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    width: '48.5%',
+    gap: 6,
+  },
+  chipMet: {
+    backgroundColor: T.successBg,
+    borderColor: T.successBorder,
+  },
+  chipUnmet: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E8F0',
+  },
+  chipIconWrap: {
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipIconWrapMet: {
+    backgroundColor: T.success,
+  },
+  chipIconWrapUnmet: {
+    backgroundColor: '#E2E8F0',
+  },
+  chipDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#94A3B8',
+  },
+  chipText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    flex: 1,
+  },
+  chipTextMet: {
     color: T.successText,
-    fontSize: 14,
-    textAlign: 'center',
   },
+  chipTextUnmet: {
+    color: '#64748B',
+  },
+
+  // ── Tarjeta Términos ──
+  termsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
+    borderColor: T.border,
+    marginBottom: 20,
+    marginTop: 2,
+    gap: 12,
+  },
+  termsCardChecked: {
+    backgroundColor: '#F0F9FF',
+    borderColor: '#93C5FD',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.8,
+    borderColor: '#94A3B8',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  checkboxChecked: {
+    backgroundColor: T.primary,
+    borderColor: T.primary,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: T.text,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: T.primary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+
+  // ── Footer ──
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 32,
+    alignItems: 'center',
+    marginTop: 24,
+    gap: 4,
   },
   footerText: {
     color: T.text,
@@ -309,26 +647,6 @@ const styles = StyleSheet.create({
   footerLink: {
     color: T.primary,
     fontSize: 14,
-    fontWeight: 'bold',
-  },
-  requirementsContainer: {
-    marginTop: -8, // Compensar el marginBottom de AuthInput
-    marginBottom: 16,
-    paddingHorizontal: 4,
-    gap: 8,
-  },
-  requirementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  requirementText: {
-    fontSize: 14,
-  },
-  requirementMet: {
-    color: T.successIcon,
-  },
-  requirementUnmet: {
-    color: T.errorIcon,
+    fontWeight: '700',
   },
 });

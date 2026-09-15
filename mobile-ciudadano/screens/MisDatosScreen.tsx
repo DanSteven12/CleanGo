@@ -23,7 +23,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, User, Mail, Shield } from 'lucide-react-native';
+import { ArrowLeft, User, Mail, Shield, Phone } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../contexts/AuthContext';
 import { AnimatedPressable } from '../components/ui';
@@ -103,6 +103,14 @@ export function MisDatosScreen() {
             icon={<Mail size={20} color={T.primary} />}
             label="Correo electrónico"
             value={user?.correo ?? '—'}
+          />
+
+          <View style={styles.divider} />
+
+          <DatoRow
+            icon={<Phone size={20} color={T.primary} />}
+            label="Teléfono"
+            value={user?.telefono?.trim() ? user.telefono : 'No registrado'}
           />
 
           <View style={styles.divider} />

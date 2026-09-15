@@ -20,6 +20,7 @@ export interface CiudadanoUser {
   nombre: string;
   correo: string;
   rol: 'Ciudadano';
+  telefono: string;
 }
 
 export interface MobileLoginResponse {
@@ -129,7 +130,8 @@ export async function registerCiudadano(
   nombre: string,
   correo: string,
   password: string,
-  confirmPassword: string
+  confirmPassword: string,
+  telefono: string
 ): Promise<MobileRegisterResponse> {
   try {
     // Axios call
@@ -138,6 +140,7 @@ export async function registerCiudadano(
       correo,
       password,
       confirmPassword,
+      telefono: telefono.trim(),
     });
     return response.data;
   } catch (error) {

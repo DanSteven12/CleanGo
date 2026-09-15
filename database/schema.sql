@@ -99,12 +99,39 @@ CREATE TABLE camiones (
 
 -- ============================================================
 -- 5. TABLA DE CONDUCTORES
--- Almacena únicamente los conductores fijos registrados.
+-- Almacena los datos y credenciales de los conductores registrados.
 -- ============================================================
 CREATE TABLE conductores (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
+    -- Nombre y apellidos completos del conductor oficial
     nombre_completo VARCHAR(150) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+    -- Identificador laboral único asignado dentro de la empresa (ej. EMP-001)
+    numero_empleado VARCHAR(30) NOT NULL UNIQUE,
+
+    -- Número o folio oficial de la licencia de conducir
+    numero_licencia VARCHAR(50) NOT NULL UNIQUE,
+
+    -- Fecha en la que fue emitida originalmente la licencia
+    fecha_expedicion_licencia DATE,
+
+    -- Fecha de vencimiento oficial de la licencia de conducir
+    vigencia_licencia DATE NOT NULL,
+
+    -- Teléfono móvil de contacto directo (10 dígitos)
+    telefono VARCHAR(20),
+
+    -- Estado operativo: 'Activo' (disponible para asignaciones) o 'Inactivo'
+    estado ENUM(
+        'Activo',
+        'Inactivo'
+    ) NOT NULL DEFAULT 'Activo',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- ============================================================
@@ -120,6 +147,8 @@ CREATE TABLE usuarios (
     correo VARCHAR(150) NOT NULL UNIQUE,
 
     password VARCHAR(255) NOT NULL,
+
+    telefono VARCHAR(20) NOT NULL,
 
     rol ENUM(
         'Administrador',

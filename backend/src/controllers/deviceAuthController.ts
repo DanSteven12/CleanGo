@@ -159,10 +159,34 @@ export async function deviceMe(req: Request, res: Response): Promise<void> {
  */
 export async function deviceAsignacion(req: Request, res: Response): Promise<void> {
   const camion = req.camion as DeviceAuthPayload;
+  if (!camion || !camion.camion_id) {
+    res.status(401).json({ message: 'No autenticado.' });
+    return;
+  }
 
   try {
     const asignacion = await deviceAuthService.getAsignacionActual(camion.camion_id);
     res.status(200).json({ asignacion });
+  } catch (err) {
+    handleServiceError(err, res);
+  }
+}
+
+/**
+ * GET /api/device/auth/asignaciones
+ * Devuelve la lista de asignaciones exclusivas del camión autenticado.
+ * Requiere deviceAuthMiddleware.
+ */
+export async function deviceAsignaciones(req: Request, res: Response): Promise<void> {
+  const camion = req.camion as DeviceAuthPayload;
+  if (!camion || !camion.camion_id) {
+    res.status(401).json({ message: 'No autenticado.' });
+    return;
+  }
+
+  try {
+    const asignaciones = await deviceAuthService.getAsignacionesCamion(camion.camion_id);
+    res.status(200).json(asignaciones);
   } catch (err) {
     handleServiceError(err, res);
   }

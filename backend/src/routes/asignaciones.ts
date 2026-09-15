@@ -37,9 +37,11 @@ router.get('/conductores', async (_req: Request, res: Response) => {
 
 // ── GET /api/asignaciones ─────────────────────────────────────────────────
 // Lista todas las asignaciones con datos de ruta, camión y conductor (JOIN).
-router.get('/', async (_req: Request, res: Response) => {
+// Soporta filtro opcional por camion_id (?camion_id=X).
+router.get('/', async (req: Request, res: Response) => {
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(`
+    const { camion_id } = req.query;
+    let queryStr = `
       SELECT
         ar.id,
         ar.ruta_id,
@@ -58,8 +60,15 @@ router.get('/', async (_req: Request, res: Response) => {
       LEFT JOIN rutas r       ON r.id = ar.ruta_id
       LEFT JOIN camiones c    ON c.id = ar.camion_id
       LEFT JOIN conductores d ON d.id = ar.conductor_id
-      ORDER BY ar.fecha_programada DESC, ar.id DESC
-    `);
+    `;
+    const params: any[] = [];
+    if (camion_id) {
+      queryStr += ` WHERE ar.camion_id = ?`;
+      params.push(Number(camion_id));
+    }
+    queryStr += ` ORDER BY ar.fecha_programada DESC, ar.id DESC`;
+
+    const [rows] = await pool.query<RowDataPacket[]>(queryStr, params);
     res.json(rows);
   } catch (err) {
     console.error('[asignaciones] GET /:', err);

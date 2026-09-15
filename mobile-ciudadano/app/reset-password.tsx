@@ -43,9 +43,12 @@ export default function ResetPasswordScreen() {
   const [successMsg, setSuccessMsg] = useState('');
 
   // Validate on the fly
-  const hasMinLength = newPassword.length >= 8;
+  const hasMinLength = newPassword.length >= 10 && newPassword.length <= 72;
   const hasUppercase = /[A-Z]/.test(newPassword);
+  const hasLowercase = /[a-z]/.test(newPassword);
   const hasNumber = /[0-9]/.test(newPassword);
+  const hasSpecial = /[^A-Za-z0-9]/.test(newPassword);
+  const hasNoSpaces = newPassword.length > 0 && !/\s/.test(newPassword);
   const isMatch = newPassword === confirmPassword && confirmPassword.length > 0;
 
   const handleReset = async () => {
@@ -53,8 +56,8 @@ export default function ResetPasswordScreen() {
       setErrorMsg('Token inválido. Solicita un nuevo enlace.');
       return;
     }
-    if (!hasMinLength || !hasUppercase || !hasNumber) {
-      setErrorMsg('La contraseña no cumple con todos los requisitos.');
+    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial || !hasNoSpaces) {
+      setErrorMsg('La contraseña no cumple con todos los requisitos de seguridad.');
       return;
     }
     if (!isMatch) {
@@ -151,9 +154,12 @@ export default function ResetPasswordScreen() {
 
                 <View style={styles.requirementsBox}>
                   <Text style={styles.reqTitle}>Tu contraseña debe incluir:</Text>
-                  <Requirement text="Mínimo 8 caracteres" met={hasMinLength} />
-                  <Requirement text="Una letra mayúscula" met={hasUppercase} />
+                  <Requirement text="Mínimo 10 caracteres" met={hasMinLength} />
+                  <Requirement text="Una mayúscula" met={hasUppercase} />
+                  <Requirement text="Una minúscula" met={hasLowercase} />
                   <Requirement text="Un número" met={hasNumber} />
+                  <Requirement text="Un carácter especial" met={hasSpecial} />
+                  <Requirement text="Sin espacios" met={hasNoSpaces} />
                   <Requirement text="Las contraseñas coinciden" met={isMatch} />
                 </View>
 

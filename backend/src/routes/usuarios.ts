@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { authorizeRoles } from '../middlewares/roleMiddleware';
 import { sanitizeText } from '../utils/sanitize';
+import { validatePasswordStrength } from '../utils/passwordPolicy';
 
 const SALT_ROUNDS = 12;
 
@@ -20,8 +21,8 @@ router.get('/', async (req: Request, res: Response) => {
     const params: any[] = [];
 
     if (search && search.trim()) {
-      conditions.push('(nombre LIKE ? OR correo LIKE ?)');
-      params.push(`%${search.trim()}%`, `%${search.trim()}%`);
+      conditions.push('(nombre LIKE ? OR correo LIKE ? OR telefono LIKE ?)');
+      params.push(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`);
     }
 
     if (rol && rol.trim()) {
@@ -36,7 +37,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const sql = `
-      SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at 
+      SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at, telefono 
       FROM usuarios
       ${where}
       ORDER BY id DESC
@@ -55,7 +56,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const [rows] = await pool.query<RowDataPacket[]>(`
-      SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at 
+      SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at, telefono 
       FROM usuarios
       WHERE id = ?
     `, [id]);
@@ -73,10 +74,10 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // ── POST /api/usuarios ────────────────────────────────────────────────────────
 router.post('/', async (req: Request, res: Response) => {
-  const { correo, password, rol } = req.body;
+  const { correo, password, rol, telefono } = req.body;
   const nombre = sanitizeText(req.body.nombre);
 
-  if (!nombre || !correo || !password || !rol) {
+  if (!nombre || !correo || !password || !rol || !telefono || typeof telefono !== 'string' || !telefono.trim()) {
     return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
   }
 
@@ -89,16 +90,18 @@ router.post('/', async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'El correo electrónico debe tener un formato válido (máximo 100 caracteres).' });
   }
 
-  if (password.length < 8 || password.length > 20) {
-    return res.status(400).json({ message: 'La contraseña debe tener entre 8 y 20 caracteres.' });
-  }
-
-  if (!/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
-    return res.status(400).json({ message: 'La contraseña debe contener al menos una mayúscula, un número y un carácter especial.' });
+  const normalizedTelefono = telefono.trim();
+  if (!/^[0-9]{10}$/.test(normalizedTelefono)) {
+    return res.status(400).json({ message: 'El teléfono debe tener exactamente 10 dígitos numéricos.' });
   }
 
   if (rol !== 'Administrador' && rol !== 'Ciudadano') {
     return res.status(400).json({ message: 'Rol inválido.' });
+  }
+
+  const pwdValidation = validatePasswordStrength(password, nombre, correo);
+  if (!pwdValidation.isValid) {
+    return res.status(400).json({ message: pwdValidation.error });
   }
 
   try {
@@ -111,12 +114,12 @@ router.post('/', async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     const [result] = await pool.execute<ResultSetHeader>(
-      `INSERT INTO usuarios (nombre, correo, password, rol, estado) VALUES (?, ?, ?, ?, 'Activo')`,
-      [nombre, correo, hashedPassword, rol]
+      `INSERT INTO usuarios (nombre, correo, password, rol, estado, telefono) VALUES (?, ?, ?, ?, 'Activo', ?)`,
+      [nombre, correo, hashedPassword, rol, normalizedTelefono]
     );
 
     const [newRows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at FROM usuarios WHERE id = ?',
+      'SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at, telefono FROM usuarios WHERE id = ?',
       [result.insertId]
     );
     res.status(201).json(newRows[0]);
@@ -129,7 +132,7 @@ router.post('/', async (req: Request, res: Response) => {
 // ── PUT /api/usuarios/:id ─────────────────────────────────────────────────────
 router.put('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { correo, rol, estado } = req.body;
+  const { correo, rol, estado, telefono } = req.body;
   const nombre = sanitizeText(req.body.nombre);
 
   try {
@@ -143,6 +146,14 @@ router.put('/:id', async (req: Request, res: Response) => {
     const newCorreo = correo ?? existing.correo;
     const newRol = rol ?? existing.rol;
     const newEstado = estado ?? existing.estado;
+    const newTelefono = (telefono !== undefined ? (typeof telefono === 'string' ? telefono.trim() : '') : existing.telefono);
+
+    if (!newTelefono) {
+      return res.status(400).json({ message: 'El teléfono es obligatorio.' });
+    }
+    if (!/^[0-9]{10}$/.test(newTelefono)) {
+      return res.status(400).json({ message: 'El teléfono debe tener exactamente 10 dígitos numéricos.' });
+    }
 
     if (newNombre.length < 2 || newNombre.length > 100) {
       return res.status(400).json({ message: 'El nombre debe tener entre 2 y 100 caracteres.' });
@@ -169,12 +180,12 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     await pool.execute(
-      `UPDATE usuarios SET nombre = ?, correo = ?, rol = ?, estado = ? WHERE id = ?`,
-      [newNombre, newCorreo, newRol, newEstado, id]
+      `UPDATE usuarios SET nombre = ?, correo = ?, rol = ?, estado = ?, telefono = ? WHERE id = ?`,
+      [newNombre, newCorreo, newRol, newEstado, newTelefono, id]
     );
 
     const [updated] = await pool.query<RowDataPacket[]>(
-      'SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at FROM usuarios WHERE id = ?',
+      'SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at, telefono FROM usuarios WHERE id = ?',
       [id]
     );
     res.json(updated[0]);
@@ -189,18 +200,15 @@ router.put('/:id/password', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { password } = req.body;
 
-  if (!password || password.length < 8 || password.length > 20) {
-    return res.status(400).json({ message: 'La contraseña debe tener entre 8 y 20 caracteres.' });
-  }
-
-  if (!/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
-    return res.status(400).json({ message: 'La contraseña debe contener al menos una mayúscula, un número y un carácter especial.' });
-  }
-
   try {
-    const [current] = await pool.query<RowDataPacket[]>('SELECT id FROM usuarios WHERE id = ?', [id]);
+    const [current] = await pool.query<RowDataPacket[]>('SELECT id, nombre, correo FROM usuarios WHERE id = ?', [id]);
     if (current.length === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    const pwdValidation = validatePasswordStrength(password, current[0].nombre, current[0].correo);
+    if (!pwdValidation.isValid) {
+      return res.status(400).json({ message: pwdValidation.error });
     }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
@@ -232,7 +240,7 @@ router.put('/:id/status', async (req: Request, res: Response) => {
     await pool.execute('UPDATE usuarios SET estado = ? WHERE id = ?', [estado, id]);
 
     const [updated] = await pool.query<RowDataPacket[]>(
-      'SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at FROM usuarios WHERE id = ?',
+      'SELECT id, nombre, correo, rol, estado, ultimo_acceso, created_at, telefono FROM usuarios WHERE id = ?',
       [id]
     );
     res.json(updated[0]);

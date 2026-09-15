@@ -10,6 +10,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
+  Easing,
 } from 'react-native-reanimated';
 
 export interface AnimatedPressableProps extends Omit<PressableProps, 'style'> {
@@ -28,7 +30,7 @@ const AnimatedPressableComponent = Animated.createAnimatedComponent(Pressable);
 export function AnimatedPressable({
   style,
   scaleTo = 0.97,
-  springConfig = { damping: 15, stiffness: 300, mass: 0.5 },
+  springConfig = { damping: 20, stiffness: 600, mass: 0.2 },
   onPressIn,
   onPressOut,
   disabled,
@@ -45,13 +47,18 @@ export function AnimatedPressable({
 
   const handlePressIn = (e: GestureResponderEvent) => {
     if (!disabled) {
-      scale.value = withSpring(scaleTo, springConfig);
+      // withTiming en press-in = respuesta inmediata (~60ms)
+      scale.value = withTiming(scaleTo, {
+        duration: 60,
+        easing: Easing.out(Easing.quad),
+      });
     }
     onPressIn?.(e);
   };
 
   const handlePressOut = (e: GestureResponderEvent) => {
     if (!disabled) {
+      // withSpring al soltar = sensación natural de rebote suave
       scale.value = withSpring(1, springConfig);
     }
     onPressOut?.(e);

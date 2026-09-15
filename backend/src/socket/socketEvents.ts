@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { setSimulationSpeed } from '../services/simulationService';
+import { setSimulationSpeed, getSimulationStats } from '../services/simulationService';
 
 export function setupSocketEvents(io: Server) {
   io.on('connection', (socket: Socket) => {
@@ -16,6 +16,12 @@ export function setupSocketEvents(io: Server) {
       if (!recorridoId) return;
       const roomName = `recorrido:${recorridoId}`;
       socket.join(roomName);
+
+      // Emitir inmediatamente el último estado conocido al cliente que se une
+      const currentStats = getSimulationStats(recorridoId);
+      if (currentStats) {
+        socket.emit('ubicacion_actualizada', currentStats);
+      }
     });
 
     socket.on('salir_de_recorrido', (recorridoId: number) => {

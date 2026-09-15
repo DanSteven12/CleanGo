@@ -27,6 +27,7 @@ export const UsuariosEditPage: React.FC = () => {
         setInitialData({
           nombre: data.nombre,
           correo: data.correo,
+          telefono: data.telefono ?? '',
           rol: data.rol,
           estado: data.estado,
         });
@@ -45,7 +46,7 @@ export const UsuariosEditPage: React.FC = () => {
 
   const handleEdit = async (formData: UsuarioData) => {
     setFormError(null);
-    if (!formData.nombre || !formData.correo || !formData.rol || !formData.estado) {
+    if (!formData.nombre || !formData.correo || !formData.telefono || !formData.rol || !formData.estado) {
       return setFormError('Todos los campos obligatorios deben estar llenos.');
     }
 
@@ -57,6 +58,7 @@ export const UsuariosEditPage: React.FC = () => {
         body: JSON.stringify({ 
           nombre: formData.nombre, 
           correo: formData.correo, 
+          telefono: formData.telefono.trim(),
           rol: formData.rol, 
           estado: formData.estado 
         })
