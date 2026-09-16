@@ -20,7 +20,14 @@ export function initializeFirebaseAdmin(): void {
     return;
   }
 
-  // Parsear saltos de línea codificados si vienen como string simple (común en CI/CD y Hostinger)
+  // Parsear saltos de línea codificados y comillas envolventes (común en Hostinger y CI/CD)
+  privateKey = privateKey.trim();
+  if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+    privateKey = privateKey.slice(1, -1);
+  }
+  if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
+    privateKey = privateKey.slice(1, -1);
+  }
   privateKey = privateKey.replace(/\\n/g, '\n');
 
   try {
