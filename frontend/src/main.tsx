@@ -17,7 +17,8 @@ import { isPublicRoute } from './utils/routeUtils'
 
   // En producción, redirige /api/* al backend real (VITE_API_URL).
   // En desarrollo, Vite proxy ya lo maneja, así que se deja relativa.
-  const API_BASE: string = import.meta.env.VITE_API_URL || '';
+  const rawApiBase: string = import.meta.env.VITE_API_URL || '';
+  const API_BASE: string = rawApiBase.replace(/\/api\/?$/, '').replace(/\/$/, '');
 
   const processQueue = (error: any, token: string | null = null) => {
     failedQueue.forEach(prom => {

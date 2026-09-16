@@ -69,7 +69,7 @@ export function getLanHost(): string {
       return ip;
     }
   }
-  return '192.168.100.20';
+  return 'cleangomunicipal.com.mx';
 }
 
 let _activeBaseUrl: string | null = null;
@@ -79,25 +79,13 @@ export function getApiUrl(): string {
     return _activeBaseUrl;
   }
 
-  // ── PRODUCCIÓN ──────────────────────────────────────────────────────────────
-  if (!__DEV__) {
-    const prodUrl = process.env.EXPO_PUBLIC_API_URL;
-    if (!prodUrl) {
-      throw new Error(
-        '[CleanGo] EXPO_PUBLIC_API_URL no está definida para el entorno de producción. ' +
-          'Configura esta variable con la URL de la API de producción.',
-      );
-    }
-    return prodUrl;
-  }
-
-  // ── DESARROLLO LOCAL: IP de Red Wi-Fi detectada dinámicamente ─────────────
+  // 1. Variable de entorno explícita (.env o EAS build)
   if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+    return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
   }
 
-  const lanIp = getLanHost();
-  return `http://${lanIp}:5001/api`;
+  // 2. URL del servidor en Hostinger (HTTPS)
+  return 'https://cleangomunicipal.com.mx/api';
 }
 
 /**
@@ -105,8 +93,8 @@ export function getApiUrl(): string {
  * Utilizada por Socket.IO y para construir URLs de recursos estáticos (/uploads/).
  *
  * Ejemplo:
- *   getApiUrl()         → "http://192.168.0.22:5001/api"
- *   getBackendBaseUrl() → "http://192.168.0.22:5001"
+ *   getApiUrl()         → "https://cleangomunicipal.com.mx/api"
+ *   getBackendBaseUrl() → "https://cleangomunicipal.com.mx"
  */
 export function getBackendBaseUrl(): string {
   return getApiUrl().replace(/\/api\/?$/, '');
@@ -178,48 +166,20 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // En desarrollo: fallback bidireccional inteligente si la conexión falla (Network Error)
+    // En desarrollo: fallback si la conexión a localhost falla (Network Error)
     if (__DEV__ && !error.response && !originalRequest._fallbackTried && originalRequest.baseURL) {
       originalRequest._fallbackTried = true;
       const isCurrentlyLocalhost =
         originalRequest.baseURL.includes('localhost') || originalRequest.baseURL.includes('127.0.0.1');
 
       if (isCurrentlyLocalhost) {
-        // Falló localhost (desconectó cable USB o nunca estuvo conectado) -> Conmutar a IP Wi-Fi
-        const lanUrl = `http://${getLanHost()}:5001/api`;
-        _activeBaseUrl = lanUrl;
-        api.defaults.baseURL = lanUrl;
-        originalRequest.baseURL = lanUrl;
-        console.log(`[API] Desconexión USB. Conmutando a Wi-Fi (${lanUrl})...`);
+        // Falló localhost -> Conmutar al servidor de producción en Hostinger
+        const remoteUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || 'https://cleangomunicipal.com.mx/api';
+        _activeBaseUrl = remoteUrl;
+        api.defaults.baseURL = remoteUrl;
+        originalRequest.baseURL = remoteUrl;
+        console.log(`[API] Desconexión localhost. Conmutando a servidor (${remoteUrl})...`);
         return api(originalRequest);
-      } else {
-        // Falló Wi-Fi -> Probar USB (localhost) SOLO como fallback provisional
-        const lanUrl = originalRequest.baseURL;
-        const usbUrl = 'http://localhost:5001/api';
-        originalRequest.baseURL = usbUrl;
-        try {
-          const res = await api(originalRequest);
-          _activeBaseUrl = usbUrl;
-          api.defaults.baseURL = usbUrl;
-          console.log(`[API] Conmutado exitosamente a USB (${usbUrl}).`);
-          return res;
-        } catch (usbError) {
-          // Si USB también falló, intentar 10.0.2.2 (emulador Android)
-          const emuUrl = 'http://10.0.2.2:5001/api';
-          originalRequest.baseURL = emuUrl;
-          try {
-            const res = await api(originalRequest);
-            _activeBaseUrl = emuUrl;
-            api.defaults.baseURL = emuUrl;
-            console.log(`[API] Conmutado exitosamente a Emulador Android (${emuUrl}).`);
-            return res;
-          } catch (emuError) {
-            // Preservar la IP Wi-Fi si todos los fallbacks fallaron
-            _activeBaseUrl = lanUrl;
-            api.defaults.baseURL = lanUrl;
-            return Promise.reject(usbError);
-          }
-        }
       }
     }
 

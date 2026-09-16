@@ -75,7 +75,7 @@ interface ReporteImageProps {
   placeholderSize?: number;
 }
 
-const BACKEND_BASE = (import.meta.env.VITE_API_URL as string || '').replace('/api', '');
+const BACKEND_BASE = (import.meta.env.VITE_API_URL as string || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 const ReporteImage: React.FC<ReporteImageProps> = ({
   src,

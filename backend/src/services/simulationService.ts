@@ -127,7 +127,7 @@ export async function fetchRouteGeometry(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 segundos de timeout
 
-    const referer = process.env.FRONTEND_URL || 'http://localhost:5173/';
+    const referer = process.env.FRONTEND_URL || 'https://cleangomunicipal.com.mx/';
 
     const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
       method: 'POST',

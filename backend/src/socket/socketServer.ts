@@ -5,12 +5,15 @@ import { setupSocketEvents } from './socketEvents';
 let io: Server;
 
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
+  process.env.FRONTEND_URL || 'https://cleangomunicipal.com.mx',
+  'https://cleangomunicipal.com.mx',
+  'http://cleangomunicipal.com.mx',
+  'https://www.cleangomunicipal.com.mx',
+  'http://www.cleangomunicipal.com.mx',
   'http://localhost:5173',
+  'https://localhost:5173',
   'http://127.0.0.1:5173',
-  'http://192.168.1.75:5173',
-  'http://192.168.1.75:8081',
-  'https://cleangomunicipal.com.mx'
+  'https://127.0.0.1:5173',
 ];
 
 export function initSocketServer(httpServer: HttpServer): Server {
