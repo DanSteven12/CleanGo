@@ -27,6 +27,7 @@ export const ResetPasswordPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   function validate(): boolean {
+    const errors: FieldErrors = {};
     if (!newPassword) {
       errors.newPassword = 'La contraseña es obligatoria.';
     } else if (newPassword.length < 10) {
