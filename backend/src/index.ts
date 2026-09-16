@@ -68,6 +68,8 @@ const allowedOrigins = [
   'http://cleangomunicipal.com.mx',
   'https://www.cleangomunicipal.com.mx',
   'http://www.cleangomunicipal.com.mx',
+  'https://backend.cleangomunicipal.com.mx',
+  'http://backend.cleangomunicipal.com.mx',
   'http://localhost:5173',
   'https://localhost:5173',
   'http://127.0.0.1:5173',

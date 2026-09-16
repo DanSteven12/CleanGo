@@ -72,7 +72,7 @@ export function getLanHost(): string {
       return ip;
     }
   }
-  return 'cleangomunicipal.com.mx';
+  return 'backend.cleangomunicipal.com.mx';
 }
 
 let _activeBaseUrl: string | null = null;
@@ -88,7 +88,7 @@ export function getApiUrl(): string {
   }
 
   // 2. URL del servidor en Hostinger (HTTPS)
-  return 'https://cleangomunicipal.com.mx/api';
+  return 'https://backend.cleangomunicipal.com.mx/api';
 }
 
 /**
@@ -96,8 +96,8 @@ export function getApiUrl(): string {
  * Utilizada por Socket.IO y para construir URLs de recursos estáticos (/uploads/).
  *
  * Ejemplo:
- *   getApiUrl()         → "https://cleangomunicipal.com.mx/api"
- *   getBackendBaseUrl() → "https://cleangomunicipal.com.mx"
+ *   getApiUrl()         → "https://backend.cleangomunicipal.com.mx/api"
+ *   getBackendBaseUrl() → "https://backend.cleangomunicipal.com.mx"
  */
 export function getBackendBaseUrl(): string {
   return getApiUrl().replace(/\/api\/?$/, '');
@@ -254,7 +254,7 @@ api.interceptors.response.use(
 
       if (isCurrentlyLocalhost) {
         // Falló localhost -> Conmutar al servidor de producción en Hostinger
-        const remoteUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || 'https://cleangomunicipal.com.mx/api';
+        const remoteUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || 'https://backend.cleangomunicipal.com.mx/api';
         _activeBaseUrl = remoteUrl;
         api.defaults.baseURL = remoteUrl;
         originalRequest.baseURL = remoteUrl;
