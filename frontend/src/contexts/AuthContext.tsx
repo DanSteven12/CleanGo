@@ -1,5 +1,5 @@
 // frontend/src/contexts/AuthContext.tsx
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { AuthUser } from '../services/authService';
 import { getMe, logoutUser } from '../services/authService';
 import { isPublicRoute } from '../utils/routeUtils';
@@ -29,6 +29,7 @@ export const AuthContext = createContext<AuthContextValue>({
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isCheckingSession = useRef(false);
 
   /**
    * Called after a successful login.
@@ -67,17 +68,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   /**
-   * Listen for global unauthorized events (e.g., session invalidated from another device).
+   * Listen for global unauthorized events (e.g., session invalidated from another device),
+   * and monitor window focus / visibility change to automatically detect expired sessions.
    */
   useEffect(() => {
-    const handleUnauthorized = () => {
+    const handleUnauthorized = (event?: Event) => {
+      const customEvent = event as CustomEvent<{ message?: string }> | undefined;
+      const msg =
+        customEvent?.detail?.message ||
+        'Tu sesión expiró o iniciaste sesión desde otro dispositivo.';
+
       logout();
       if (!isPublicRoute()) {
-        import('sonner').then(({ toast }) => {
-          toast.error('Sesión invalidada', {
-            description: 'Tu sesión expiró o iniciaste sesión desde otro dispositivo.',
-          });
-        });
+        sessionStorage.setItem('cleango_auth_expired', msg);
+        window.location.replace('/login');
       }
     };
 
@@ -91,11 +95,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    const handleVisibilityOrFocus = async () => {
+      // If window becomes visible / focused and user is on a protected route
+      if (document.visibilityState === 'visible' && !isPublicRoute() && !isCheckingSession.current) {
+        isCheckingSession.current = true;
+        try {
+          const data = await getMe();
+          setUser(data.user);
+        } catch {
+          // Session expired or invalid
+          setUser(null);
+          logoutUser();
+          sessionStorage.setItem(
+            'cleango_auth_expired',
+            'Tu sesión expiró por inactividad. Inicia sesión nuevamente.'
+          );
+          window.location.replace('/login');
+        } finally {
+          isCheckingSession.current = false;
+        }
+      }
+    };
+
     window.addEventListener('auth:unauthorized', handleUnauthorized as EventListener);
     window.addEventListener('auth:forbidden', handleForbidden as EventListener);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+
     return () => {
       window.removeEventListener('auth:unauthorized', handleUnauthorized as EventListener);
       window.removeEventListener('auth:forbidden', handleForbidden as EventListener);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
     };
   }, [logout]);
 

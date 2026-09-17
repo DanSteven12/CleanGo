@@ -1,5 +1,5 @@
 // frontend/src/pages/auth/LoginPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,6 +28,16 @@ export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  useEffect(() => {
+    const expiredMsg = sessionStorage.getItem('cleango_auth_expired');
+    if (expiredMsg) {
+      sessionStorage.removeItem('cleango_auth_expired');
+      toast.error('Sesión cerrada', {
+        description: expiredMsg,
+      });
+    }
+  }, []);
 
   // Already authenticated → redirect to dashboard
   if (!authLoading && isAuthenticated) {

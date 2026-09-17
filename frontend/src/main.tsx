@@ -101,7 +101,7 @@ import { isPublicRoute } from './utils/routeUtils'
         if (url.includes('/api/auth/refresh')) {
           if (!isPublicRoute()) {
             window.dispatchEvent(
-              new CustomEvent('auth:unauthorized', { detail: { message: 'Sesión invalidada' } })
+              new CustomEvent('auth:unauthorized', { detail: { message: 'Tu sesión expiró o iniciaste sesión desde otro dispositivo.' } })
             );
           }
           return res;
@@ -128,8 +128,11 @@ import { isPublicRoute } from './utils/routeUtils'
           if (csrfToken) {
             refreshInit.headers = { 'X-XSRF-TOKEN': csrfToken };
           }
-          const refreshRes = await _originalFetch('/api/auth/refresh', refreshInit);
-          if (refreshRes.ok) {
+          const refreshUrl = API_BASE ? `${API_BASE}/api/auth/refresh` : '/api/auth/refresh';
+          const refreshRes = await _originalFetch(refreshUrl, refreshInit);
+          const contentType = refreshRes.headers.get('content-type') || '';
+
+          if (refreshRes.ok && contentType.includes('application/json')) {
             isRefreshing = false;
             processQueue(null);
             // Re-clone retryInput if it's a Request to handle multiple retries safely
@@ -144,7 +147,7 @@ import { isPublicRoute } from './utils/routeUtils'
           // Only dispatch unauthorized event if the user is in an authenticated route
           if (!isPublicRoute()) {
             window.dispatchEvent(
-              new CustomEvent('auth:unauthorized', { detail: { message: 'Sesión invalidada' } })
+              new CustomEvent('auth:unauthorized', { detail: { message: 'Tu sesión expiró o iniciaste sesión desde otro dispositivo.' } })
             );
           }
           return res;
