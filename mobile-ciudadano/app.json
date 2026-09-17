@@ -56,9 +56,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F4F7FA",
-          "image": "./assets/images/cleango-icon.png",
-          "resizeMode": "contain"
+          "backgroundColor": "#F4F7FA"
         }
       ],
       [
