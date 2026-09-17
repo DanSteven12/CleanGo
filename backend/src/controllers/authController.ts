@@ -182,7 +182,10 @@ export async function refresh(req: Request, res: Response): Promise<void> {
       maxAge: config.cookie.accessMaxAgeMs,
     });
 
-    res.cookie(refreshCookieName, result.refreshToken, baseCookieOptions);
+    res.cookie(refreshCookieName, result.refreshToken, {
+      ...baseCookieOptions,
+      maxAge: config.cookie.rememberMaxAgeMs,
+    });
     
     // Rotar CSRF Token
     const csrfToken = crypto.randomBytes(32).toString('hex');

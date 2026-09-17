@@ -132,3 +132,15 @@ export async function getMe(): Promise<{ user: AuthUser }> {
   const res = await fetch(`${BASE}/me`);
   return handleResponse<{ user: AuthUser }>(res);
 }
+
+/**
+ * Manually or proactively triggers a token refresh using the HttpOnly refresh cookie.
+ */
+export async function refreshTokenApi(): Promise<{ message: string; user: AuthUser }> {
+  const res = await fetch(`${BASE}/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return handleResponse<{ message: string; user: AuthUser }>(res);
+}
+

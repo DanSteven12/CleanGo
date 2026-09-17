@@ -84,16 +84,15 @@ import { isPublicRoute } from './utils/routeUtils'
     return _originalFetch(firstInput, init).then(async (res) => {
       // 401 Unauthorized handling
       if (res.status === 401) {
-        // Auth check / auth form calls returning 401 are expected when unauthenticated.
+        // Auth form endpoints returning 401 are expected when submitting invalid credentials.
         // Return 401 directly without attempting refresh or dispatching unauthorized toast events.
-        const isAuthFormOrMe =
-          url.includes('/api/auth/me') ||
+        const isAuthForm =
           url.includes('/api/auth/login') ||
           url.includes('/api/auth/register') ||
           url.includes('/api/auth/forgot-password') ||
           url.includes('/api/auth/reset-password');
 
-        if (isAuthFormOrMe) {
+        if (isAuthForm) {
           return res;
         }
 

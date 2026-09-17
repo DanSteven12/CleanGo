@@ -1258,7 +1258,7 @@ class-variance-authority@^0.7.1:
   dependencies:
     clsx "^2.1.1"
 
-"cleango-backend@file:C:\\CleanGo\\backend":
+"cleango-backend@file:c:\\CleanGo\\backend":
   version "1.0.0"
   resolved "file:backend"
   dependencies:
@@ -1280,7 +1280,7 @@ class-variance-authority@^0.7.1:
     socket.io "^4.8.3"
     xss "^1.0.15"
 
-"cleango-web-app@file:C:\\CleanGo\\frontend":
+"cleango-web-app@file:c:\\CleanGo\\frontend":
   version "0.0.0"
   resolved "file:frontend"
   dependencies:

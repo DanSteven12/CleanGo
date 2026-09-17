@@ -9,6 +9,7 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
 
   const excludedPaths = [
     '/api/auth/login',
+    '/api/auth/refresh',
     '/api/auth/register',
     '/api/auth/forgot-password',
     '/api/auth/reset-password',
