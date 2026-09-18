@@ -44,16 +44,16 @@ const TIPOS_REPORTE = [
 export default function CrearReporteScreen() {
   const router = useRouter();
   const { showSuccess, showError, showWarning } = useAlert();
-  
+
   const [tipo, setTipo] = useState<string | null>(null);
   const [descripcion, setDescripcion] = useState('');
   const [direccionReferencia, setDireccionReferencia] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
-  
+
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const takePhoto = async () => {
@@ -206,13 +206,13 @@ export default function CrearReporteScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          
+
           {/* Tipo de Reporte */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>1. ¿Qué problema deseas reportar? *</Text>
@@ -248,7 +248,7 @@ export default function CrearReporteScreen() {
             ) : imageUri ? (
               <View style={styles.imageContainer}>
                 <Image source={{ uri: imageUri }} style={styles.previewImage} />
-                <AnimatedPressable 
+                <AnimatedPressable
                   style={styles.removeImageBtn}
                   onPress={() => setImageUri(null)}
                 >
@@ -284,8 +284,8 @@ export default function CrearReporteScreen() {
                   </Text>
                 </Animated.View>
               ) : (
-                <AnimatedPressable 
-                  style={[styles.locationBtn, locationError ? styles.locationBtnError : null]} 
+                <AnimatedPressable
+                  style={[styles.locationBtn, locationError ? styles.locationBtnError : null]}
                   onPress={getLocation}
                   disabled={isGettingLocation}
                 >
@@ -294,7 +294,7 @@ export default function CrearReporteScreen() {
                   ) : (
                     <MapPinned size={24} color={locationError ? T.danger : T.primary} />
                   )}
-                  <Text style={[styles.locationBtnText, locationError ? {color: T.danger} : null]}>
+                  <Text style={[styles.locationBtnText, locationError ? { color: T.danger } : null]}>
                     {locationError || 'Obtener mi ubicación actual'}
                   </Text>
                 </AnimatedPressable>
@@ -317,7 +317,7 @@ export default function CrearReporteScreen() {
 
           {/* Comentarios */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>5. Comentarios adicionales</Text>
+            <Text style={styles.sectionTitle}>5. Comentarios adicionales (Opcional)</Text>
             <TextInput
               style={styles.textArea}
               placeholder="Describe más detalles sobre el problema..."
@@ -334,9 +334,9 @@ export default function CrearReporteScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <AnimatedPressable 
+          <AnimatedPressable
             style={[
-              styles.submitBtn, 
+              styles.submitBtn,
               (!tipo || !location || isSubmitting) && styles.submitBtnDisabled
             ]}
             onPress={handleSubmit}
