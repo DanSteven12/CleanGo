@@ -40,18 +40,44 @@ export const RegisterPage: React.FC = () => {
 
   function validate(): boolean {
     const errors: FieldErrors = {};
-    if (!nombre.trim() || nombre.trim().length < 2) {
-      errors.nombre = 'El nombre debe tener al menos 2 caracteres.';
+    const trimmedNombre = nombre.trim();
+    const trimmedTelefono = telefono.trim();
+
+    if (!trimmedNombre || trimmedNombre.length < 3) {
+      errors.nombre = 'El nombre debe tener al menos 3 caracteres.';
+    } else if (/[0-9]/.test(trimmedNombre)) {
+      errors.nombre = 'El nombre no debe contener números.';
+    } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]+$/.test(trimmedNombre)) {
+      errors.nombre = 'El nombre solo debe contener letras.';
+    } else if (trimmedNombre.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, '').length < 3) {
+      errors.nombre = 'El nombre debe tener al menos 3 letras.';
     }
+
     if (!correo.trim()) {
       errors.correo = 'El correo electrónico es obligatorio.';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.trim())) {
       errors.correo = 'El correo electrónico no tiene un formato válido.';
     }
-    if (!telefono.trim()) {
+
+    const dummyNumbers = [
+      '1234567890',
+      '0123456789',
+      '9876543210',
+      '0987654321',
+      '1122334455',
+      '1212121212',
+      '2345678901',
+      '9898989898',
+    ];
+
+    if (!trimmedTelefono) {
       errors.telefono = 'El teléfono es obligatorio.';
-    } else if (!/^[0-9]{10}$/.test(telefono.trim())) {
+    } else if (!/^[0-9]{10}$/.test(trimmedTelefono)) {
       errors.telefono = 'El teléfono debe tener exactamente 10 dígitos numéricos.';
+    } else if (!/^[2-9]/.test(trimmedTelefono)) {
+      errors.telefono = 'El teléfono no puede iniciar con 0 ni 1.';
+    } else if (/^(\d)\1{9}$/.test(trimmedTelefono) || /(\d)\1{6,}/.test(trimmedTelefono) || dummyNumbers.includes(trimmedTelefono)) {
+      errors.telefono = 'Por favor ingresa un número telefónico real y válido.';
     }
     if (!password) {
       errors.password = 'La contraseña es obligatoria.';
@@ -153,7 +179,11 @@ export const RegisterPage: React.FC = () => {
                   className={`auth-input${fieldErrors.nombre ? ' auth-input--error' : ''}`}
                   placeholder="Tu nombre"
                   value={nombre}
-                  onChange={(e) => { setNombre(e.target.value); setFieldErrors(p => ({ ...p, nombre: undefined })); }}
+                  onChange={(e) => { 
+                    const filtered = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]/g, '');
+                    setNombre(filtered); 
+                    setFieldErrors(p => ({ ...p, nombre: undefined })); 
+                  }}
                   autoComplete="name"
                   disabled={isSubmitting}
                 />

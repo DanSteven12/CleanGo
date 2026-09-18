@@ -96,10 +96,40 @@ export default function RegisterScreen() {
     };
   }, [errorMsg]);
 
+  // Validadores auxiliares
+  const isValidNombre = (text: string): boolean => {
+    const clean = text.trim();
+    if (clean.length < 3 || clean.length > 100) return false;
+    if (/[0-9]/.test(clean)) return false;
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]+$/.test(clean)) return false;
+    const letters = clean.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, '');
+    return letters.length >= 3;
+  };
+
+  const isValidTelefono = (text: string): boolean => {
+    const clean = text.trim();
+    if (!/^[0-9]{10}$/.test(clean)) return false;
+    if (!/^[2-9]/.test(clean)) return false; // En México (+52) inicia con 2-9
+    if (/^(\d)\1{9}$/.test(clean)) return false; // Dígitos todos iguales (0000000000, 1111111111, etc.)
+    if (/(\d)\1{6,}/.test(clean)) return false; // 7+ dígitos repetidos consecutivos
+    const dummyNumbers = [
+      '1234567890',
+      '0123456789',
+      '9876543210',
+      '0987654321',
+      '1122334455',
+      '1212121212',
+      '2345678901',
+      '9898989898',
+    ];
+    if (dummyNumbers.includes(clean)) return false;
+    return true;
+  };
+
   // Validaciones en tiempo real (UX)
-  const isNombreValid = nombre.trim().length >= 3;
+  const isNombreValid = isValidNombre(nombre);
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const isTelefonoValid = /^[0-9]{10}$/.test(telefono.trim());
+  const isTelefonoValid = isValidTelefono(telefono);
   const isConfirmPasswordValid =
     confirmPassword.length > 0 && confirmPassword === password;
 
@@ -145,13 +175,33 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (/[0-9]/.test(trimmedNombre)) {
+      setErrorMsg('El nombre completo no debe contener números.');
+      return;
+    }
+
+    if (!isValidNombre(trimmedNombre)) {
+      setErrorMsg('Por favor ingresa un nombre completo válido (solo letras, mínimo 3 caracteres).');
+      return;
+    }
+
     if (!isEmailValid) {
       setErrorMsg('Por favor ingresa un correo electrónico válido.');
       return;
     }
 
-    if (!/^[0-9]{10}$/.test(trimmedTelefono)) {
+    if (trimmedTelefono.length !== 10) {
       setErrorMsg('El teléfono debe tener exactamente 10 dígitos numéricos.');
+      return;
+    }
+
+    if (!/^[2-9]/.test(trimmedTelefono)) {
+      setErrorMsg('El número telefónico no puede iniciar con 0 ni 1.');
+      return;
+    }
+
+    if (!isValidTelefono(trimmedTelefono)) {
+      setErrorMsg('Por favor ingresa un número telefónico real y válido.');
       return;
     }
 
@@ -236,11 +286,14 @@ export default function RegisterScreen() {
               placeholder="Ej. Juan Pérez López"
               value={nombre}
               onChangeText={(text) => {
-                setNombre(text);
+                // Filtrar números y caracteres especiales no permitidos en nombres
+                const filtered = text.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]/g, '');
+                setNombre(filtered);
                 if (errorMsg) setErrorMsg(null);
               }}
               autoCapitalize="words"
               editable={!isLoading}
+              maxLength={70}
               isValid={isNombreValid}
               icon={<User color={isNombreValid ? T.primary : T.text} size={20} />}
             />

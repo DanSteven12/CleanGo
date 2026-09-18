@@ -43,11 +43,32 @@ export const UserForm: React.FC<UserFormProps> = ({
     }
   }, [initialData]);
 
+  const dummyNumbers = [
+    '1234567890',
+    '0123456789',
+    '9876543210',
+    '0987654321',
+    '1122334455',
+    '1212121212',
+    '2345678901',
+    '9898989898',
+  ];
+
   const validateField = (name: string, value: string) => {
     let err = '';
     if (name === 'nombre') {
-      if (!value.trim()) err = 'El nombre es requerido.';
-      else if (value.trim().length < 2 || value.trim().length > 100) err = 'El nombre debe tener entre 2 y 100 caracteres.';
+      const clean = value.trim();
+      if (!clean) {
+        err = 'El nombre es requerido.';
+      } else if (clean.length < 3 || clean.length > 100) {
+        err = 'El nombre debe tener entre 3 y 100 caracteres.';
+      } else if (/[0-9]/.test(clean)) {
+        err = 'El nombre no debe contener números.';
+      } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]+$/.test(clean)) {
+        err = 'El nombre solo debe contener letras.';
+      } else if (clean.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, '').length < 3) {
+        err = 'El nombre debe tener al menos 3 letras.';
+      }
     }
     if (name === 'correo') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,10 +77,15 @@ export const UserForm: React.FC<UserFormProps> = ({
       else if (!emailRegex.test(value.trim())) err = 'Introduce un formato de correo electrónico válido.';
     }
     if (name === 'telefono') {
-      if (!value.trim()) {
+      const clean = value.trim();
+      if (!clean) {
         err = 'El teléfono es requerido.';
-      } else if (!/^[0-9]{10}$/.test(value.trim())) {
+      } else if (!/^[0-9]{10}$/.test(clean)) {
         err = 'El teléfono debe tener exactamente 10 dígitos numéricos.';
+      } else if (!/^[2-9]/.test(clean)) {
+        err = 'El teléfono no puede iniciar con 0 ni 1.';
+      } else if (/^(\d)\1{9}$/.test(clean) || /(\d)\1{6,}/.test(clean) || dummyNumbers.includes(clean)) {
+        err = 'Por favor ingresa un número telefónico real y válido.';
       }
     }
     if (!isEditing) {
@@ -112,11 +138,30 @@ export const UserForm: React.FC<UserFormProps> = ({
   const pwdNotNameValid = !formData.nombre || pwd.toLowerCase() !== formData.nombre.trim().toLowerCase();
 
   const isFormValid = () => {
-    if (!formData.nombre || formData.nombre.trim().length < 2 || formData.nombre.trim().length > 100) return false;
+    const cleanNombre = (formData.nombre || '').trim();
+    if (
+      !cleanNombre ||
+      cleanNombre.length < 3 ||
+      cleanNombre.length > 100 ||
+      /[0-9]/.test(cleanNombre) ||
+      !/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]+$/.test(cleanNombre) ||
+      cleanNombre.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, '').length < 3
+    ) {
+      return false;
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.correo || formData.correo.trim().length > 100 || !emailRegex.test(formData.correo.trim())) return false;
 
-    if (!formData.telefono || !/^[0-9]{10}$/.test(formData.telefono.trim())) {
+    const cleanTel = (formData.telefono || '').trim();
+    if (
+      !cleanTel ||
+      !/^[0-9]{10}$/.test(cleanTel) ||
+      !/^[2-9]/.test(cleanTel) ||
+      /^(\d)\1{9}$/.test(cleanTel) ||
+      /(\d)\1{6,}/.test(cleanTel) ||
+      dummyNumbers.includes(cleanTel)
+    ) {
       return false;
     }
 
@@ -159,7 +204,10 @@ export const UserForm: React.FC<UserFormProps> = ({
             type="text" 
             className={`form-input ${touched.nombre && fieldErrors.nombre ? 'input-error' : ''}`}
             value={formData.nombre} 
-            onChange={e => handleChange('nombre', e.target.value)} 
+            onChange={e => {
+              const filtered = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]/g, '');
+              handleChange('nombre', filtered);
+            }} 
             onBlur={e => handleBlur('nombre', e.target.value)}
             placeholder="Ej: Juan Pérez"
             maxLength={100}

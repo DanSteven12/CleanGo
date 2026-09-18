@@ -24,7 +24,20 @@ export const mobileRegisterValidators: ValidationChain[] = [
   body('nombre')
     .trim()
     .notEmpty().withMessage('El nombre es obligatorio.')
-    .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres.')
+    .isLength({ min: 3, max: 100 }).withMessage('El nombre debe tener entre 3 y 100 caracteres.')
+    .custom((value) => {
+      if (/[0-9]/.test(value)) {
+        throw new Error('El nombre no debe contener números.');
+      }
+      if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]+$/.test(value)) {
+        throw new Error('El nombre solo debe contener letras.');
+      }
+      const letters = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, '');
+      if (letters.length < 3) {
+        throw new Error('El nombre debe tener al menos 3 letras.');
+      }
+      return true;
+    })
     .escape(),
   body('correo')
     .trim()
@@ -51,7 +64,26 @@ export const mobileRegisterValidators: ValidationChain[] = [
   body('telefono')
     .trim()
     .notEmpty().withMessage('El teléfono es obligatorio.')
-    .matches(/^[0-9]{10}$/).withMessage('El teléfono debe tener exactamente 10 dígitos numéricos.'),
+    .matches(/^[2-9][0-9]{9}$/).withMessage('El teléfono debe tener 10 dígitos y no puede iniciar con 0 ni 1.')
+    .custom((val) => {
+      if (/^(\d)\1{9}$/.test(val) || /(\d)\1{6,}/.test(val)) {
+        throw new Error('El número telefónico no es válido.');
+      }
+      const dummyNumbers = [
+        '1234567890',
+        '0123456789',
+        '9876543210',
+        '0987654321',
+        '1122334455',
+        '1212121212',
+        '2345678901',
+        '9898989898',
+      ];
+      if (dummyNumbers.includes(val)) {
+        throw new Error('El número telefónico no es válido.');
+      }
+      return true;
+    }),
 ];
 
 export const mobileForgotPasswordValidators: ValidationChain[] = [

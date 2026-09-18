@@ -72,6 +72,32 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+function isValidNombre(nombre: string): boolean {
+  if (!nombre || nombre.length < 3 || nombre.length > 100) return false;
+  if (/[0-9]/.test(nombre)) return false;
+  if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]+$/.test(nombre)) return false;
+  const letters = nombre.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, '');
+  return letters.length >= 3;
+}
+
+function isValidTelefono(telefono: string): boolean {
+  if (!telefono || !/^[0-9]{10}$/.test(telefono)) return false;
+  if (!/^[2-9]/.test(telefono)) return false;
+  if (/^(\d)\1{9}$/.test(telefono) || /(\d)\1{6,}/.test(telefono)) return false;
+  const dummyNumbers = [
+    '1234567890',
+    '0123456789',
+    '9876543210',
+    '0987654321',
+    '1122334455',
+    '1212121212',
+    '2345678901',
+    '9898989898',
+  ];
+  if (dummyNumbers.includes(telefono)) return false;
+  return true;
+}
+
 // ── POST /api/usuarios ────────────────────────────────────────────────────────
 router.post('/', async (req: Request, res: Response) => {
   const { correo, password, rol, telefono } = req.body;
@@ -81,8 +107,12 @@ router.post('/', async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
   }
 
-  if (nombre.length < 2 || nombre.length > 100) {
-    return res.status(400).json({ message: 'El nombre debe tener entre 2 y 100 caracteres.' });
+  if (/[0-9]/.test(nombre)) {
+    return res.status(400).json({ message: 'El nombre no debe contener números.' });
+  }
+
+  if (!isValidNombre(nombre)) {
+    return res.status(400).json({ message: 'El nombre debe tener entre 3 y 100 caracteres y contener solo letras.' });
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -91,8 +121,16 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   const normalizedTelefono = telefono.trim();
-  if (!/^[0-9]{10}$/.test(normalizedTelefono)) {
+  if (normalizedTelefono.length !== 10) {
     return res.status(400).json({ message: 'El teléfono debe tener exactamente 10 dígitos numéricos.' });
+  }
+
+  if (!/^[2-9]/.test(normalizedTelefono)) {
+    return res.status(400).json({ message: 'El teléfono debe tener 10 dígitos y no puede iniciar con 0 ni 1.' });
+  }
+
+  if (!isValidTelefono(normalizedTelefono)) {
+    return res.status(400).json({ message: 'El número telefónico no es válido.' });
   }
 
   if (rol !== 'Administrador' && rol !== 'Ciudadano') {
@@ -151,12 +189,23 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (!newTelefono) {
       return res.status(400).json({ message: 'El teléfono es obligatorio.' });
     }
-    if (!/^[0-9]{10}$/.test(newTelefono)) {
+    if (newTelefono.length !== 10) {
       return res.status(400).json({ message: 'El teléfono debe tener exactamente 10 dígitos numéricos.' });
     }
+    if (!/^[2-9]/.test(newTelefono)) {
+      return res.status(400).json({ message: 'El teléfono debe tener 10 dígitos y no puede iniciar con 0 ni 1.' });
+    }
+    if (!isValidTelefono(newTelefono)) {
+      return res.status(400).json({ message: 'El número telefónico no es válido.' });
+    }
 
-    if (newNombre.length < 2 || newNombre.length > 100) {
-      return res.status(400).json({ message: 'El nombre debe tener entre 2 y 100 caracteres.' });
+    if (nombre !== undefined) {
+      if (/[0-9]/.test(newNombre)) {
+        return res.status(400).json({ message: 'El nombre no debe contener números.' });
+      }
+      if (!isValidNombre(newNombre)) {
+        return res.status(400).json({ message: 'El nombre debe tener entre 3 y 100 caracteres y contener solo letras.' });
+      }
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
